@@ -1,0 +1,77 @@
+.register-page .auth-card {
+  animation: slideUp 0.7s ease;
+}
+
+.register-card {
+  width: min(540px, 100%);
+}
+
+.split-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.requirements-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.requirements-list span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+}
+
+.requirements-list .valid {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.16);
+}
+
+.success-text {
+  color: #86efac;
+  font-size: 0.82rem;
+}
+
+.success-box {
+  text-align: center;
+  padding: 22px 8px;
+  animation: zoomIn 0.5s ease;
+}
+
+.success-icon {
+  width: 70px;
+  height: 70px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 2rem;
+  color: white;
+  background: linear-gradient(135deg, #22c55e, #10b981);
+  box-shadow: 0 12px 28px rgba(34, 197, 94, 0.28);
+}
+
+.success-box h3 {
+  margin: 0 0 8px;
+}
+
+.success-box p {
+  margin: 0;
+  color: var(--muted);
+}
+
+@keyframes zoomIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 640px) {
+  .split-fields {
+    grid-template-columns: 1fr;
+  }
+}
