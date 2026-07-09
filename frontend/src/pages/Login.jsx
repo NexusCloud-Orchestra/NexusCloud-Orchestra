@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { API_URL } from '../config';
 import '../css/Login.css';
+
 
 function Login() {
   const navigate = useNavigate();
@@ -40,15 +42,41 @@ function Login() {
     return !nextErrors.email && !nextErrors.password;
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!validateForm()) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
+    setErrors({});
+    
+    try {
+      const response = await fetch(`${API_URL}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Login failed. Please try again.');
+      }
+
+      // Save tokens
+      localStorage.setItem('nexus-token', data.access_token);
+      localStorage.setItem('nexus-refresh-token', data.refresh_token);
+      
       setIsSubmitting(false);
       navigate('/dashboard');
-    }, 1200);
+    } catch (err) {
+      setIsSubmitting(false);
+      setErrors({ form: err.message });
+    }
   };
 
   return (
@@ -106,6 +134,8 @@ function Login() {
             {errors.password && <small className="field-error">{errors.password}</small>}
           </label>
 
+          {errors.form && <div className="field-error form-error" style={{ marginBottom: '1rem', color: '#ff4a4a', textAlign: 'center' }}>{errors.form}</div>}
+
           <div className="options-row">
             <label className="checkbox-row">
               <input
@@ -115,9 +145,9 @@ function Login() {
               />
               <span>Remember Me</span>
             </label>
-            <button type="button" className="link-button">
+            <Link to="/forgot-password" className="link-button">
               Forgot Password?
-            </button>
+            </Link>
           </div>
 
           <button className="primary-button" type="submit" disabled={isSubmitting}>

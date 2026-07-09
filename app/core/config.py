@@ -4,15 +4,18 @@ from typing import List
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=[".env", "../.env"],
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # App
     APP_NAME: str = "NexusCloud"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = False
+    API_URL: str = "http://localhost:8000"
+
 
     # Security
     SECRET_KEY: str
@@ -33,7 +36,7 @@ class Settings(BaseSettings):
     QUOTA_CACHE_TTL_SECONDS: int = 900
 
     # CORS
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]
+    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
 
 
 settings = Settings()

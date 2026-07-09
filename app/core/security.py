@@ -1,3 +1,21 @@
+# Workaround for passlib/bcrypt incompatibility in newer bcrypt versions
+try:
+    import bcrypt
+    if not hasattr(bcrypt, '__about__'):
+        class DummyAbout:
+            __version__ = bcrypt.__version__
+        bcrypt.__about__ = DummyAbout()
+    
+    # Wrap hashpw to truncate password if > 72 bytes, bypassing passlib check crash
+    original_hashpw = bcrypt.hashpw
+    def patched_hashpw(password: bytes, salt: bytes) -> bytes:
+        if len(password) > 72:
+            password = password[:72]
+        return original_hashpw(password, salt)
+    bcrypt.hashpw = patched_hashpw
+except ImportError:
+    pass
+
 from datetime import datetime, timedelta, timezone
 from typing import Any
 

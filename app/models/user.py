@@ -14,10 +14,12 @@ class Plan(str, enum.Enum):
 class User(Base):
     __tablename__ = "users"
 
-    email:         Mapped[str]  = mapped_column(String(255), unique=True, nullable=False, index=True)
-    password_hash: Mapped[str]  = mapped_column(String(255), nullable=False)
+    first_name:    Mapped[str]  = mapped_column(String(50), nullable=False)
+    last_name:     Mapped[str]  = mapped_column(String(100), nullable=False)
+    email:         Mapped[str]  = mapped_column(String(100), unique=True, nullable=False, index=True)
+    password:      Mapped[str]  = mapped_column(String(250), nullable=False)
     is_active:     Mapped[bool] = mapped_column(Boolean, default=True)
-    plan:          Mapped[Plan] = mapped_column(Enum(Plan), default=Plan.FREE)
+    plan:          Mapped[str]  = mapped_column(String(20), default="free")
 
     connections:  Mapped[list["CloudConnection"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     file_records: Mapped[list["FileRecord"]]       = relationship(back_populates="user", cascade="all, delete-orphan")

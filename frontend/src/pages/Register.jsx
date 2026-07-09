@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { API_URL } from '../config';
 import '../css/Register.css';
+
 
 function Register() {
   const navigate = useNavigate();
@@ -74,16 +76,40 @@ function Register() {
     return !Object.values(nextErrors).some(Boolean);
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!validateForm()) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
+    setErrors({});
+
+    try {
+      const response = await fetch(`${API_URL}/api/v1/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          first_name: form.firstName,
+          last_name: form.lastName,
+          email: form.email,
+          password: form.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Registration failed. Please try again.');
+      }
+
       setIsSubmitting(false);
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2000);
-    }, 1200);
+    } catch (err) {
+      setIsSubmitting(false);
+      setErrors({ form: err.message });
+    }
   };
 
   return (
@@ -106,6 +132,7 @@ function Register() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="auth-form" noValidate>
+            {errors.form && <div className="field-error form-error" style={{ marginBottom: '1rem', color: '#ff4a4a', textAlign: 'center' }}>{errors.form}</div>}
             <div className="split-fields">
               <label className="field">
                 <span>First Name</span>

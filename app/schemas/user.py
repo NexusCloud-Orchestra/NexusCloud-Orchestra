@@ -4,6 +4,8 @@ from app.models.user import Plan
 
 
 class UserRegister(BaseModel):
+    first_name: str
+    last_name: str
     email: EmailStr
     password: str
 
@@ -21,8 +23,20 @@ class TokenResponse(BaseModel):
 
 class UserResponse(BaseModel):
     id: uuid.UUID
+    first_name: str
+    last_name: str
     email: str
-    plan: Plan
+    plan: str
     is_active: bool
 
     model_config = {"from_attributes": True}
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    token: str
+    new_password: str
