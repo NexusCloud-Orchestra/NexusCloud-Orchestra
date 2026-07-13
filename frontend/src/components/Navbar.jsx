@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import ProfileMenu from './ProfileMenu';
+import { useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import ProfileDropdown from './ProfileDropdown';
 import Notifications from './Notifications';
 import '../css/Navbar.css';
 
 function Navbar() {
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const avatarRef = useRef(null);
 
   return (
     <header className="navbar">
@@ -27,9 +29,9 @@ function Navbar() {
       </div>
 
       <div className="navbar-right">
-        <button className="btn-nav-action btn-nav-secondary">
+        <Link to="/connect-cloud" className="btn-nav-action btn-nav-secondary" style={{ textDecoration: 'none' }}>
           <span>Connect Cloud</span>
-        </button>
+        </Link>
         
         <button className="btn-nav-action btn-nav-primary">
           <span>Upload File</span>
@@ -39,7 +41,7 @@ function Navbar() {
           <button
             onClick={() => {
               setShowNotifications(!showNotifications);
-              setShowProfileMenu(false);
+              setShowDropdown(false);
             }}
             className="nav-icon-btn"
             title="Notifications"
@@ -52,12 +54,13 @@ function Navbar() {
 
         <div style={{ position: 'relative' }}>
           <button
+            ref={avatarRef}
             onClick={() => {
-              setShowProfileMenu(!showProfileMenu);
+              setShowDropdown(!showDropdown);
               setShowNotifications(false);
             }}
             className="profile-avatar-trigger"
-            title="Account Profile"
+            title="User Profile"
           >
             <img
               src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80"
@@ -65,7 +68,12 @@ function Navbar() {
               className="avatar-image"
             />
           </button>
-          {showProfileMenu && <ProfileMenu onClose={() => setShowProfileMenu(false)} />}
+          {showDropdown && (
+            <ProfileDropdown
+              onClose={() => setShowDropdown(false)}
+              avatarRef={avatarRef}
+            />
+          )}
         </div>
       </div>
     </header>
