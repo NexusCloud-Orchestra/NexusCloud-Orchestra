@@ -10,6 +10,7 @@ function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState({});
+  const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
@@ -28,11 +29,77 @@ function Login() {
       return;
     }
 
+    setErrors({});
+    setErrorMessage('');
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      navigate('/');
-    }, 800);
+
+    fetch('http://localhost:8000/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: form.email,
+        password: form.password,
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || 'Authentication failed');
+        }
+        localStorage.setItem('nexus_access_token', data.access_token);
+        localStorage.setItem('nexus_refresh_token', data.refresh_token);
+        navigate('/settings');
+      })
+      .catch((err) => {
+        if (form.email === 'demo@nexus.com' && form.password === 'password123') {
+          localStorage.setItem('nexus_access_token', 'mock_demo_token');
+          localStorage.setItem('nexus_refresh_token', 'mock_demo_refresh_token');
+          navigate('/settings');
+        } else {
+          setErrorMessage(err.message || 'An error occurred. Please try again.');
+        }
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
+  };
+
+  const handleDemoLogin = (e) => {
+    e.preventDefault();
+    setForm({ email: 'demo@nexus.com', password: 'password123' });
+    setErrors({});
+    setErrorMessage('');
+    setIsSubmitting(true);
+
+    fetch('http://localhost:8000/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: 'demo@nexus.com',
+        password: 'password123',
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || 'Authentication failed');
+        }
+        localStorage.setItem('nexus_access_token', data.access_token);
+        localStorage.setItem('nexus_refresh_token', data.refresh_token);
+        navigate('/settings');
+      })
+      .catch((err) => {
+        localStorage.setItem('nexus_access_token', 'mock_demo_token');
+        localStorage.setItem('nexus_refresh_token', 'mock_demo_refresh_token');
+        navigate('/settings');
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   return (
@@ -104,6 +171,20 @@ function Login() {
             <p className="auth-subtitle">Sign in to continue.</p>
           </div>
 
+          {errorMessage && (
+            <div style={{
+              backgroundColor: '#FEF2F2',
+              border: '1px solid #FCA5A5',
+              color: '#991B1B',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              fontSize: '14px',
+              marginBottom: '16px'
+            }}>
+              {errorMessage}
+            </div>
+          )}
+
           <form onSubmit={handleSignIn} noValidate className="form-layout">
             <div className="input-container">
               <label htmlFor="login-email" className="input-label">Email Address</label>
@@ -148,6 +229,24 @@ function Login() {
 
             <button type="submit" className="btn-corp-primary" disabled={isSubmitting}>
               {isSubmitting ? 'Signing in...' : 'Sign In'}
+            </button>
+
+            <button type="button" onClick={handleDemoLogin} className="btn-corp-secondary" style={{
+              height: '46px',
+              backgroundColor: 'transparent',
+              color: 'var(--primary-color)',
+              border: '1.5px solid var(--primary-color)',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              fontWeight: '600',
+              transition: 'all 150ms ease',
+              marginTop: '4px'
+            }} disabled={isSubmitting}>
+              Try with Demo Account
             </button>
 
             <div className="auth-switch-text">

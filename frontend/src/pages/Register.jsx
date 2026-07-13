@@ -16,6 +16,7 @@ function Register() {
   });
 
   const [errors, setErrors] = useState({});
+  const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
@@ -49,12 +50,34 @@ function Register() {
     }
 
     setErrors({});
+    setErrorMessage('');
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      setIsSubmitting(false);
-      navigate('/login');
-    }, 800);
+    fetch('http://localhost:8000/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        first_name: form.firstName,
+        last_name: form.lastName,
+        email: form.email,
+        password: form.password,
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || 'Failed to create account.');
+        }
+        navigate('/login');
+      })
+      .catch((err) => {
+        setErrorMessage(err.message || 'An error occurred. Please try again.');
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   return (
@@ -125,6 +148,20 @@ function Register() {
             <h1 className="auth-title">Create Account</h1>
             <p className="auth-subtitle">Get started with your multi-cloud drive.</p>
           </div>
+
+          {errorMessage && (
+            <div style={{
+              backgroundColor: '#FEF2F2',
+              border: '1px solid #FCA5A5',
+              color: '#991B1B',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              fontSize: '14px',
+              marginBottom: '16px'
+            }}>
+              {errorMessage}
+            </div>
+          )}
 
           <form onSubmit={handleRegister} noValidate className="form-layout">
             <div className="form-grid-columns">
