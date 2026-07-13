@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import PasswordInput from '../components/PasswordInput';
 import NeuralBackground from '../components/NeuralBackground';
+import { API_URL } from '../config';
 import '../css/Register.css';
 
 function Register() {
@@ -53,7 +54,7 @@ function Register() {
     setErrorMessage('');
     setIsSubmitting(true);
 
-    fetch('http://localhost:8000/auth/register', {
+    fetch(`${API_URL}/api/v1/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

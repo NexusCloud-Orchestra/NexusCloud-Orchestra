@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PasswordInput from '../components/PasswordInput';
+import { API_URL } from '../config';
 import '../css/Settings.css';
 
 function Settings() {
@@ -35,12 +36,18 @@ function Settings() {
       return;
     }
 
-    fetch('http://localhost:8000/auth/me', {
+    fetch(`${API_URL}/api/v1/auth/me`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
     })
       .then((res) => {
+        if (res.status === 401) {
+          localStorage.removeItem('nexus_access_token');
+          localStorage.removeItem('nexus_refresh_token');
+          navigate('/login');
+          throw new Error('Unauthorized');
+        }
         if (!res.ok) {
           throw new Error('Failed to fetch user data');
         }
@@ -96,7 +103,7 @@ function Settings() {
         return;
       }
 
-      const res = await fetch('http://localhost:8000/auth/change-password', {
+      const res = await fetch(`${API_URL}/api/v1/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

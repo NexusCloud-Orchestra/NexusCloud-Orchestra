@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import PasswordInput from '../components/PasswordInput';
 import NeuralBackground from '../components/NeuralBackground';
+import { API_URL } from '../config';
 import '../css/Login.css';
 
 function Login() {
@@ -33,7 +34,7 @@ function Login() {
     setErrorMessage('');
     setIsSubmitting(true);
 
-    fetch('http://localhost:8000/auth/login', {
+    fetch(`${API_URL}/api/v1/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -50,13 +51,13 @@ function Login() {
         }
         localStorage.setItem('nexus_access_token', data.access_token);
         localStorage.setItem('nexus_refresh_token', data.refresh_token);
-        navigate('/settings');
+        navigate('/');
       })
       .catch((err) => {
         if (form.email === 'demo@nexus.com' && form.password === 'password123') {
           localStorage.setItem('nexus_access_token', 'mock_demo_token');
           localStorage.setItem('nexus_refresh_token', 'mock_demo_refresh_token');
-          navigate('/settings');
+          navigate('/');
         } else {
           setErrorMessage(err.message || 'An error occurred. Please try again.');
         }
@@ -73,7 +74,7 @@ function Login() {
     setErrorMessage('');
     setIsSubmitting(true);
 
-    fetch('http://localhost:8000/auth/login', {
+    fetch(`${API_URL}/api/v1/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -90,12 +91,13 @@ function Login() {
         }
         localStorage.setItem('nexus_access_token', data.access_token);
         localStorage.setItem('nexus_refresh_token', data.refresh_token);
-        navigate('/settings');
+        navigate('/');
       })
-      .catch((err) => {
+      .catch(() => {
+        // Fallback
         localStorage.setItem('nexus_access_token', 'mock_demo_token');
         localStorage.setItem('nexus_refresh_token', 'mock_demo_refresh_token');
-        navigate('/settings');
+        navigate('/');
       })
       .finally(() => {
         setIsSubmitting(false);

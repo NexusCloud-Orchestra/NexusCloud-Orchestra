@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_URL } from '../config';
 
 function Profile() {
   const navigate = useNavigate();
@@ -22,12 +23,19 @@ function Profile() {
       return;
     }
 
-    fetch('http://localhost:8000/auth/me', {
+    fetch(`${API_URL}/api/v1/auth/me`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (res.status === 401) {
+          localStorage.removeItem('nexus_access_token');
+          navigate('/login');
+          throw new Error('Unauthorized');
+        }
+        return res.json();
+      })
       .then((data) => setUser(data))
       .catch((err) => console.error(err));
   }, [navigate]);
