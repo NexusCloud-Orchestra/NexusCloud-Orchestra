@@ -1,0 +1,129 @@
+.table-container {
+  width: 100%;
+  background-color: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.table-header-block {
+  padding: 16px 24px;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.table-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.enterprise-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+
+.enterprise-table th {
+  background-color: #F9FAFB;
+  padding: 12px 24px;
+  font-weight: 600;
+  color: #4B5563;
+  border-bottom: 1px solid #E5E7EB;
+  white-space: nowrap;
+}
+
+.enterprise-table td {
+  padding: 14px 24px;
+  border-bottom: 1px solid #E5E7EB;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.enterprise-table tr:last-child td {
+  border-bottom: none;
+}
+
+.enterprise-table tr:hover td {
+  background-color: #F9FAFB;
+}
+
+.file-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.file-icon {
+  font-size: 18px;
+}
+
+.cloud-provider-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #4B5563;
+}
+
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dot.healthy {
+  background-color: #16A34A;
+}
+
+.dot.warning {
+  background-color: #F59E0B;
+}
+
+.dot.danger {
+  background-color: #DC2626;
+}
+
+.btn-table-action {
+  background: transparent;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-table-action:hover {
+  background-color: #F3F4F6;
+  color: #374151;
+}
+
+/* Action Dropdown Menu */
+.actions-cell-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+}
