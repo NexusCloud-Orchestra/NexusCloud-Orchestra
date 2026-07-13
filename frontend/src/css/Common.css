@@ -1,0 +1,51 @@
+/* Corporate theme variables */
+:root {
+  --bg-color: #F8FAFC;
+  --sidebar-color: #0F172A;
+  --primary-color: #2563EB;
+  --text-color: #111827;
+  --text-secondary: #6B7280;
+  --border-color: #E5E7EB;
+  --success-color: #16A34A;
+  --danger-color: #DC2626;
+
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Global resets for Auth pages */
+.auth-split-layout {
+  min-height: 100vh;
+  display: flex;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: var(--font-family);
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Animations */
+.fade-in {
+  animation: authFadeIn 150ms ease-out forwards;
+}
+
+@keyframes authFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Shared typography and basic components */
+h2 {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  margin: 0 0 8px 0;
+  color: var(--text-color);
+}
+
+p.subtitle {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin: 0 0 32px 0;
+  line-height: 1.5;
+}

@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
+import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import Dashboard from './pages/Dashboard';
 import './css/theme.css';
 
 function App() {
@@ -21,22 +19,10 @@ function App() {
 
   return (
     <div className="app-shell">
-      <button
-        type="button"
-        className="theme-toggle"
-        onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-        aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-      >
-        {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-      </button>
-
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </div>
   );
