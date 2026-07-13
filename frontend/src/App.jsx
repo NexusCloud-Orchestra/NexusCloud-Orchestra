@@ -8,8 +8,9 @@ import Storage from './pages/Storage';
 import Files from './pages/Files';
 import Clouds from './pages/Clouds';
 import Analytics from './pages/Analytics';
-import Settings from './pages/Settings';
+import AccountSecurity from './pages/AccountSecurity';
 import Profile from './pages/Profile';
+import ConnectCloud from './pages/ConnectCloud';
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
 import './css/theme.css';
@@ -37,8 +38,9 @@ function App() {
               <Route path="/storage" element={<Storage />} />
               <Route path="/clouds" element={<Clouds />} />
               <Route path="/analytics" element={<Analytics />} />
-              <Route path="/settings" element={<Settings />} />
+              <Route path="/settings" element={<AccountSecurity />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/connect-cloud" element={<ConnectCloud />} />
             </Routes>
           </div>
         </div>

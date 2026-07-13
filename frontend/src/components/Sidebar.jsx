@@ -10,15 +10,7 @@ function Sidebar({ collapsed, setCollapsed }) {
     { name: 'Storage', path: '/storage', icon: '💾' },
     { name: 'Connected Clouds', path: '/clouds', icon: '☁️' },
     { name: 'Analytics', path: '/analytics', icon: '📈' },
-    { name: 'Settings', path: '/settings', icon: '⚙️' },
-    { name: 'Profile', path: '/profile', icon: '👤' },
   ];
-
-  const handleSignOut = () => {
-    localStorage.removeItem('nexus_access_token');
-    localStorage.removeItem('nexus_refresh_token');
-    window.location.href = '/login';
-  };
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -51,13 +43,6 @@ function Sidebar({ collapsed, setCollapsed }) {
           );
         })}
       </nav>
-
-      <div className="sidebar-footer">
-        <button onClick={handleSignOut} className="menu-item" style={{ background: 'transparent', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }}>
-          <span className="menu-icon">🚪</span>
-          {!collapsed && <span>Logout</span>}
-        </button>
-      </div>
     </aside>
   );
 }

@@ -1,0 +1,254 @@
+/* Connect Cloud Page Styling */
+.connect-cloud-wrapper {
+  padding: 32px;
+  max-width: 1000px;
+  margin: 0 auto;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #111827;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  box-sizing: border-box;
+}
+
+/* Header Section */
+.connect-header {
+  margin-bottom: 8px;
+}
+
+.connect-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+}
+
+.connect-subtitle {
+  font-size: 15px;
+  color: #6B7280;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Provider Selection Cards Layout */
+.connect-providers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.connect-provider-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  box-sizing: border-box;
+}
+
+.connect-provider-card:hover {
+  border-color: #C5C9D0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  transform: translateY(-1px);
+}
+
+.connect-provider-card.selected {
+  border-color: #2563EB;
+  border-width: 2px;
+  padding: 15px 19px; /* adjust for border thickness */
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+/* Card Left Section: Icon */
+.connect-provider-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #F8FAFC;
+  border-radius: 8px;
+  border: 1px solid #E5E7EB;
+  flex-shrink: 0;
+}
+
+.connect-provider-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+/* Card Center Section: Text Details */
+.connect-provider-details {
+  flex: 1;
+  text-align: center;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.connect-provider-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.connect-provider-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.connect-provider-desc {
+  font-size: 13px;
+  color: #6B7280;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Card Selected Checkmark indicator */
+.connect-selected-checkmark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #2563EB;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+/* Connection Status Badge (Right) */
+.connect-status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  text-transform: capitalize;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.connect-status-badge.connected {
+  background-color: #DEF7EC;
+  color: #03543F;
+}
+
+.connect-status-badge.disconnected {
+  background-color: #FDE8E8;
+  color: #9B1C1C;
+}
+
+/* Dynamic Configuration Form */
+.connect-form-section {
+  background-color: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 28px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+.connect-form-header {
+  border-bottom: 1px solid #E5E7EB;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+.connect-form-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.connect-form-desc {
+  font-size: 13.5px;
+  color: #6B7280;
+  margin: 4px 0 0 0;
+}
+
+.connect-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.connect-form-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.connect-form-input {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  background-color: #FFFFFF;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.connect-form-input:focus {
+  outline: none;
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.connect-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* Animations */
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .connect-provider-card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+    padding: 20px;
+  }
+  .connect-provider-card.selected {
+    padding: 19px;
+  }
+  .connect-provider-details {
+    padding: 0;
+  }
+  .connect-status-badge {
+    align-self: center;
+  }
+}
