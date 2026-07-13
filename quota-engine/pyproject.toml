@@ -1,0 +1,13 @@
+[project]
+name = "quota-engine"
+version = "1.0.0"
+description = "Quota Engine API - Phase 1 Foundation"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+    "sqlalchemy>=2.0.0",
+    "psycopg[binary]>=3.1.0",
+    "python-dotenv>=1.0.0",
+]
