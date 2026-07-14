@@ -4,10 +4,10 @@
   top: 46px;
   right: 0;
   width: 280px;
-  background-color: #FFFFFF;
-  border: 1px solid #E5E7EB;
+  background-color: var(--card);
+  border: 1px solid var(--border);
   border-radius: 16px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow);
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -32,12 +32,12 @@
 /* Header section - User Profile info */
 .profile-dropdown-header {
   padding: 20px 20px 16px 20px;
-  border-bottom: 1px solid #E5E7EB;
+  border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  background-color: #FFFFFF;
+  background-color: var(--card);
 }
 
 .profile-dropdown-header h4 {
@@ -46,7 +46,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #6B7280;
+  color: var(--muted);
   align-self: flex-start;
 }
 
@@ -56,19 +56,19 @@
   border-radius: 50%;
   object-fit: cover;
   margin-bottom: 12px;
-  border: 2px solid #E5E7EB;
+  border: 2px solid var(--border);
 }
 
 .profile-dropdown-name {
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
   margin: 0;
 }
 
 .profile-dropdown-email {
   font-size: 13px;
-  color: #6B7280;
+  color: var(--muted);
   margin: 2px 0 12px 0;
   word-break: break-all;
 }
@@ -85,8 +85,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: #F8FAFC;
-  border: 1px solid #E5E7EB;
+  background-color: var(--input-bg);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 4px;
 }
@@ -94,7 +94,7 @@
 .profile-dropdown-meta-label {
   font-size: 10px;
   text-transform: uppercase;
-  color: #6B7280;
+  color: var(--muted);
   font-weight: 600;
   margin-bottom: 2px;
 }
@@ -102,7 +102,7 @@
 .profile-dropdown-meta-value {
   font-size: 12px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
 }
 
 /* Menu Items List */
@@ -122,7 +122,7 @@
   padding: 10px 12px;
   font-size: 14px;
   font-weight: 500;
-  color: #111827;
+  color: var(--text);
   text-decoration: none;
   border-radius: 8px;
   transition: background-color 0.15s ease, color 0.15s ease;
@@ -135,7 +135,7 @@
 }
 
 .profile-dropdown-item:hover {
-  background-color: #F8FAFC;
+  background-color: var(--input-bg);
 }
 
 .profile-dropdown-item-icon {
@@ -149,14 +149,14 @@
 /* Special styling for Logout option */
 .profile-dropdown-item.logout-item {
   color: #DC2626;
-  border-top: 1px solid #E5E7EB;
+  border-top: 1px solid var(--border);
   border-radius: 0;
   margin-top: 4px;
   padding-top: 12px;
 }
 
 .profile-dropdown-item.logout-item:hover {
-  background-color: #FEF2F2;
+  background-color: rgba(220, 38, 38, 0.08);
 }
 
 /* Responsive adjustment for Mobile screens */
@@ -171,4 +171,170 @@
     top: auto;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   }
+}
+
+/* ─── Simple Profile Menu Dropdown (ProfileMenu.jsx) ────────────────────── */
+.profile-menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: 46px;
+  width: 240px;
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  padding: 8px 0;
+  box-sizing: border-box;
+  animation: slideFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.profile-menu-user {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-menu-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.profile-menu-email {
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.profile-menu-badge {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  background-color: rgba(59, 130, 246, 0.15);
+  color: var(--primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.profile-menu-links {
+  padding: 4px 0;
+}
+
+.profile-menu-link {
+  display: block;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text);
+  text-decoration: none;
+  transition: background-color 0.12s ease;
+}
+
+.profile-menu-link:hover {
+  background-color: var(--input-bg);
+}
+
+.profile-menu-footer {
+  padding: 4px 0;
+  border-top: 1px solid var(--border);
+}
+
+.profile-menu-signout {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: #DC2626;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.12s ease;
+}
+
+.profile-menu-signout:hover {
+  background-color: rgba(220, 38, 38, 0.08);
+}
+
+/* ─── Notifications Dropdown ────────────────────────────────────────────── */
+.notifications-dropdown {
+  position: absolute;
+  right: 0;
+  top: 46px;
+  width: 320px;
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  box-sizing: border-box;
+  animation: slideFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.notifications-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.notifications-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.notifications-mark-read {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.notifications-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notification-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.notification-text {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.notification-time {
+  font-size: 11px;
+  color: var(--muted);
+  padding-left: 14px;
 }

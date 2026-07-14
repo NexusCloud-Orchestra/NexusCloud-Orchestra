@@ -32,9 +32,7 @@
     padding: 0 16px;
   }
 
-  .navbar-search-wrapper {
-    display: none; /* Hide search bar on smaller mobile devices */
-  }
+
 
   .page-content-wrapper {
     padding: 20px 16px;
@@ -75,3 +73,23 @@
     padding: 0 12px;
   }
 }
+
+@media (max-width: 768px) {
+  .navbar-search-wrapper {
+    width: 260px;
+  }
+  .search-shortcut-badge {
+    display: none;
+  }
+}
+
+@media (max-width: 580px) {
+  .navbar-search-wrapper {
+    width: 100%;
+    margin-right: 8px;
+  }
+  .btn-nav-action {
+    display: none !important;
+  }
+}
+

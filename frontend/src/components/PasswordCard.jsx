@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import PasswordInput from './PasswordInput';
+import { API_URL } from '../config';
 import '../css/SecurityCards.css';
 
 function PasswordCard() {
@@ -72,12 +73,42 @@ function PasswordCard() {
     setIsSubmitting(true);
     setError('');
 
-    // Simulate change password
+    const token = localStorage.getItem('nexus_access_token');
+    if (token === 'mock_demo_token') {
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        setSuccess(true);
+        setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } catch (err) {
+        setError('Failed to update password. Please try again.');
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      setSuccess(true);
-      setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      const res = await fetch(`${API_URL}/api/v1/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          current_password: form.currentPassword,
+          new_password: form.newPassword,
+        }),
+      });
+
+      if (res.ok) {
+        setSuccess(true);
+        setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } else {
+        const data = await res.json();
+        setError(data.detail || 'Failed to update password. Verify current password.');
+      }
     } catch (err) {
+      console.error(err);
       setError('Failed to update password. Please try again.');
     } finally {
       setIsSubmitting(false);

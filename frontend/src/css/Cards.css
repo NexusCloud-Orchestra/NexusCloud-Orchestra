@@ -7,8 +7,9 @@
 }
 
 .metric-card {
-  background-color: #FFFFFF;
-  border: 1px solid #E5E7EB;
+  background-color: var(--card);
+  border: 1px solid var(--card-border);
+  color: var(--text);
   border-radius: 8px;
   padding: 20px;
   display: flex;
@@ -31,17 +32,17 @@
 .metric-title {
   font-size: 13px;
   font-weight: 500;
-  color: #6B7280;
+  color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .metric-icon {
   font-size: 18px;
-  color: #9CA3AF;
+  color: var(--muted);
   width: 28px;
   height: 28px;
-  background-color: #F9FAFB;
+  background-color: var(--background);
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -51,13 +52,13 @@
 .metric-value {
   font-size: 26px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
   letter-spacing: -0.5px;
 }
 
 .metric-meta {
   font-size: 12px;
-  color: #6B7280;
+  color: var(--muted);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -82,8 +83,8 @@
 }
 
 .provider-card {
-  background-color: #FFFFFF;
-  border: 1px solid #E5E7EB;
+  background-color: var(--card);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 24px;
   display: flex;
@@ -93,8 +94,8 @@
 }
 
 .provider-card:hover {
-  border-color: #C5C9D0;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  border-color: var(--accent-color);
+  box-shadow: var(--shadow);
 }
 
 .provider-card-header {
@@ -117,14 +118,14 @@
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  background-color: #F8FAFC;
-  border: 1px solid #E5E7EB;
+  background-color: var(--background);
+  border: 1px solid var(--border);
 }
 
 .provider-name {
   font-size: 15px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
 }
 
 .status-badge {
@@ -158,12 +159,12 @@
   display: flex;
   justify-content: space-between;
   font-size: 13px;
-  color: #4B5563;
+  color: var(--muted);
 }
 
 .provider-progress-bar {
   height: 6px;
-  background-color: #E5E7EB;
+  background-color: var(--border);
   border-radius: 3px;
   overflow: hidden;
 }

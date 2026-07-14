@@ -30,10 +30,9 @@ function ProfileDropdown({ onClose, avatarRef }) {
   const menuItems = [
     { name: 'My Profile', path: '/profile', icon: '👤' },
     { name: 'Change Password', path: '/settings', icon: '🔑' },
-    { name: 'Appearance', path: '/profile#appearance', icon: '🎨' },
-    { name: 'Language', path: '/profile#language', icon: '🌐' },
+    { name: 'Appearance', path: '/appearance', icon: '🎨' },
     { name: 'Activity Log', path: '/profile#activity', icon: '📜' },
-    { name: 'Billing & Subscription', path: '/profile#billing', icon: '💳' },
+    { name: 'Billing & Subscription', path: '/subscription', icon: '💳' },
     { name: 'Help & Support', path: '/profile#help', icon: '❓' },
   ];
 

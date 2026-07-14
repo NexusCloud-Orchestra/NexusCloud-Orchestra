@@ -1,6 +1,7 @@
 .app-container {
   min-height: 100vh;
-  background-color: #F8FAFC;
+  background: var(--bg);
+  color: var(--text);
   display: flex;
 }
 
@@ -11,7 +12,7 @@
   min-height: 100vh;
   margin-left: 260px;
   transition: margin-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow-x: hidden;
+  overflow: visible;
 }
 
 .main-content-layout.collapsed {
@@ -42,14 +43,14 @@
 .welcome-heading {
   font-size: 28px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
   margin: 0 0 4px 0;
   letter-spacing: -0.5px;
 }
 
 .welcome-subtitle {
   font-size: 15px;
-  color: #6B7280;
+  color: var(--muted);
   margin: 0;
 }
 
@@ -85,7 +86,7 @@
 .dashboard-section-title {
   font-size: 18px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
   margin: 0;
 }
 
@@ -105,15 +106,38 @@
   width: 100%;
   height: 40px;
   padding: 0 12px;
-  border: 1px solid #D1D5DB;
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   font-size: 14px;
-  background-color: #FFFFFF;
+  background-color: var(--input-bg);
+  color: var(--input-text);
   box-sizing: border-box;
 }
 
 .form-input-box:focus {
   outline: none;
-  border-color: #2563EB;
+  border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.theme-toggle-btn {
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--card-border);
+  background-color: var(--card);
+  color: var(--text);
+  transition: all 0.12s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: inherit;
+}
+
+.theme-toggle-btn:hover {
+  background-color: var(--input-bg);
+  border-color: var(--accent-color);
 }

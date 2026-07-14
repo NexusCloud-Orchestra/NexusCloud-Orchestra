@@ -12,13 +12,13 @@ function QuickActions() {
   return (
     <div
       style={{
-        background: '#FFFFFF',
-        border: '1px solid #E5E7EB',
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
         borderRadius: '8px',
         padding: '24px',
       }}
     >
-      <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600, color: '#111827' }}>Quick Actions</h3>
+      <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>Quick Actions</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {actions.map((act) => (
           <button
@@ -37,8 +37,8 @@ function QuickActions() {
           >
             <span style={{ fontSize: '18px' }}>{act.icon}</span>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
-              <span style={{ fontSize: '13.5px', fontWeight: 600, color: '#111827' }}>{act.title}</span>
-              <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 400 }}>{act.desc}</span>
+              <span style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text)' }}>{act.title}</span>
+              <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 400 }}>{act.desc}</span>
             </div>
           </button>
         ))}

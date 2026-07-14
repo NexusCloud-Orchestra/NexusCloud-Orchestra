@@ -173,14 +173,14 @@ function Clouds() {
           z-index: 1000;
         }
         .modal-content {
-          background: #FFFFFF;
-          border: 1px solid #E5E7EB;
+          background: var(--card);
+          border: 1px solid var(--border);
           border-radius: 12px;
           padding: 32px;
           width: 100%;
           max-width: 550px;
-          box-shadow: 0 24px 48px rgba(0, 0, 0, 0.1);
-          color: #1F2937;
+          box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+          color: var(--text);
           box-sizing: border-box;
           max-height: 90vh;
           overflow-y: auto;
@@ -200,25 +200,25 @@ function Clouds() {
         .form-label {
           font-size: 13.5px;
           font-weight: 600;
-          color: #374151;
+          color: var(--text);
         }
         .form-select-box {
           height: 40px;
           padding: 0 12px;
-          border: 1px solid #D1D5DB;
+          border: 1px solid var(--input-border);
           border-radius: 6px;
           font-size: 14px;
-          background-color: #FFFFFF;
-          color: #1F2937;
+          background-color: var(--input-bg);
+          color: var(--input-text);
           box-sizing: border-box;
         }
         .form-textarea-box {
           padding: 10px 12px;
-          border: 1px solid #D1D5DB;
+          border: 1px solid var(--input-border);
           border-radius: 6px;
           font-size: 14px;
-          background-color: #FFFFFF;
-          color: #1F2937;
+          background-color: var(--input-bg);
+          color: var(--input-text);
           font-family: monospace;
           box-sizing: border-box;
           min-height: 100px;
@@ -236,17 +236,17 @@ function Clouds() {
         </button>
       </div>
 
-      {successMessage && <div style={{ color: '#16A34A', padding: '12px', background: '#DCFCE7', borderRadius: '6px', marginBottom: '20px', fontWeight: 600 }}>{successMessage}</div>}
-      {errorMessage && <div style={{ color: '#DC2626', padding: '12px', background: '#FEE2E2', borderRadius: '6px', marginBottom: '20px', fontWeight: 600 }}>{errorMessage}</div>}
+      {successMessage && <div className="clouds-success-banner">{successMessage}</div>}
+      {errorMessage && <div className="clouds-error-banner">{errorMessage}</div>}
 
       {loading ? (
-        <div style={{ padding: '40px', textAlign: 'center', fontSize: '16px', color: '#6B7280' }}>Loading cloud storage endpoints...</div>
+        <div className="clouds-loading">Loading cloud storage endpoints...</div>
       ) : connections.length === 0 ? (
-        <div style={{ padding: '60px', textAlign: 'center', background: '#FFFFFF', borderRadius: '8px', border: '1px dashed #D1D5DB' }}>
-          <div style={{ fontSize: '32px', marginBottom: '16px' }}>☁️</div>
-          <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#374151' }}>No Cloud Connections Linked</h3>
-          <p style={{ margin: '0 0 20px 0', color: '#6B7280', fontSize: '14px' }}>Add your first S3, Azure, or GCP vault storage to establish a unified pool.</p>
-          <button onClick={() => setShowModal(true)} className="btn-nav-action btn-nav-primary" style={{ margin: '0 auto' }}>Link Storage Account</button>
+        <div className="clouds-empty-state">
+          <div className="clouds-empty-icon">☁️</div>
+          <h3 className="clouds-empty-title">No Cloud Connections Linked</h3>
+          <p className="clouds-empty-desc">Add your first S3, Azure, or GCP vault storage to establish a unified pool.</p>
+          <button onClick={() => setShowModal(true)} className="btn-nav-action btn-nav-primary clouds-empty-btn">Link Storage Account</button>
         </div>
       ) : (
         <div className="providers-grid">
