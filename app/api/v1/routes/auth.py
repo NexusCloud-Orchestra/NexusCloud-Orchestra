@@ -144,6 +144,7 @@ async def reset_password(payload: ResetPasswordRequest, db: AsyncSession = Depen
     return {"detail": "Password has been reset successfully."}
 
 
+
 # ── Audit Logs ───────────────────────────────────────────────────
 @router.get("/audit-logs")
 async def get_audit_logs(
