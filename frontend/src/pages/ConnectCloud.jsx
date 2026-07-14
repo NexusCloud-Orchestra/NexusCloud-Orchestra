@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { API_URL } from '../config';
 import awsLogo from '../assets/cloud-icons/aws.svg';
 import azureLogo from '../assets/cloud-icons/azure.svg';
 import gcpLogo from '../assets/cloud-icons/google-cloud.svg';
@@ -11,15 +12,27 @@ import '../css/SecurityCards.css';
 
 function ConnectCloud() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Parse query parameters
+  const queryParams = new URLSearchParams(location.search);
+  const selectedQuery = queryParams.get('selected');
+  const initialSelected = selectedQuery ? selectedQuery.split(',') : [];
+
+  const [selectedQueue, setSelectedQueue] = useState(initialSelected);
+  const [currentQueueIndex, setCurrentQueueIndex] = useState(0);
+
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [isFormLoaded, setIsFormLoaded] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [awsForm, setAwsForm] = useState({ accessKeyId: '', secretAccessKey: '', bucketName: '', region: 'us-east-1' });
-  const [azureForm, setAzureForm] = useState({ connectionString: '', containerName: '' });
-  const [gcpForm, setGcpForm] = useState({ serviceAccountKey: '', bucketName: '' });
-  const [oracleForm, setOracleForm] = useState({ tenancyOcid: '', userOcid: '', fingerprint: '', bucketName: '' });
+  // Connection forms states
+  const [awsForm, setAwsForm] = useState({ accountId: '', accessKeyId: '', secretAccessKey: '', bucketName: '', region: 'us-east-1' });
+  const [azureForm, setAzureForm] = useState({ storageAccount: '', containerName: '', accountKey: '' });
+  const [gcpForm, setGcpForm] = useState({ projectId: '', serviceAccountKey: '', bucketName: '' });
+  const [oracleForm, setOracleForm] = useState({ tenancyOcid: '', userOcid: '', privateKey: '', fingerprint: '', bucketName: '' });
   const [backblazeForm, setBackblazeForm] = useState({ keyId: '', applicationKey: '', bucketName: '' });
   const [cloudflareForm, setCloudflareForm] = useState({ accountId: '', accessKeyId: '', secretAccessKey: '', bucketName: '' });
 
@@ -29,125 +42,258 @@ function ConnectCloud() {
       name: 'Amazon AWS S3',
       logo: awsLogo,
       desc: 'Highly scalable, industry-standard Amazon S3 Object Storage.',
-      status: 'disconnected',
     },
     {
       id: 'azure',
-      name: 'Microsoft Azure Blob Storage',
+      name: 'Microsoft Azure',
       logo: azureLogo,
       desc: 'Azure Blob Cache for low latency hybrid cloud workloads.',
-      status: 'connected',
     },
     {
       id: 'gcp',
-      name: 'Google Cloud Storage',
+      name: 'Google Cloud',
       logo: gcpLogo,
       desc: 'Google Cloud Storage for analytics-ready object buckets.',
-      status: 'connected',
     },
     {
       id: 'oracle',
-      name: 'Oracle Cloud Infrastructure',
+      name: 'Oracle Cloud',
       logo: oracleLogo,
       desc: 'OCI Object Storage for cold volume archival.',
-      status: 'disconnected',
     },
     {
       id: 'backblaze',
       name: 'Backblaze B2',
       logo: backblazeLogo,
       desc: 'Affordable, low-cost Backblaze B2 Cloud Drive.',
-      status: 'connected',
     },
     {
       id: 'cloudflare',
       name: 'Cloudflare R2',
       logo: cloudflareLogo,
       desc: 'Zero-egress fee Cloudflare R2 object storage caching.',
-      status: 'disconnected',
     },
   ];
 
+  // Set initial selected provider if query param is present
+  useEffect(() => {
+    if (selectedQueue.length > 0 && currentQueueIndex < selectedQueue.length) {
+      const provId = selectedQueue[currentQueueIndex];
+      setSelectedProvider(provId);
+      setIsFormLoaded(true);
+    } else if (selectedQueue.length === 0) {
+      setSelectedProvider(null);
+      setIsFormLoaded(false);
+    }
+  }, [selectedQueue, currentQueueIndex]);
+
   const handleProviderSelect = (providerId) => {
+    if (selectedQueue.length > 0) return; // In queue mode, selection is locked
     setSelectedProvider(providerId);
-    setIsFormLoaded(true); // Load the form dynamically
+    setIsFormLoaded(true);
     setSuccessMessage('');
+    setErrorMessage('');
   };
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    // Simulate connection check
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    const token = localStorage.getItem('nexus_access_token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    let payload = {
+      provider: selectedProvider,
+      display_name: providers.find((p) => p.id === selectedProvider).name,
+      bucket_name: '',
+      region: null,
+      credentials: {},
+    };
+
+    // Gather credentials and details depending on provider
+    if (selectedProvider === 'aws') {
+      payload.bucket_name = awsForm.bucketName;
+      payload.region = awsForm.region;
+      payload.credentials = {
+        aws_account_id: awsForm.accountId,
+        access_key_id: awsForm.accessKeyId,
+        secret_access_key: awsForm.secretAccessKey,
+      };
+    } else if (selectedProvider === 'azure') {
+      payload.bucket_name = azureForm.containerName;
+      payload.credentials = {
+        storage_account: azureForm.storageAccount,
+        connection_string: `DefaultEndpointsProtocol=https;AccountName=${azureForm.storageAccount};AccountKey=${azureForm.accountKey};EndpointSuffix=core.windows.net`,
+        account_key: azureForm.accountKey,
+      };
+    } else if (selectedProvider === 'gcp') {
+      payload.bucket_name = gcpForm.bucketName;
+      try {
+        const saJson = JSON.parse(gcpForm.serviceAccountKey);
+        payload.credentials = {
+          project_id: gcpForm.projectId,
+          service_account_json: saJson,
+        };
+      } catch (err) {
+        setErrorMessage('Service Account JSON is not valid JSON format.');
+        setIsSubmitting(false);
+        return;
+      }
+    } else if (selectedProvider === 'oracle') {
+      payload.bucket_name = oracleForm.bucketName;
+      payload.credentials = {
+        tenancy_ocid: oracleForm.tenancyOcid,
+        user_ocid: oracleForm.userOcid,
+        private_key: oracleForm.privateKey,
+        fingerprint: oracleForm.fingerprint,
+      };
+    } else if (selectedProvider === 'backblaze') {
+      payload.bucket_name = backblazeForm.bucketName;
+      payload.credentials = {
+        access_key_id: backblazeForm.keyId,
+        secret_access_key: backblazeForm.applicationKey,
+      };
+    } else if (selectedProvider === 'cloudflare') {
+      payload.bucket_name = cloudflareForm.bucketName;
+      payload.credentials = {
+        cloudflare_account_id: cloudflareForm.accountId,
+        access_key_id: cloudflareForm.accessKeyId,
+        secret_access_key: cloudflareForm.secretAccessKey,
+        endpoint_url: `https://${cloudflareForm.accountId}.r2.cloudflarestorage.com`,
+      };
+    }
+
+    if (token === 'mock_demo_token') {
+      // Mock demo connection saving
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setSuccessMessage(`Connected to ${payload.display_name} successfully (Demo Mode)!`);
+      proceedNext();
+      return;
+    }
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setSuccessMessage(`Connected to ${providers.find(p => p.id === selectedProvider).name} Successfully!`);
-      setTimeout(() => {
-        navigate('/clouds');
-      }, 1500);
+      const res = await fetch(`${API_URL}/api/v1/connections`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setSuccessMessage(`Connected to ${payload.display_name} successfully!`);
+        proceedNext();
+      } else {
+        const errData = await res.json();
+        setErrorMessage(errData.detail || 'Connection validation failed. Please check credentials.');
+      }
     } catch (err) {
       console.error(err);
+      setErrorMessage('Network error validating cloud connection.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const proceedNext = () => {
+    setTimeout(() => {
+      if (selectedQueue.length > 0 && currentQueueIndex + 1 < selectedQueue.length) {
+        setSuccessMessage('');
+        setCurrentQueueIndex((prev) => prev + 1);
+      } else {
+        // Complete
+        navigate('/clouds');
+      }
+    }, 1200);
+  };
+
+  const currentProviderDetails = providers.find((p) => p.id === selectedProvider);
+
   return (
     <div className="page-content-wrapper">
       <div className="connect-cloud-wrapper">
         <header className="connect-header">
-          <h1 className="connect-title">Connect Cloud Provider</h1>
-          <p className="connect-subtitle">Select a target cloud provider and enter supervisor credentials to mount virtual storage volumes.</p>
+          <h1 className="connect-title">
+            {selectedQueue.length > 0
+              ? `Connect Clouds (Step ${currentQueueIndex + 1} of ${selectedQueue.length})`
+              : 'Connect Cloud Provider'}
+          </h1>
+          <p className="connect-subtitle">
+            {selectedQueue.length > 0
+              ? `Configure credentials for the selected cloud providers sequentially.`
+              : 'Select a target cloud provider and enter supervisor credentials to mount virtual storage volumes.'}
+          </p>
         </header>
 
         {successMessage && <div className="success-banner">{successMessage}</div>}
+        {errorMessage && <div className="error-banner" style={{ background: '#fde7e9', border: '1px solid #e81123', color: '#a80000', padding: '12px 16px', borderRadius: '4px', marginBottom: '20px', fontSize: '13.5px' }}>{errorMessage}</div>}
 
-        {/* Provider Cards Selection List */}
-        <div className="connect-providers-list">
-          {providers.map((p) => {
-            const isSelected = selectedProvider === p.id;
-            return (
-              <div
-                key={p.id}
-                onClick={() => handleProviderSelect(p.id)}
-                className={`connect-provider-card ${isSelected ? 'selected' : ''}`}
-              >
-                <div className="connect-provider-icon-wrapper">
-                  <img src={p.logo} alt={`${p.name} logo`} className="connect-provider-icon" />
-                </div>
-                
-                <div className="connect-provider-details">
-                  <div className="connect-provider-name-row">
-                    <span className="connect-provider-name">{p.name}</span>
-                    {isSelected && <span className="connect-selected-checkmark">✓</span>}
+        {/* Hide selection list if we are in sequential setup queue mode */}
+        {selectedQueue.length === 0 && (
+          <div className="connect-providers-list">
+            {providers.map((p) => {
+              const isSelected = selectedProvider === p.id;
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => handleProviderSelect(p.id)}
+                  className={`connect-provider-card ${isSelected ? 'selected' : ''}`}
+                >
+                  <div className="connect-provider-icon-wrapper">
+                    <img src={p.logo} alt={`${p.name} logo`} className="connect-provider-icon" />
                   </div>
-                  <p className="connect-provider-desc">{p.desc}</p>
+                  
+                  <div className="connect-provider-details">
+                    <div className="connect-provider-name-row">
+                      <span className="connect-provider-name">{p.name}</span>
+                      {isSelected && <span className="connect-selected-checkmark">✓</span>}
+                    </div>
+                    <p className="connect-provider-desc">{p.desc}</p>
+                  </div>
                 </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <span className={`connect-status-badge ${p.status === 'connected' ? 'connected' : 'disconnected'}`}>
-                    {p.status}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Dynamic Form Loader */}
         {isFormLoaded && selectedProvider && (
-          <div className="connect-form-section">
-            <div className="connect-form-header">
-              <h3 className="connect-form-title">
-                Configure {providers.find((p) => p.id === selectedProvider).name} Credentials
-              </h3>
-              <p className="connect-form-desc">Provide authentication values to verify container permissions.</p>
+          <div className="connect-form-section" style={{ marginTop: '24px' }}>
+            <div className="connect-form-header" style={{ borderBottom: '1px solid #eaeaea', paddingBottom: '12px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <img src={currentProviderDetails?.logo} alt="" style={{ width: '32px', height: '32px' }} />
+                <div>
+                  <h3 className="connect-form-title" style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
+                    Configure {currentProviderDetails?.name} Credentials
+                  </h3>
+                  <p className="connect-form-desc" style={{ margin: '4px 0 0 0', fontSize: '12.5px', color: '#605e5c' }}>
+                    Provide connection keys to mount this cloud.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <form onSubmit={handleFormSubmit}>
               {/* AWS S3 Form */}
               {selectedProvider === 'aws' && (
                 <>
+                  <div className="connect-form-group">
+                    <label className="connect-form-label">AWS Account ID</label>
+                    <input
+                      type="text"
+                      className="connect-form-input"
+                      placeholder="123456789012"
+                      required
+                      value={awsForm.accountId}
+                      onChange={(e) => setAwsForm({ ...awsForm, accountId: e.target.value })}
+                    />
+                  </div>
                   <div className="connect-form-group">
                     <label className="connect-form-label">AWS Access Key ID</label>
                     <input
@@ -201,14 +347,14 @@ function ConnectCloud() {
               {selectedProvider === 'azure' && (
                 <>
                   <div className="connect-form-group">
-                    <label className="connect-form-label">Azure Connection String</label>
+                    <label className="connect-form-label">Storage Account Name</label>
                     <input
                       type="text"
                       className="connect-form-input"
-                      placeholder="DefaultEndpointsProtocol=https;AccountName=..."
+                      placeholder="mystorageaccount"
                       required
-                      value={azureForm.connectionString}
-                      onChange={(e) => setAzureForm({ ...azureForm, connectionString: e.target.value })}
+                      value={azureForm.storageAccount}
+                      onChange={(e) => setAzureForm({ ...azureForm, storageAccount: e.target.value })}
                     />
                   </div>
                   <div className="connect-form-group">
@@ -222,6 +368,17 @@ function ConnectCloud() {
                       onChange={(e) => setAzureForm({ ...azureForm, containerName: e.target.value })}
                     />
                   </div>
+                  <div className="connect-form-group">
+                    <label className="connect-form-label">Account Key</label>
+                    <input
+                      type="password"
+                      className="connect-form-input"
+                      placeholder="Storage Account Access Key"
+                      required
+                      value={azureForm.accountKey}
+                      onChange={(e) => setAzureForm({ ...azureForm, accountKey: e.target.value })}
+                    />
+                  </div>
                 </>
               )}
 
@@ -229,10 +386,21 @@ function ConnectCloud() {
               {selectedProvider === 'gcp' && (
                 <>
                   <div className="connect-form-group">
+                    <label className="connect-form-label">Project ID</label>
+                    <input
+                      type="text"
+                      className="connect-form-input"
+                      placeholder="google-cloud-project-id"
+                      required
+                      value={gcpForm.projectId}
+                      onChange={(e) => setGcpForm({ ...gcpForm, projectId: e.target.value })}
+                    />
+                  </div>
+                  <div className="connect-form-group">
                     <label className="connect-form-label">Service Account JSON Key</label>
                     <textarea
                       className="connect-form-input"
-                      style={{ height: '100px', padding: '10px' }}
+                      style={{ height: '120px', padding: '10px', fontFamily: 'monospace' }}
                       placeholder='{ "type": "service_account", ... }'
                       required
                       value={gcpForm.serviceAccountKey}
@@ -279,6 +447,17 @@ function ConnectCloud() {
                     />
                   </div>
                   <div className="connect-form-group">
+                    <label className="connect-form-label">Private Key (PEM format)</label>
+                    <textarea
+                      className="connect-form-input"
+                      style={{ height: '120px', padding: '10px', fontFamily: 'monospace' }}
+                      placeholder="-----BEGIN RSA PRIVATE KEY-----&#10;...&#10;-----END RSA PRIVATE KEY-----"
+                      required
+                      value={oracleForm.privateKey}
+                      onChange={(e) => setOracleForm({ ...oracleForm, privateKey: e.target.value })}
+                    />
+                  </div>
+                  <div className="connect-form-group">
                     <label className="connect-form-label">Key Fingerprint</label>
                     <input
                       type="text"
@@ -290,7 +469,7 @@ function ConnectCloud() {
                     />
                   </div>
                   <div className="connect-form-group">
-                    <label className="connect-form-label">Target Namespace Bucket Name</label>
+                    <label className="connect-form-label">Target Bucket Name</label>
                     <input
                       type="text"
                       className="connect-form-input"
@@ -396,8 +575,12 @@ function ConnectCloud() {
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedProvider(null);
-                    setIsFormLoaded(false);
+                    if (selectedQueue.length > 0) {
+                      navigate('/subscription');
+                    } else {
+                      setSelectedProvider(null);
+                      setIsFormLoaded(false);
+                    }
                   }}
                   className="security-button security-button-secondary"
                 >

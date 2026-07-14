@@ -22,6 +22,7 @@ from app.schemas.user import (
     ForgotPasswordRequest,
     ResetPasswordRequest,
     UserChangePassword,
+    PlanUpdateRequest,
 )
 from app.core.redis import redis_client
 
@@ -144,6 +145,7 @@ async def reset_password(payload: ResetPasswordRequest, db: AsyncSession = Depen
     return {"detail": "Password has been reset successfully."}
 
 
+
 # ── Audit Logs ───────────────────────────────────────────────────
 @router.get("/audit-logs")
 async def get_audit_logs(
@@ -186,3 +188,25 @@ async def change_password(
     await db.commit()
 
     return {"detail": "Password has been changed successfully."}
+
+
+@router.post("/plan")
+async def update_plan(
+    payload: PlanUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if payload.plan not in ["free", "pro", "enterprise"]:
+        raise HTTPException(status_code=400, detail="Invalid plan type")
+    
+    current_user.plan = payload.plan
+    db.add(
+        AuditLog(
+            user_id=current_user.id,
+            action=AuditAction.CREDENTIAL_ACCESS,
+            meta={"type": "plan_update", "plan": payload.plan}
+        )
+    )
+    await db.commit()
+    return {"detail": f"Subscription plan updated to {payload.plan} successfully."}
+

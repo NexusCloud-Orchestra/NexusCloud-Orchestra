@@ -10,6 +10,7 @@ function Sidebar({ collapsed, setCollapsed }) {
     { name: 'Storage', path: '/storage', icon: '💾' },
     { name: 'Connected Clouds', path: '/clouds', icon: '☁️' },
     { name: 'Analytics', path: '/analytics', icon: '📈' },
+    { name: 'Subscription', path: '/subscription', icon: '💳' },
   ];
 
   return (

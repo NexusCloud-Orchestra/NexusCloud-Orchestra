@@ -195,9 +195,9 @@ function Files() {
     <div className="page-content-wrapper">
       <style>{`
         .uploader-zone {
-          border: 2px dashed #D1D5DB;
+          border: 2px dashed var(--border);
           border-radius: 8px;
-          background-color: #FFFFFF;
+          background-color: var(--card);
           padding: 40px 24px;
           text-align: center;
           margin-bottom: 32px;
@@ -205,23 +205,23 @@ function Files() {
           position: relative;
         }
         .uploader-zone:hover {
-          border-color: #2563EB;
+          border-color: var(--primary);
         }
         .uploader-title {
           font-size: 16px;
           font-weight: 600;
-          color: #374151;
+          color: var(--text);
           margin: 0 0 8px 0;
         }
         .uploader-subtitle {
           font-size: 13px;
-          color: #6B7280;
+          color: var(--muted);
           margin: 0 0 20px 0;
         }
         .file-input-btn {
-          background-color: #F3F4F6;
-          border: 1px solid #D1D5DB;
-          color: #374151;
+          background-color: var(--input-bg);
+          border: 1px solid var(--border);
+          color: var(--text);
           padding: 10px 20px;
           border-radius: 6px;
           font-weight: 600;
@@ -230,25 +230,25 @@ function Files() {
           display: inline-block;
         }
         .file-input-btn:hover {
-          background-color: #E5E7EB;
+          border-color: var(--primary);
         }
         .progress-bar-container {
           max-width: 400px;
           margin: 20px auto 0 auto;
-          background: #E5E7EB;
+          background: var(--border);
           border-radius: 999px;
           height: 8px;
           overflow: hidden;
         }
         .progress-bar-fill {
           height: 100%;
-          background: #2563EB;
+          background: var(--primary);
           border-radius: 999px;
           transition: width 0.1s linear;
         }
         .progress-text {
           font-size: 12.5px;
-          color: #4B5563;
+          color: var(--muted);
           margin-top: 8px;
           font-weight: 500;
         }
@@ -259,11 +259,11 @@ function Files() {
         <p className="welcome-subtitle">Browse, search, upload, and sync files across your linked storage volumes.</p>
       </div>
 
-      {successMessage && <div style={{ color: '#16A34A', padding: '12px', background: '#DCFCE7', borderRadius: '6px', marginBottom: '20px', fontWeight: 600 }}>{successMessage}</div>}
-      {errorMessage && <div style={{ color: '#DC2626', padding: '12px', background: '#FEE2E2', borderRadius: '6px', marginBottom: '20px', fontWeight: 600 }}>{errorMessage}</div>}
+      {successMessage && <div className="clouds-success-banner">{successMessage}</div>}
+      {errorMessage && <div className="clouds-error-banner">{errorMessage}</div>}
 
       {connections.length === 0 ? (
-        <div style={{ padding: '24px', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '8px', color: '#92400E', fontSize: '14.5px', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="files-warning-banner">
           <span>⚠️</span>
           <span>
             <strong>No active cloud storage providers linked.</strong> Please link an account in the <strong>Cloud Providers</strong> tab first to establish a storage destination for uploads.

@@ -1,7 +1,7 @@
 .sidebar {
   width: 260px;
-  background-color: #111827;
-  color: #F9FAFB;
+  background-color: var(--sidebar);
+  color: var(--text);
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -10,7 +10,7 @@
   left: 0;
   top: 0;
   z-index: 100;
-  border-right: 1px solid #1F2937;
+  border-right: 1px solid var(--card-border);
   overflow: visible;
 }
 
@@ -24,7 +24,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  border-bottom: 1px solid #1F2937;
+  border-bottom: 1px solid var(--card-border);
   white-space: nowrap;
 }
 

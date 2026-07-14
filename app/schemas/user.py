@@ -41,7 +41,11 @@ class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
 
-
 class UserChangePassword(BaseModel):
     current_password: str
     new_password: str
+
+
+class PlanUpdateRequest(BaseModel):
+    plan: str
+

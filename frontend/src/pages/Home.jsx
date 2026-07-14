@@ -9,7 +9,7 @@ function Home() {
         <nav className="home-nav">
           <Link to="/" className="logo-container">
             <div className="logo-icon">☁️</div>
-            <span>nexus cloud</span>
+            <span>Nexus cloud</span>
           </Link>
 
           <div className="nav-links">

@@ -1,7 +1,7 @@
 .table-container {
   width: 100%;
-  background-color: #FFFFFF;
-  border: 1px solid #E5E7EB;
+  background-color: var(--card);
+  border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
   margin-bottom: 24px;
@@ -9,7 +9,7 @@
 
 .table-header-block {
   padding: 16px 24px;
-  border-bottom: 1px solid #E5E7EB;
+  border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -18,7 +18,7 @@
 .table-title {
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
   margin: 0;
 }
 
@@ -34,18 +34,18 @@
 }
 
 .enterprise-table th {
-  background-color: #F9FAFB;
+  background-color: var(--background);
   padding: 12px 24px;
   font-weight: 600;
-  color: #4B5563;
-  border-bottom: 1px solid #E5E7EB;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
 .enterprise-table td {
   padding: 14px 24px;
-  border-bottom: 1px solid #E5E7EB;
-  color: #374151;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
   white-space: nowrap;
 }
 
@@ -54,7 +54,7 @@
 }
 
 .enterprise-table tr:hover td {
-  background-color: #F9FAFB;
+  background-color: var(--input-bg);
 }
 
 .file-name-cell {
@@ -62,7 +62,7 @@
   align-items: center;
   gap: 12px;
   font-weight: 500;
-  color: #111827;
+  color: var(--text);
 }
 
 .file-icon {
@@ -75,7 +75,7 @@
   gap: 6px;
   font-size: 12px;
   font-weight: 500;
-  color: #4B5563;
+  color: var(--muted);
 }
 
 .status-indicator {
@@ -106,7 +106,7 @@
 .btn-table-action {
   background: transparent;
   border: none;
-  color: #9CA3AF;
+  color: var(--muted);
   cursor: pointer;
   padding: 6px;
   border-radius: 4px;
@@ -117,8 +117,8 @@
 }
 
 .btn-table-action:hover {
-  background-color: #F3F4F6;
-  color: #374151;
+  background-color: var(--input-bg);
+  color: var(--text);
 }
 
 /* Action Dropdown Menu */

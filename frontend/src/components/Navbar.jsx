@@ -1,10 +1,13 @@
 import { useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ProfileDropdown from './ProfileDropdown';
 import Notifications from './Notifications';
+import SearchBar from './SearchBar';
+import ThemeToggle from './ThemeToggle';
 import '../css/Navbar.css';
 
 function Navbar() {
+  const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const avatarRef = useRef(null);
@@ -12,20 +15,7 @@ function Navbar() {
   return (
     <header className="navbar">
       <div className="navbar-left">
-        <div className="navbar-search-wrapper">
-          <span className="navbar-search-icon">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </span>
-          <input
-            type="text"
-            placeholder="Search files, folders, metadata..."
-            className="navbar-search-input"
-          />
-          <span className="navbar-search-shortcut">Ctrl K</span>
-        </div>
+        <SearchBar />
       </div>
 
       <div className="navbar-right">
@@ -33,7 +23,9 @@ function Navbar() {
           <span>Connect Cloud</span>
         </Link>
         
-        <button className="btn-nav-action btn-nav-primary">
+        <ThemeToggle />
+        
+        <button className="btn-nav-action btn-nav-primary" onClick={() => navigate('/files')}>
           <span>Upload File</span>
         </button>
 

@@ -1,6 +1,6 @@
 .chart-card {
-  background-color: #FFFFFF;
-  border: 1px solid #E5E7EB;
+  background-color: var(--card);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 24px;
   display: flex;
@@ -14,7 +14,7 @@
 .chart-card-title {
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
   margin: 0;
 }
 
@@ -48,12 +48,12 @@
 .chart-center-value {
   font-size: 24px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
 }
 
 .chart-center-text {
   font-size: 12px;
-  color: #6B7280;
+  color: var(--muted);
   text-transform: uppercase;
   font-weight: 500;
   margin-top: 2px;
@@ -87,7 +87,7 @@
 }
 
 .legend-name {
-  color: #374151;
+  color: var(--text);
   font-weight: 500;
 }
 
@@ -99,11 +99,11 @@
 }
 
 .legend-used-storage {
-  color: #111827;
+  color: var(--text);
   font-weight: 600;
 }
 
 .legend-percentage {
-  color: #6B7280;
+  color: var(--muted);
   font-size: 12px;
 }

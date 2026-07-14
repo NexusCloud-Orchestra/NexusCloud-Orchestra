@@ -1,0 +1,391 @@
+/* Radio cards, colors circles, and preview component styles */
+
+/* Theme radio grid */
+.theme-radio-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.theme-radio-card {
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: var(--card);
+  transition: all 120ms ease;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.theme-radio-card:hover {
+  background: var(--input-bg);
+  border-color: var(--muted);
+}
+
+.theme-radio-card.active {
+  border-color: var(--accent-color, #2563EB);
+  background: var(--input-bg);
+}
+
+.theme-card-icon {
+  font-size: 24px;
+}
+
+.theme-card-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* Accent Color Picker circles list */
+.accent-color-list {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.accent-color-pill {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 120ms ease;
+  box-sizing: border-box;
+}
+
+.accent-color-pill:hover {
+  transform: scale(1.1);
+}
+
+.accent-color-pill.active {
+  border-color: var(--text);
+  transform: scale(1.05);
+}
+
+.accent-color-inner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+
+/* Sidebar Options Grid */
+.sidebar-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.sidebar-option-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  cursor: pointer;
+  background: var(--card);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: center;
+  transition: all 120ms ease;
+  box-sizing: border-box;
+}
+
+.sidebar-option-card:hover {
+  background: var(--input-bg);
+}
+
+.sidebar-option-card.active {
+  border-color: var(--accent-color, #2563EB);
+  background: var(--input-bg);
+  color: var(--accent-color, #2563EB);
+}
+
+/* Density Buttons */
+.density-options-row {
+  display: flex;
+  gap: 12px;
+}
+
+.density-option-card {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  cursor: pointer;
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: all 120ms ease;
+}
+
+.density-option-card:hover {
+  background: var(--input-bg);
+}
+
+.density-option-card.active {
+  border-color: var(--accent-color, #2563EB);
+  background: var(--input-bg);
+}
+
+.density-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.density-preview-box {
+  width: 100%;
+  height: 48px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  background: var(--input-bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4px 8px;
+  gap: 4px;
+  box-sizing: border-box;
+}
+
+/* Slider */
+.font-slider-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.font-slider {
+  flex-grow: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+  accent-color: var(--accent-color, #2563EB);
+}
+
+.font-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+/* Live Preview Box (Sidebar styled) */
+.appearance-preview-sticky {
+  position: sticky;
+  top: 96px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+  box-sizing: border-box;
+}
+
+.preview-container-mock {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+/* Mock Navbar */
+.mock-navbar {
+  height: 38px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+
+.mock-logo {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.mock-search {
+  width: 120px;
+  height: 22px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+/* Mock Main Area */
+.mock-body-area {
+  display: flex;
+  height: 180px;
+}
+
+/* Mock Sidebar */
+.mock-sidebar {
+  width: 64px;
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: width 0.2s ease;
+  box-sizing: border-box;
+}
+
+.mock-sidebar.expanded {
+  width: 110px;
+}
+
+.mock-sidebar-item {
+  height: 20px;
+  border-radius: 4px;
+  background: var(--input-bg);
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  gap: 4px;
+}
+
+.mock-sidebar-item.active {
+  background: var(--accent-color, #2563EB);
+}
+
+.mock-sidebar-bullet {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.mock-sidebar-item.active .mock-sidebar-bullet {
+  background: #ffffff;
+}
+
+.mock-sidebar-text {
+  height: 5px;
+  width: 40px;
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.mock-sidebar-item.active .mock-sidebar-text {
+  background: #ffffff;
+}
+
+/* Mock content */
+.mock-content-panel {
+  flex-grow: 1;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+.mock-content-title {
+  height: 8px;
+  width: 80px;
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.mock-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: var(--shadow);
+}
+
+.mock-card-line {
+  height: 5px;
+  width: 100%;
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.mock-card-line.short {
+  width: 60%;
+}
+
+.mock-button {
+  height: 22px;
+  width: 68px;
+  border-radius: 4px;
+  background: var(--accent-color, #2563EB);
+  border: none;
+  cursor: pointer;
+}
+
+/* Save Bar bottom fixed styling */
+.save-bar-container {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 68px;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 40px;
+  gap: 16px;
+  z-index: 100;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.save-bar-btn {
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  transition: all 120ms ease;
+}
+
+.save-bar-btn:hover {
+  background: var(--input-bg);
+}
+
+.save-bar-btn.primary-btn {
+  background: var(--accent-color, #2563EB);
+  border-color: var(--accent-color, #2563EB);
+  color: #ffffff;
+}
+
+.save-bar-btn.primary-btn:hover {
+  opacity: 0.9;
+}
+.save-bar-btn.restore-btn {
+  margin-right: auto;
+  border-color: transparent;
+  color: var(--muted);
+}
+.save-bar-btn.restore-btn:hover {
+  color: var(--text);
+  background: transparent;
+  text-decoration: underline;
+}

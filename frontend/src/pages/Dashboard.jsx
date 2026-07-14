@@ -165,7 +165,7 @@ function Dashboard() {
                   padding: '14px',
                   borderRadius: '6px',
                   borderLeft: '4px solid',
-                  backgroundColor: '#F8FAFC',
+                  backgroundColor: 'var(--background)',
                   borderColor:
                     insight.type === 'warning'
                       ? '#DC2626'
@@ -177,11 +177,11 @@ function Dashboard() {
                 }}
               >
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#6B7280' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)' }}>
                     {insight.type}
                   </span>
                 </div>
-                <p style={{ margin: 0, fontSize: '13.5px', color: '#111827', fontWeight: 500, lineHeight: 1.4 }}>
+                <p style={{ margin: 0, fontSize: '13.5px', color: 'var(--text)', fontWeight: 500, lineHeight: 1.4 }}>
                   {insight.text}
                 </p>
               </div>

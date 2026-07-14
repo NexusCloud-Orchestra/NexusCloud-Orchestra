@@ -1,66 +1,168 @@
+/* CSS Variables mappings for light and dark themes with smooth transitions */
+
 :root {
-  color-scheme: dark;
-  --bg: linear-gradient(135deg, #020617 0%, #0f172a 45%, #111827 100%);
-  --text: #f8fafc;
-  --muted: #cbd5e1;
-  --card: rgba(30, 41, 59, 0.78);
-  --card-border: rgba(255, 255, 255, 0.12);
-  --input-bg: rgba(15, 23, 42, 0.7);
-  --input-border: rgba(148, 163, 184, 0.24);
-  --input-text: #f8fafc;
-  --link: #60a5fa;
-  --shadow: 0 24px 80px rgba(2, 6, 23, 0.45);
-  --orb-opacity: 0.24;
+  /* Transition duration specs */
+  --theme-transition: background-color 250ms ease, color 250ms ease, border-color 250ms ease, box-shadow 250ms ease;
 }
 
+/* Light Theme Variables */
 :root[data-theme='light'] {
-  color-scheme: light;
-  --bg: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
-  --text: #0f172a;
-  --muted: #475569;
-  --card: rgba(255, 255, 255, 0.88);
-  --card-border: rgba(15, 23, 42, 0.08);
-  --input-bg: rgba(255, 255, 255, 0.95);
-  --input-border: rgba(148, 163, 184, 0.35);
-  --input-text: #0f172a;
-  --link: #2563eb;
-  --shadow: 0 24px 80px rgba(148, 163, 184, 0.25);
-  --orb-opacity: 0.18;
+  --background: #F8FAFC;
+  --card: #FFFFFF;
+  --sidebar: #111827;
+  --text: #111827;
+  --muted: #6B7280;
+  --border: #E5E7EB;
+  --primary: #2563EB;
+  
+  /* Additional mappings to ensure compatibility with other pages */
+  --bg: #F8FAFC;
+  --card-border: #E5E7EB;
+  --input-bg: #FFFFFF;
+  --input-border: #D1D5DB;
+  --input-text: #111827;
+  --link: #2563EB;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-body {
-  margin: 0;
-  font-family: Inter, 'Segoe UI', sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  transition: background 0.3s ease, color 0.3s ease;
+/* Dark Theme Variables */
+:root[data-theme='dark'] {
+  --background: #0F172A;
+  --card: #1E293B;
+  --sidebar: #020617;
+  --text: #FFFFFF;
+  --muted: #CBD5E1;
+  --border: #334155;
+  --primary: #3B82F6;
+
+  /* Additional mappings to ensure compatibility with other pages */
+  --bg: #0F172A;
+  --card-border: #334155;
+  --input-bg: #1E293B;
+  --input-border: #334155;
+  --input-text: #FFFFFF;
+  --link: #3B82F6;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.app-shell {
-  min-height: 100vh;
+/* Apply transitions on relevant page containers */
+body, 
+.app-container,
+.main-content-layout,
+.navbar,
+.sidebar,
+.metric-card,
+.security-card,
+.dashboard-section,
+.page-content-wrapper {
+  transition: var(--theme-transition) !important;
 }
 
-.theme-toggle {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 20;
-  border: 1px solid var(--card-border);
-  background: var(--card);
-  color: var(--text);
-  border-radius: 999px;
-  padding: 10px 14px;
-  cursor: pointer;
-  backdrop-filter: blur(14px);
-  box-shadow: var(--shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+/* ─── Global Dark Mode Text Override ───────────────────────────────────────
+   Forces ALL text to white in dark mode, overriding any hardcoded hex colors
+   that remain in individual CSS files. Exceptions (badges, status pills, etc.)
+   are handled by their own more-specific selectors below.
+   ───────────────────────────────────────────────────────────────────────── */
+:root[data-theme='dark'] *:not(
+  .connect-status-badge,
+  .connect-status-badge *,
+  .plan-badge,
+  .status-indicator,
+  .dot,
+  .mock-sidebar-item.active *,
+  svg,
+  svg *
+) {
+  color: #FFFFFF;
 }
 
-.theme-toggle:hover {
-  transform: translateY(-1px);
+/* Re-apply muted color for secondary/helper text in dark mode */
+:root[data-theme='dark'] .welcome-subtitle,
+:root[data-theme='dark'] .connect-subtitle,
+:root[data-theme='dark'] .connect-provider-desc,
+:root[data-theme='dark'] .connect-form-desc,
+:root[data-theme='dark'] .appearance-subtitle,
+:root[data-theme='dark'] .appearance-section-desc,
+:root[data-theme='dark'] .appearance-toggle-sublabel,
+:root[data-theme='dark'] .cloud-provider-badge,
+:root[data-theme='dark'] .font-slider-labels,
+:root[data-theme='dark'] .save-bar-btn.restore-btn,
+:root[data-theme='dark'] .muted,
+:root[data-theme='dark'] [class*="muted"],
+:root[data-theme='dark'] [class*="subtitle"],
+:root[data-theme='dark'] [class*="desc"] {
+  color: #CBD5E1 !important;
 }
 
-.theme-toggle:focus-visible {
-  outline: 2px solid var(--link);
-  outline-offset: 2px;
+/* Keep primary button text white */
+:root[data-theme='dark'] .btn-nav-primary,
+:root[data-theme='dark'] .save-bar-btn.primary-btn,
+:root[data-theme='dark'] .connect-selected-checkmark {
+  color: #FFFFFF !important;
+}
+
+/* Sidebar always stays dark with white text (it's always dark regardless of theme) */
+:root[data-theme='dark'] .sidebar,
+:root[data-theme='dark'] .sidebar * {
+  color: inherit;
+}
+
+/* ─── Global Dark Mode Background Override ──────────────────────────────────
+   Forces card-like containers to use the dark card background, overriding
+   any hardcoded white/light backgrounds in individual CSS files.
+   ───────────────────────────────────────────────────────────────────────── */
+:root[data-theme='dark'] .pricing-card,
+:root[data-theme='dark'] .connect-provider-card,
+:root[data-theme='dark'] .connect-form-section,
+:root[data-theme='dark'] .appearance-section-card,
+:root[data-theme='dark'] .appearance-preview-sticky,
+:root[data-theme='dark'] .theme-radio-card,
+:root[data-theme='dark'] .sidebar-option-card,
+:root[data-theme='dark'] .density-option-card,
+:root[data-theme='dark'] .save-bar-container,
+:root[data-theme='dark'] .settings-header,
+:root[data-theme='dark'] .settings-section,
+:root[data-theme='dark'] .info-item,
+:root[data-theme='dark'] .security-card,
+:root[data-theme='dark'] .metric-card,
+:root[data-theme='dark'] .table-container,
+:root[data-theme='dark'] .navbar,
+:root[data-theme='dark'] .mock-navbar,
+:root[data-theme='dark'] .mock-sidebar,
+:root[data-theme='dark'] .mock-card,
+:root[data-theme='dark'] .profile-dropdown,
+:root[data-theme='dark'] .search-dropdown,
+:root[data-theme='dark'] [class*="-card"]:not(.popular-badge):not(.connect-status-badge):not(.plan-badge),
+:root[data-theme='dark'] [class*="-section"]:not(.connect-status-badge),
+:root[data-theme='dark'] [class*="-panel"],
+:root[data-theme='dark'] [class*="-container"]:not(.app-container):not(.subscription-container):not(.connect-cloud-wrapper) {
+  background-color: var(--card) !important;
+  background: var(--card) !important;
+}
+
+/* Page-level wrappers use the darker background, not card */
+:root[data-theme='dark'] .app-container,
+:root[data-theme='dark'] .subscription-container,
+:root[data-theme='dark'] .connect-cloud-wrapper,
+:root[data-theme='dark'] .page-content-wrapper,
+:root[data-theme='dark'] .appearance-page-container,
+:root[data-theme='dark'] body {
+  background-color: var(--background) !important;
+  background: var(--background) !important;
+}
+
+/* Form inputs in dark mode */
+:root[data-theme='dark'] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+:root[data-theme='dark'] select,
+:root[data-theme='dark'] textarea {
+  background-color: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+  color: var(--input-text) !important;
+}
+
+/* Borders in dark mode — force all hardcoded light borders to dark */
+:root[data-theme='dark'] [class*="-card"],
+:root[data-theme='dark'] [class*="-section"],
+:root[data-theme='dark'] [class*="-panel"] {
+  border-color: var(--border) !important;
 }

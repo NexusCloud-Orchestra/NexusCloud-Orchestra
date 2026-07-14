@@ -12,7 +12,7 @@
 
 .settings-header {
   border-bottom: 1px solid var(--border-color);
-  background-color: #FFFFFF;
+  background-color: var(--card);
   padding: 16px 32px;
   display: flex;
   justify-content: space-between;
@@ -51,7 +51,7 @@
 }
 
 .settings-section {
-  background: #FFFFFF;
+  background: var(--card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 32px;
@@ -85,7 +85,7 @@
   flex-direction: column;
   gap: 6px;
   padding: 16px;
-  background-color: #F8FAFC;
+  background-color: var(--input-bg);
   border-radius: 8px;
   border: 1px solid var(--border-color);
 }
@@ -134,9 +134,9 @@
 }
 
 .btn-signout:hover {
-  background-color: #F1F5F9;
+  background-color: var(--input-bg);
   color: var(--text-color);
-  border-color: #CBD5E1;
+  border-color: var(--border);
 }
 
 /* Form Styles */
@@ -148,9 +148,9 @@
 }
 
 .success-banner {
-  background-color: #ECFDF5;
-  border: 1px solid #A7F3D0;
-  color: #065F46;
+  background-color: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: var(--text);
   padding: 12px 16px;
   border-radius: 8px;
   font-size: 14px;
@@ -158,9 +158,9 @@
 }
 
 .error-banner {
-  background-color: #FEF2F2;
-  border: 1px solid #FCA5A5;
-  color: #991B1B;
+  background-color: rgba(220, 38, 38, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  color: var(--text);
   padding: 12px 16px;
   border-radius: 8px;
   font-size: 14px;

@@ -252,3 +252,76 @@
     align-self: center;
   }
 }
+
+/* ─── Clouds Page Empty State ─────────────────────────────────────────────── */
+.clouds-empty-state {
+  padding: 60px 40px;
+  text-align: center;
+  background: var(--card);
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+}
+
+.clouds-empty-icon {
+  font-size: 32px;
+  margin-bottom: 16px;
+}
+
+.clouds-empty-title {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.clouds-empty-desc {
+  margin: 0 0 20px 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.clouds-empty-btn {
+  margin: 0 auto;
+}
+
+/* Status banners */
+.clouds-success-banner {
+  padding: 12px 16px;
+  background: rgba(22, 163, 74, 0.12);
+  border: 1px solid rgba(22, 163, 74, 0.35);
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.clouds-error-banner {
+  padding: 12px 16px;
+  background: rgba(220, 38, 38, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Files page warning banner */
+.files-warning-banner {
+  padding: 16px 20px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14.5px;
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+/* Loading state */
+.clouds-loading {
+  padding: 40px;
+  text-align: center;
+  font-size: 16px;
+  color: var(--muted);
+}

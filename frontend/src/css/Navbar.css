@@ -1,7 +1,10 @@
 .navbar {
   height: 64px;
-  background-color: #FFFFFF;
-  border-bottom: 1px solid #E5E7EB;
+  background-color: var(--card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--card-border);
+  color: var(--text);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -99,30 +102,30 @@
 }
 
 .btn-nav-primary {
-  background-color: #2563EB;
+  background-color: var(--primary);
   color: #FFFFFF;
   border: none;
 }
 
 .btn-nav-primary:hover {
-  background-color: #1D4ED8;
+  filter: brightness(0.9);
 }
 
 .btn-nav-secondary {
-  background-color: #FFFFFF;
-  color: #374151;
-  border: 1px solid #D1D5DB;
+  background-color: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
 }
 
 .btn-nav-secondary:hover {
-  background-color: #F9FAFB;
-  border-color: #C5C9D0;
+  background-color: var(--input-bg);
+  border-color: var(--accent-color);
 }
 
 .nav-icon-btn {
   background: transparent;
   border: none;
-  color: #4B5563;
+  color: var(--muted);
   cursor: pointer;
   padding: 8px;
   border-radius: 9999px;
@@ -134,8 +137,8 @@
 }
 
 .nav-icon-btn:hover {
-  background-color: #F3F4F6;
-  color: #111827;
+  background-color: var(--input-bg);
+  color: var(--text);
 }
 
 .nav-badge {

@@ -1,0 +1,68 @@
+.navbar-search-wrapper {
+  position: relative;
+  width: 500px;
+  max-width: 100%;
+}
+
+.search-bar-container {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 48px;
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 0 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: all 150ms ease;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.search-bar-container:focus-within {
+  border-color: #3B82F6; /* Premium focus color */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.search-bar-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9CA3AF;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.search-bar-input {
+  flex-grow: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 14px;
+  color: #1F2937;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+.search-bar-input::placeholder {
+  color: #9CA3AF;
+}
+
+.search-shortcut-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F3F4F6;
+  border: 1px solid #E5E7EB;
+  color: #6B7280;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
