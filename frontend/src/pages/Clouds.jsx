@@ -33,6 +33,13 @@ function Clouds() {
       return;
     }
 
+    // Demo mode — show empty state
+    if (token === 'mock_demo_token') {
+      setConnections([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch(`${API_URL}/api/v1/quota/summary`, {
         headers: {

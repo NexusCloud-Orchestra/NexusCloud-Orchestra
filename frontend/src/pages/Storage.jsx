@@ -21,6 +21,13 @@ function Storage() {
       return;
     }
 
+    // Demo mode — show empty state
+    if (token === 'mock_demo_token') {
+      setQuota({ total_used_bytes: 0, total_free_bytes: 0, total_limit_bytes: 0, by_connection: [] });
+      setLoading(false);
+      return;
+    }
+
     try {
       const quotaRes = await fetch(`${API_URL}/api/v1/quota/summary`, {
         headers: { 'Authorization': `Bearer ${token}` }

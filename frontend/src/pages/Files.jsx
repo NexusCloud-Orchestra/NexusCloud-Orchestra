@@ -26,11 +26,24 @@ function Files() {
       return;
     }
 
+    // Demo mode — show empty state
+    if (token === 'mock_demo_token') {
+      setConnections([]);
+      setFiles([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       // 1. Fetch active connections
       const connRes = await fetch(`${API_URL}/api/v1/connections`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (connRes.status === 401) {
+        localStorage.removeItem('nexus_access_token');
+        navigate('/login');
+        return;
+      }
       const activeConns = connRes.ok ? await connRes.json() : [];
       setConnections(activeConns);
 

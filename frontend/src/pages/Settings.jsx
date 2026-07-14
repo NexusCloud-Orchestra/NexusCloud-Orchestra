@@ -59,9 +59,14 @@ function Settings() {
       })
       .catch((err) => {
         console.error(err);
-        localStorage.removeItem('nexus_access_token');
-        localStorage.removeItem('nexus_refresh_token');
-        navigate('/login');
+        // Only logout if explicitly unauthorized, not on other errors
+        if (err.message === 'Unauthorized') {
+          localStorage.removeItem('nexus_access_token');
+          localStorage.removeItem('nexus_refresh_token');
+          navigate('/login');
+        } else {
+          setLoading(false);
+        }
       });
   }, [navigate]);
 

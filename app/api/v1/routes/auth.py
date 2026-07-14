@@ -21,6 +21,7 @@ from app.schemas.user import (
     UserResponse,
     ForgotPasswordRequest,
     ResetPasswordRequest,
+    UserChangePassword,
 )
 from app.core.redis import redis_client
 
@@ -157,3 +158,31 @@ async def get_audit_logs(
         .limit(50)
     )
     return result.scalars().all()
+
+
+# ── Change Password ──────────────────────────────────────────────
+@router.post("/change-password")
+async def change_password(
+    payload: UserChangePassword,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Verify current password and change it to the new password."""
+    if not verify_password(payload.current_password, current_user.password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password."
+        )
+
+    current_user.password = hash_password(payload.new_password)
+    
+    db.add(
+        AuditLog(
+            user_id=current_user.id,
+            action=AuditAction.CREDENTIAL_ACCESS,
+            meta={"type": "password_change"}
+        )
+    )
+    await db.commit()
+
+    return {"detail": "Password has been changed successfully."}

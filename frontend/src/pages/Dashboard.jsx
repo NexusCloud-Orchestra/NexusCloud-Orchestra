@@ -37,6 +37,21 @@ function Dashboard() {
       return;
     }
 
+    // Demo mode — skip all API calls and use placeholder data
+    if (token === 'mock_demo_token') {
+      setUser({ first_name: 'Demo', last_name: 'User', email: 'demo@nexus.com', plan: 'pro' });
+      setQuota({
+        total_used_bytes: 0,
+        total_free_bytes: 10 * 1024 * 1024 * 1024,
+        total_limit_bytes: 10 * 1024 * 1024 * 1024,
+        by_connection: []
+      });
+      setFiles([]);
+      setActivities([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       // 1. Fetch User Profile
       const meRes = await fetch(`${API_URL}/api/v1/auth/me`, {

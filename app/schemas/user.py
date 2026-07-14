@@ -40,3 +40,8 @@ class ResetPasswordRequest(BaseModel):
     email: EmailStr
     token: str
     new_password: str
+
+
+class UserChangePassword(BaseModel):
+    current_password: str
+    new_password: str

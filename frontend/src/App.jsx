@@ -3,6 +3,8 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Storage from './pages/Storage';
 import Files from './pages/Files';
@@ -22,7 +24,7 @@ function App() {
   const [collapsed, setCollapsed] = useState(false);
 
   // Outer pages that don't render Sidebar/Navbar
-  const outerPaths = ['/login', '/register'];
+  const outerPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
   const isOuterPage = outerPaths.includes(location.pathname) || (location.pathname === '/' && !localStorage.getItem('nexus_access_token'));
 
   return (
@@ -49,6 +51,8 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Routes>
       )}
     </div>
