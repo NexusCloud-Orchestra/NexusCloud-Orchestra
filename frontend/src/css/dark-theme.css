@@ -1,0 +1,22 @@
+:root[data-theme='dark'] {
+  --background: #0F172A;
+  --sidebar: #020617;
+  --navbar: #111827;
+  --card: #1E293B;
+  --buttons: #3B82F6;
+  --primary-hover: #2563EB;
+  --text: #F8FAFC;
+  --secondary-text: #CBD5E1;
+  --border: #334155;
+  --table-header: #1E293B;
+  --input-bg: #111827;
+  --input-border: #334155;
+  --hover: #1E293B;
+  --success: #22C55E;
+  --warning: #FACC15;
+  --danger: #EF4444;
+
+  /* Aliases */
+  --primary: var(--buttons);
+  --muted: var(--secondary-text);
+}

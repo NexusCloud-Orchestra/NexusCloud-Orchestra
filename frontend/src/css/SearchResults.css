@@ -19,7 +19,7 @@
 
 .search-item-wrapper:hover,
 .search-item-wrapper.selected {
-  background: #F3F4F6;
+  background: var(--hover);
 }
 
 .search-item-left {
@@ -32,13 +32,13 @@
 
 .search-item-icon {
   font-size: 16px;
-  color: #6B7280;
+  color: var(--secondary-text);
   display: flex;
   align-items: center;
   justify-content: center;
   width: 24px;
   height: 24px;
-  background: #F3F4F6;
+  background: var(--hover);
   border-radius: 6px;
   flex-shrink: 0;
 }
@@ -46,7 +46,7 @@
 .search-item-wrapper:hover .search-item-icon,
 .search-item-wrapper.selected .search-item-icon {
   background: #ffffff;
-  color: #111827;
+  color: var(--text);
 }
 
 .search-item-title-wrapper {
@@ -57,7 +57,7 @@
 
 .search-item-title {
   font-size: 13.5px;
-  color: #374151;
+  color: var(--text);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -66,12 +66,12 @@
 
 .search-item-wrapper:hover .search-item-title,
 .search-item-wrapper.selected .search-item-title {
-  color: #111827;
+  color: var(--text);
 }
 
 .search-item-category {
   font-size: 10.5px;
-  color: #9CA3AF;
+  color: var(--secondary-text);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -83,7 +83,7 @@
   justify-content: center;
   background: transparent;
   border: none;
-  color: #9CA3AF;
+  color: var(--secondary-text);
   font-size: 14px;
   cursor: pointer;
   width: 22px;
@@ -94,7 +94,7 @@
 
 .search-item-remove-btn:hover {
   background: #E5E7EB;
-  color: #374151;
+  color: var(--text);
 }
 
 /* Category header spacer */

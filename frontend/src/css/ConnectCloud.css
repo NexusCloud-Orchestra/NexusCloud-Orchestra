@@ -4,7 +4,7 @@
   max-width: 1000px;
   margin: 0 auto;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  color: #111827;
+  color: var(--text);
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -19,14 +19,14 @@
 .connect-title {
   font-size: 28px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
   margin: 0 0 6px 0;
   letter-spacing: -0.02em;
 }
 
 .connect-subtitle {
   font-size: 15px;
-  color: #6B7280;
+  color: var(--secondary-text);
   margin: 0;
   line-height: 1.5;
 }
@@ -40,8 +40,8 @@
 }
 
 .connect-provider-card {
-  background-color: #FFFFFF;
-  border: 1px solid #E5E7EB;
+  background-color: var(--card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px 20px;
   display: flex;
@@ -73,9 +73,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #F8FAFC;
+  background-color: var(--card);
   border-radius: 8px;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -105,12 +105,12 @@
 .connect-provider-name {
   font-size: 15px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
 }
 
 .connect-provider-desc {
   font-size: 13px;
-  color: #6B7280;
+  color: var(--secondary-text);
   margin: 0;
   line-height: 1.4;
 }
@@ -123,8 +123,8 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background-color: #2563EB;
-  color: #FFFFFF;
+  background-color: var(--primary);
+  color: var(--text);
   font-size: 11px;
   font-weight: 700;
   margin-left: 8px;
@@ -154,8 +154,8 @@
 
 /* Dynamic Configuration Form */
 .connect-form-section {
-  background-color: #FFFFFF;
-  border: 1px solid #E5E7EB;
+  background-color: var(--card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 28px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -164,7 +164,7 @@
 }
 
 .connect-form-header {
-  border-bottom: 1px solid #E5E7EB;
+  border-bottom: 1px solid var(--border);
   padding-bottom: 16px;
   margin-bottom: 20px;
 }
@@ -172,13 +172,13 @@
 .connect-form-title {
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
   margin: 0;
 }
 
 .connect-form-desc {
   font-size: 13.5px;
-  color: #6B7280;
+  color: var(--secondary-text);
   margin: 4px 0 0 0;
 }
 
@@ -192,17 +192,17 @@
 .connect-form-label {
   font-size: 13px;
   font-weight: 500;
-  color: #374151;
+  color: var(--text);
 }
 
 .connect-form-input {
   height: 38px;
   padding: 0 12px;
-  border: 1px solid #D1D5DB;
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
   font-family: inherit;
-  background-color: #FFFFFF;
+  background-color: var(--card);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   box-sizing: border-box;
 }

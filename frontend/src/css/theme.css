@@ -1,168 +1,124 @@
-/* CSS Variables mappings for light and dark themes with smooth transitions */
+/* Global Font Size & Family Bindings */
+body, p, span:not(.brand-icon):not(.menu-icon), a, li, td, th, input, select, textarea, button {
+  font-family: var(--font-family, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif) !important;
+  font-size: var(--base-font-size, 14px) !important;
+}
 
+/* ─── Layout Density custom property mappings ─── */
 :root {
-  /* Transition duration specs */
-  --theme-transition: background-color 250ms ease, color 250ms ease, border-color 250ms ease, box-shadow 250ms ease;
+  --layout-padding: 32px;
+  --layout-gap: 24px;
+  --section-gap: 16px;
+  --card-padding: 20px;
+  --element-gap: 8px;
 }
 
-/* Light Theme Variables */
-:root[data-theme='light'] {
-  --background: #F8FAFC;
-  --card: #FFFFFF;
-  --sidebar: #111827;
-  --text: #111827;
-  --muted: #6B7280;
-  --border: #E5E7EB;
-  --primary: #2563EB;
-  
-  /* Additional mappings to ensure compatibility with other pages */
-  --bg: #F8FAFC;
-  --card-border: #E5E7EB;
-  --input-bg: #FFFFFF;
-  --input-border: #D1D5DB;
-  --input-text: #111827;
-  --link: #2563EB;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+:root[data-density='comfortable'] {
+  --layout-padding: 32px;
+  --layout-gap: 24px;
+  --section-gap: 16px;
+  --card-padding: 20px;
+  --element-gap: 8px;
 }
 
-/* Dark Theme Variables */
-:root[data-theme='dark'] {
-  --background: #0F172A;
-  --card: #1E293B;
-  --sidebar: #020617;
-  --text: #FFFFFF;
-  --muted: #CBD5E1;
-  --border: #334155;
-  --primary: #3B82F6;
-
-  /* Additional mappings to ensure compatibility with other pages */
-  --bg: #0F172A;
-  --card-border: #334155;
-  --input-bg: #1E293B;
-  --input-border: #334155;
-  --input-text: #FFFFFF;
-  --link: #3B82F6;
-  --shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+:root[data-density='compact'] {
+  --layout-padding: 16px;
+  --layout-gap: 12px;
+  --section-gap: 8px;
+  --card-padding: 12px;
+  --element-gap: 4px;
 }
 
-/* Apply transitions on relevant page containers */
-body, 
-.app-container,
-.main-content-layout,
-.navbar,
-.sidebar,
-.metric-card,
-.security-card,
-.dashboard-section,
-.page-content-wrapper {
-  transition: var(--theme-transition) !important;
+:root[data-density='spacious'] {
+  --layout-padding: 48px;
+  --layout-gap: 36px;
+  --section-gap: 24px;
+  --card-padding: 32px;
+  --element-gap: 16px;
 }
 
-/* ─── Global Dark Mode Text Override ───────────────────────────────────────
-   Forces ALL text to white in dark mode, overriding any hardcoded hex colors
-   that remain in individual CSS files. Exceptions (badges, status pills, etc.)
-   are handled by their own more-specific selectors below.
-   ───────────────────────────────────────────────────────────────────────── */
-:root[data-theme='dark'] *:not(
-  .connect-status-badge,
-  .connect-status-badge *,
-  .plan-badge,
-  .status-indicator,
-  .dot,
-  .mock-sidebar-item.active *,
-  svg,
-  svg *
-) {
-  color: #FFFFFF;
+/* ─── Accessibility Option Styles ─── */
+
+/* 1. High Contrast Mode - Light Theme Overrides */
+:root[data-theme='light'][data-high-contrast='true'] {
+  --background: #FFFFFF !important;
+  --card: #FFFFFF !important;
+  --text: #000000 !important;
+  --muted: #1A1A1A !important;
+  --border: #000000 !important;
+  --card-border: #000000 !important;
+  --input-border: #000000 !important;
 }
 
-/* Re-apply muted color for secondary/helper text in dark mode */
-:root[data-theme='dark'] .welcome-subtitle,
-:root[data-theme='dark'] .connect-subtitle,
-:root[data-theme='dark'] .connect-provider-desc,
-:root[data-theme='dark'] .connect-form-desc,
-:root[data-theme='dark'] .appearance-subtitle,
-:root[data-theme='dark'] .appearance-section-desc,
-:root[data-theme='dark'] .appearance-toggle-sublabel,
-:root[data-theme='dark'] .cloud-provider-badge,
-:root[data-theme='dark'] .font-slider-labels,
-:root[data-theme='dark'] .save-bar-btn.restore-btn,
-:root[data-theme='dark'] .muted,
-:root[data-theme='dark'] [class*="muted"],
-:root[data-theme='dark'] [class*="subtitle"],
-:root[data-theme='dark'] [class*="desc"] {
-  color: #CBD5E1 !important;
+/* 1. High Contrast Mode - Dark Theme Overrides */
+:root[data-theme='dark'][data-high-contrast='true'] {
+  --background: #000000 !important;
+  --card: #000000 !important;
+  --sidebar: #000000 !important;
+  --text: #FFFFFF !important;
+  --muted: #F1F5F9 !important;
+  --border: #FFFFFF !important;
+  --card-border: #FFFFFF !important;
+  --input-border: #FFFFFF !important;
+  --input-bg: #000000 !important;
 }
 
-/* Keep primary button text white */
-:root[data-theme='dark'] .btn-nav-primary,
-:root[data-theme='dark'] .save-bar-btn.primary-btn,
-:root[data-theme='dark'] .connect-selected-checkmark {
-  color: #FFFFFF !important;
+:root[data-high-contrast='true'] *:not(button):not(input):not(select):not(textarea) {
+  font-weight: 600 !important;
 }
 
-/* Sidebar always stays dark with white text (it's always dark regardless of theme) */
-:root[data-theme='dark'] .sidebar,
-:root[data-theme='dark'] .sidebar * {
-  color: inherit;
+:root[data-high-contrast='true'] .metric-card,
+:root[data-high-contrast='true'] .security-card,
+:root[data-high-contrast='true'] .appearance-section-card {
+  border: 2px solid var(--border) !important;
 }
 
-/* ─── Global Dark Mode Background Override ──────────────────────────────────
-   Forces card-like containers to use the dark card background, overriding
-   any hardcoded white/light backgrounds in individual CSS files.
-   ───────────────────────────────────────────────────────────────────────── */
-:root[data-theme='dark'] .pricing-card,
-:root[data-theme='dark'] .connect-provider-card,
-:root[data-theme='dark'] .connect-form-section,
-:root[data-theme='dark'] .appearance-section-card,
-:root[data-theme='dark'] .appearance-preview-sticky,
-:root[data-theme='dark'] .theme-radio-card,
-:root[data-theme='dark'] .sidebar-option-card,
-:root[data-theme='dark'] .density-option-card,
-:root[data-theme='dark'] .save-bar-container,
-:root[data-theme='dark'] .settings-header,
-:root[data-theme='dark'] .settings-section,
-:root[data-theme='dark'] .info-item,
-:root[data-theme='dark'] .security-card,
-:root[data-theme='dark'] .metric-card,
-:root[data-theme='dark'] .table-container,
-:root[data-theme='dark'] .navbar,
-:root[data-theme='dark'] .mock-navbar,
-:root[data-theme='dark'] .mock-sidebar,
-:root[data-theme='dark'] .mock-card,
-:root[data-theme='dark'] .profile-dropdown,
-:root[data-theme='dark'] .search-dropdown,
-:root[data-theme='dark'] [class*="-card"]:not(.popular-badge):not(.connect-status-badge):not(.plan-badge),
-:root[data-theme='dark'] [class*="-section"]:not(.connect-status-badge),
-:root[data-theme='dark'] [class*="-panel"],
-:root[data-theme='dark'] [class*="-container"]:not(.app-container):not(.subscription-container):not(.connect-cloud-wrapper) {
-  background-color: var(--card) !important;
-  background: var(--card) !important;
+/* 2. Keyboard Navigation Focus States */
+:root[data-keyboard-navigation='true'] *:focus {
+  outline: 3px dashed var(--primary) !important;
+  outline-offset: 2px !important;
 }
 
-/* Page-level wrappers use the darker background, not card */
-:root[data-theme='dark'] .app-container,
-:root[data-theme='dark'] .subscription-container,
-:root[data-theme='dark'] .connect-cloud-wrapper,
-:root[data-theme='dark'] .page-content-wrapper,
-:root[data-theme='dark'] .appearance-page-container,
-:root[data-theme='dark'] body {
-  background-color: var(--background) !important;
-  background: var(--background) !important;
+/* 3. Highly Visible Focus Indicators */
+:root[data-focus-indicators='true'] *:focus-visible,
+:root[data-focus-indicators='true'] button:focus,
+:root[data-focus-indicators='true'] input:focus,
+:root[data-focus-indicators='true'] select:focus,
+:root[data-focus-indicators='true'] textarea:focus {
+  outline: 3px solid var(--primary) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.4) !important;
 }
 
-/* Form inputs in dark mode */
-:root[data-theme='dark'] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-:root[data-theme='dark'] select,
-:root[data-theme='dark'] textarea {
-  background-color: var(--input-bg) !important;
-  border-color: var(--input-border) !important;
-  color: var(--input-text) !important;
+/* 4. Large Click Targets */
+:root[data-large-click-targets='true'] button,
+:root[data-large-click-targets='true'] .btn-nav-action,
+:root[data-large-click-targets='true'] .save-bar-btn,
+:root[data-large-click-targets='true'] .connect-btn {
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+  padding-left: 28px !important;
+  padding-right: 28px !important;
+  min-height: 48px !important;
 }
 
-/* Borders in dark mode — force all hardcoded light borders to dark */
-:root[data-theme='dark'] [class*="-card"],
-:root[data-theme='dark'] [class*="-section"],
-:root[data-theme='dark'] [class*="-panel"] {
-  border-color: var(--border) !important;
+:root[data-large-click-targets='true'] .menu-item {
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+}
+
+:root[data-large-click-targets='true'] .sidebar-option-card,
+:root[data-large-click-targets='true'] .theme-radio-card,
+:root[data-large-click-targets='true'] .density-option-card {
+  padding-top: 18px !important;
+  padding-bottom: 18px !important;
+}
+
+/* Disable transitions and animations if disabled or reduce-motion is enabled */
+:root[data-animations-enabled='false'] *,
+:root[data-reduce-motion='true'] * {
+  transition: none !important;
+  animation: none !important;
+  transition-duration: 0s !important;
+  animation-duration: 0s !important;
 }

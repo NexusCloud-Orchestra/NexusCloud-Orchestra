@@ -33,7 +33,7 @@
   align-items: center;
   gap: 12px;
   text-decoration: none;
-  color: #FFFFFF;
+  color: var(--text);
   font-weight: 700;
   font-size: 18px;
 }
@@ -45,7 +45,7 @@
 .sidebar-toggle-btn {
   background: transparent;
   border: none;
-  color: #9CA3AF;
+  color: var(--secondary-text);
   cursor: pointer;
   padding: 6px;
   border-radius: 4px;
@@ -56,8 +56,8 @@
 }
 
 .sidebar-toggle-btn:hover {
-  background-color: #1F2937;
-  color: #FFFFFF;
+  background-color: var(--hover);
+  color: var(--text);
 }
 
 .sidebar-menu {
@@ -74,7 +74,7 @@
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  color: #9CA3AF;
+  color: var(--secondary-text);
   text-decoration: none;
   border-radius: 6px;
   font-size: 14px;
@@ -84,13 +84,14 @@
 }
 
 .menu-item:hover {
-  background-color: #1F2937;
-  color: #FFFFFF;
+  background-color: var(--hover);
+  color: var(--text);
 }
 
 .menu-item.active {
-  background-color: #2563EB;
-  color: #FFFFFF;
+  background-color: color-mix(in srgb, var(--accent-color, var(--primary)) 15%, transparent);
+  color: var(--accent-color, var(--primary));
+  font-weight: 600;
 }
 
 .menu-icon {
@@ -103,7 +104,7 @@
 
 .sidebar-header-profile {
   padding: 12px 8px;
-  border-bottom: 1px solid #1F2937;
+  border-bottom: 1px solid var(--border);
   position: relative;
 }
 
@@ -117,14 +118,14 @@
   width: 100%;
   cursor: pointer;
   text-align: left;
-  color: #FFFFFF;
+  color: var(--text);
   border-radius: 8px;
   transition: background-color 0.15s ease;
   box-sizing: border-box;
 }
 
 .sidebar-profile-trigger:hover {
-  background-color: #1F2937;
+  background-color: var(--hover);
 }
 
 .sidebar-profile-avatar {
@@ -132,12 +133,12 @@
   height: 36px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid #374151;
+  border: 2px solid var(--border);
   transition: border-color 0.15s ease;
 }
 
 .sidebar-profile-trigger:hover .sidebar-profile-avatar {
-  border-color: #2563EB;
+  border-color: var(--primary);
 }
 
 .sidebar-profile-info {
@@ -150,7 +151,7 @@
 .sidebar-profile-name {
   font-size: 14px;
   font-weight: 600;
-  color: #F9FAFB;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -158,18 +159,18 @@
 
 .sidebar-profile-role {
   font-size: 11px;
-  color: #9CA3AF;
+  color: var(--secondary-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .sidebar-profile-arrow {
-  color: #9CA3AF;
+  color: var(--secondary-text);
   font-size: 10px;
   transition: color 0.15s ease;
 }
 
 .sidebar-profile-trigger:hover .sidebar-profile-arrow {
-  color: #FFFFFF;
+  color: var(--text);
 }

@@ -1,0 +1,22 @@
+:root, :root[data-theme='light'] {
+  --background: #F8FAFC;
+  --sidebar: #FFFFFF;
+  --navbar: #FFFFFF;
+  --card: #FFFFFF;
+  --buttons: #2563EB;
+  --primary-hover: #1D4ED8;
+  --text: #111827;
+  --secondary-text: #6B7280;
+  --border: #E5E7EB;
+  --table-header: #F3F4F6;
+  --input-bg: #FFFFFF;
+  --input-border: #D1D5DB;
+  --hover: #F3F4F6;
+  --success: #16A34A;
+  --warning: #F59E0B;
+  --danger: #DC2626;
+
+  /* Aliases */
+  --primary: var(--buttons);
+  --muted: var(--secondary-text);
+}

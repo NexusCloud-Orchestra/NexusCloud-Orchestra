@@ -4,7 +4,7 @@
   max-width: 1200px;
   margin: 0 auto;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  color: #323130; /* Azure default text */
+  color: var(--text);
 }
 
 /* Page Header */
@@ -17,13 +17,13 @@
 .subscription-title {
   font-size: 24px;
   font-weight: 600;
-  color: #111111;
+  color: var(--text);
   margin: 0 0 6px 0;
 }
 
 .subscription-subtitle {
   font-size: 13.5px;
-  color: #555555;
+  color: var(--muted);
   margin: 0;
 }
 
@@ -37,8 +37,8 @@
 
 /* Pricing Card */
 .pricing-card {
-  background: #ffffff;
-  border: 1px solid #d2d2d2;
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 24px;
   position: relative;
@@ -49,19 +49,19 @@
 }
 
 .pricing-card:hover {
-  border-color: #0078d4; /* Azure primary blue */
+  border-color: var(--primary); /* Azure primary blue */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .pricing-card.popular {
-  border: 2px solid #0078d4;
+  border: 2px solid var(--primary);
 }
 
 .popular-badge {
   position: absolute;
   top: -12px;
   right: 20px;
-  background: #0078d4;
+  background: var(--primary);
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;
@@ -74,7 +74,7 @@
 .plan-name {
   font-size: 14px;
   font-weight: 700;
-  color: #605e5c;
+  color: var(--muted);
   text-transform: uppercase;
   margin-bottom: 8px;
   letter-spacing: 0.5px;
@@ -83,7 +83,7 @@
 .plan-price {
   font-size: 32px;
   font-weight: 700;
-  color: #201f1e;
+  color: var(--text);
   margin-bottom: 20px;
   display: flex;
   align-items: baseline;
@@ -92,7 +92,7 @@
 .plan-price span {
   font-size: 14px;
   font-weight: 400;
-  color: #605e5c;
+  color: var(--muted);
   margin-left: 4px;
 }
 
@@ -101,13 +101,13 @@
   padding: 0;
   margin: 0 0 24px 0;
   flex-grow: 1;
-  border-top: 1px solid #f3f2f1;
+  border-top: 1px solid var(--border);
   padding-top: 16px;
 }
 
 .plan-features li {
   font-size: 13.5px;
-  color: #323130;
+  color: var(--text);
   margin-bottom: 12px;
   display: flex;
   align-items: flex-start;
@@ -116,7 +116,7 @@
 }
 
 .feature-check {
-  color: #107c41; /* Azure green */
+  color: var(--success); /* Azure green */
   font-weight: bold;
 }
 
@@ -126,34 +126,35 @@
   padding: 10px 16px;
   font-size: 13.5px;
   font-weight: 600;
-  border: 1px solid #d2d2d2;
+  border: 1px solid var(--border);
   border-radius: 2px;
-  background: #ffffff;
-  color: #323130;
+  background: var(--card);
+  color: var(--text);
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: center;
 }
 
 .plan-btn:hover {
-  background: #f3f2f1;
-  border-color: #a19f9d;
+  background: var(--hover);
+  border-color: var(--primary);
 }
 
 .plan-btn.btn-primary {
-  background: #0078d4;
-  border-color: #0078d4;
+  background: var(--primary);
+  border-color: var(--primary);
   color: #ffffff;
 }
 
 .plan-btn.btn-primary:hover {
-  background: #106ebe;
-  border-color: #106ebe;
+  background: var(--primary);
+  border-color: var(--primary);
+  opacity: 0.9;
 }
 
 .plan-btn.current {
-  background: #0078d4;
-  border-color: #0078d4;
+  background: var(--primary);
+  border-color: var(--primary);
   color: #ffffff;
   cursor: not-allowed;
   font-style: italic;
@@ -162,8 +163,8 @@
 
 /* Cloud Providers Selection Section */
 .selection-section {
-  background: #ffffff;
-  border: 1px solid #d2d2d2;
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 24px;
   margin-top: 32px;
@@ -173,13 +174,13 @@
 .section-title {
   font-size: 18px;
   font-weight: 600;
-  color: #201f1e;
+  color: var(--text);
   margin: 0 0 8px 0;
 }
 
 .section-desc {
   font-size: 13px;
-  color: #605e5c;
+  color: var(--muted);
   margin: 0 0 24px 0;
 }
 
@@ -192,7 +193,7 @@
 }
 
 .provider-card {
-  border: 1px solid #d2d2d2;
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 16px;
   display: flex;
@@ -205,13 +206,13 @@
 }
 
 .provider-card:hover {
-  background: #faf9f8;
-  border-color: #a19f9d;
+  background: var(--hover);
+  border-color: var(--primary);
 }
 
 .provider-card.selected {
-  border-color: #0078d4;
-  background: #f3f9fd;
+  border-color: var(--primary);
+  background: var(--hover);
 }
 
 .provider-icon-col {
@@ -220,7 +221,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f3f2f1;
+  background: var(--background);
   border-radius: 4px;
   flex-shrink: 0;
 }
@@ -238,13 +239,13 @@
 .provider-name {
   font-size: 14px;
   font-weight: 600;
-  color: #201f1e;
+  color: var(--text);
   margin: 0 0 4px 0;
 }
 
 .provider-desc {
   font-size: 12px;
-  color: #605e5c;
+  color: var(--muted);
   margin: 0;
   line-height: 1.4;
 }
@@ -352,17 +353,18 @@
   padding: 10px 24px;
   font-size: 13.5px;
   font-weight: 600;
-  border: 1px solid #0078d4;
+  border: 1px solid var(--primary);
   border-radius: 2px;
-  background: #0078d4;
+  background: var(--primary);
   color: #ffffff;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .connect-action-btn:hover:not(:disabled) {
-  background: #106ebe;
-  border-color: #106ebe;
+  background: var(--primary);
+  border-color: var(--primary);
+  opacity: 0.9;
 }
 
 .connect-action-btn:disabled {

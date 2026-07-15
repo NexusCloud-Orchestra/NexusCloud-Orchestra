@@ -148,7 +148,7 @@
 
 /* Special styling for Logout option */
 .profile-dropdown-item.logout-item {
-  color: #DC2626;
+  color: var(--danger);
   border-top: 1px solid var(--border);
   border-radius: 0;
   margin-top: 4px;
@@ -247,7 +247,7 @@
   text-align: left;
   padding: 8px 16px;
   font-size: 13px;
-  color: #DC2626;
+  color: var(--danger);
   background: transparent;
   border: none;
   cursor: pointer;

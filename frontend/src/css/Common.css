@@ -3,11 +3,11 @@
   --bg-color: #F8FAFC;
   --sidebar-color: #0F172A;
   --primary-color: #2563EB;
-  --text-color: #111827;
+  --text-color: var(--text);
   --text-secondary: #6B7280;
-  --border-color: #E5E7EB;
-  --success-color: #16A34A;
-  --danger-color: #DC2626;
+  --border-color: var(--border);
+  --success-color: var(--success);
+  --danger-color: var(--danger);
 
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
