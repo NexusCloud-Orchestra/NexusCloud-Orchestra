@@ -51,8 +51,8 @@ function Profile() {
 
       <div
         style={{
-          background: '#FFFFFF',
-          border: '1px solid #E5E7EB',
+          background: 'var(--card)',
+          border: '1px solid var(--border)',
           borderRadius: '8px',
           padding: '24px',
           maxWidth: '600px',
@@ -61,16 +61,16 @@ function Profile() {
         <h2 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 16px 0' }}>Profile Details</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>First Name</label>
-            <p style={{ margin: '4px 0 0 0', fontSize: '15px', color: '#111827', fontWeight: 500 }}>{user.first_name}</p>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase' }}>First Name</label>
+            <p style={{ margin: '4px 0 0 0', fontSize: '15px', color: 'var(--text)', fontWeight: 500 }}>{user.first_name}</p>
           </div>
           <div>
-            <label style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>Last Name</label>
-            <p style={{ margin: '4px 0 0 0', fontSize: '15px', color: '#111827', fontWeight: 500 }}>{user.last_name}</p>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase' }}>Last Name</label>
+            <p style={{ margin: '4px 0 0 0', fontSize: '15px', color: 'var(--text)', fontWeight: 500 }}>{user.last_name}</p>
           </div>
           <div>
-            <label style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>Email Address</label>
-            <p style={{ margin: '4px 0 0 0', fontSize: '15px', color: '#111827', fontWeight: 500 }}>{user.email}</p>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase' }}>Email Address</label>
+            <p style={{ margin: '4px 0 0 0', fontSize: '15px', color: 'var(--text)', fontWeight: 500 }}>{user.email}</p>
           </div>
         </div>
       </div>

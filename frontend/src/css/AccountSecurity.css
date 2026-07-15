@@ -4,7 +4,7 @@
   max-width: 1280px;
   margin: 0 auto;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  color: #111827;
+  color: var(--text);
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -44,14 +44,14 @@
 .security-title {
   font-size: 28px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
   margin: 0 0 6px 0;
   letter-spacing: -0.02em;
 }
 
 .security-subtitle {
   font-size: 15px;
-  color: #6B7280;
+  color: var(--secondary-text);
   margin: 0;
   line-height: 1.5;
 }

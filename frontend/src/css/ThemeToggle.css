@@ -3,14 +3,14 @@
 .theme-toggle-container {
   display: flex;
   align-items: center;
-  background-color: #E5E7EB;
-  border: 1px solid #D1D5DB;
-  border-radius: 20px;
+  background-color: var(--hover, #F3F4F6);
+  border: 1px solid var(--border, #E5E7EB);
+  border-radius: 12px;
   padding: 2px;
   gap: 2px;
   position: relative;
-  width: 130px;
-  height: 32px;
+  width: 140px;
+  height: 36px;
   box-sizing: border-box;
   user-select: none;
   transition: background-color 250ms ease, border-color 250ms ease;
@@ -18,8 +18,8 @@
 }
 
 [data-theme='dark'] .theme-toggle-container {
-  background-color: #0F172A;
-  border-color: #334155;
+  background-color: var(--input-bg, #111827);
+  border-color: var(--border, #334155);
 }
 
 .theme-toggle-option {
@@ -29,7 +29,7 @@
   justify-content: center;
   gap: 6px;
   height: 100%;
-  border-radius: 18px;
+  border-radius: 10px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -40,24 +40,24 @@
 }
 
 .theme-toggle-option span {
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 /* Light option active/inactive styling */
 .theme-toggle-option.light-opt {
-  color: #6B7280;
+  color: var(--muted, #6B7280);
 }
 .theme-toggle-option.light-opt.active {
-  color: #111827;
+  color: var(--text, #111827);
 }
 
 /* Dark option active/inactive styling */
 .theme-toggle-option.dark-opt {
-  color: #9CA3AF;
+  color: var(--muted, #CBD5E1);
 }
 .theme-toggle-option.dark-opt.active {
-  color: #ffffff;
+  color: var(--text, #F8FAFC);
 }
 
 /* Active Sliding indicator */
@@ -67,15 +67,15 @@
   bottom: 2px;
   left: 2px;
   width: calc(50% - 2px);
-  border-radius: 16px;
-  background-color: #ffffff;
+  border-radius: 10px;
+  background-color: var(--card, #FFFFFF);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
   z-index: 1;
   transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1), background-color 250ms ease;
 }
 
 [data-theme='dark'] .theme-toggle-indicator {
-  background-color: #1E293B;
+  background-color: var(--card, #1E293B);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
@@ -86,15 +86,5 @@
 
 /* Accessibility Focus Indicator */
 .theme-toggle-option:focus-visible {
-  box-shadow: 0 0 0 2px var(--accent-color, #2563EB);
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .theme-toggle-container {
-    width: 76px;
-  }
-  .theme-toggle-option span {
-    display: none; /* Hide text on smaller viewports, show icons only */
-  }
+  box-shadow: 0 0 0 2px var(--primary, #2563EB);
 }

@@ -17,10 +17,13 @@ import Subscription from './pages/Subscription';
 import Appearance from './pages/Appearance';
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
-import ThemeProvider from './components/ThemeProvider';
+import ThemeProvider from './provider/ThemeProvider';
+import './css/variables.css';
+import './css/light-theme.css';
+import './css/dark-theme.css';
 import './css/theme.css';
 import './css/Dashboard.css';
-import './css/Responsive.css';
+import './css/responsive.css';
 
 function App() {
   const location = useLocation();

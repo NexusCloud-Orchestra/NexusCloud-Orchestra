@@ -1,0 +1,22 @@
+/* CSS Variables for Base Transitions and Layout */
+:root {
+  --theme-transition: background-color 250ms ease, color 250ms ease, border-color 250ms ease, box-shadow 250ms ease;
+}
+
+body, 
+.app-container,
+.main-content-layout,
+.navbar,
+.sidebar,
+.metric-card,
+.security-card,
+.dashboard-section,
+.page-content-wrapper,
+button, input, select, textarea {
+  transition: var(--theme-transition);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text);
+}

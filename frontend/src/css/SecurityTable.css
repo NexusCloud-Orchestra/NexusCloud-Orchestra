@@ -2,9 +2,9 @@
 .security-table-container {
   width: 100%;
   overflow-x: auto;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background-color: #FFFFFF;
+  background-color: var(--card);
   margin-top: 12px;
 }
 
@@ -17,11 +17,11 @@
 }
 
 .security-table th {
-  background-color: #F8FAFC;
-  color: #4B5563;
+  background-color: var(--card);
+  color: var(--text);
   font-weight: 600;
   padding: 12px 16px;
-  border-bottom: 1px solid #E5E7EB;
+  border-bottom: 1px solid var(--border);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -30,8 +30,8 @@
 
 .security-table td {
   padding: 12px 16px;
-  border-bottom: 1px solid #E5E7EB;
-  color: #374151;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
   vertical-align: middle;
 }
 
@@ -40,7 +40,7 @@
 }
 
 .security-table tr:hover td {
-  background-color: #F9FAFB;
+  background-color: var(--hover);
 }
 
 /* Badge classes inside tables */
@@ -55,12 +55,12 @@
 
 .status-badge-success {
   background-color: #D1FAE5;
-  color: #065F46;
+  color: var(--success);
 }
 
 .status-badge-warning {
   background-color: #FEF3C7;
-  color: #92400E;
+  color: var(--warning);
 }
 
 .status-badge-info {
@@ -69,8 +69,8 @@
 }
 
 .status-badge-secondary {
-  background-color: #F3F4F6;
-  color: #374151;
+  background-color: var(--hover);
+  color: var(--text);
 }
 
 /* Table Filtering & Header actions */
@@ -95,28 +95,28 @@
   font-weight: 500;
   border-radius: 6px;
   cursor: pointer;
-  background-color: #FFFFFF;
-  border: 1px solid #D1D5DB;
-  color: #4B5563;
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
   transition: all 0.15s ease;
   font-family: inherit;
 }
 
 .table-filter-btn:hover {
-  background-color: #F9FAFB;
+  background-color: var(--hover);
   border-color: #C5C9D0;
 }
 
 .table-filter-btn.active {
-  background-color: #2563EB;
+  background-color: var(--primary);
   border-color: #2563EB;
-  color: #FFFFFF;
+  color: var(--text);
 }
 
 .table-title {
   font-size: 15px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
   margin: 0;
 }
 
@@ -128,8 +128,8 @@
 }
 
 .api-permission-tag {
-  background-color: #F3F4F6;
-  color: #4B5563;
+  background-color: var(--hover);
+  color: var(--text);
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 11px;

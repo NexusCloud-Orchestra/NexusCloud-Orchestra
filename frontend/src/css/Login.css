@@ -5,7 +5,7 @@
   width: 40%;
   min-width: 360px;
   background-color: var(--sidebar-color);
-  color: #FFFFFF;
+  color: var(--text);
   padding: 40px 32px;
   display: flex;
   flex-direction: column;
@@ -118,7 +118,7 @@
   height: 44px;
   padding: 0 16px;
   border: 1px solid var(--border-color);
-  background-color: #FFFFFF;
+  background-color: var(--card);
   color: var(--text-color);
   font-size: 14px;
   font-family: var(--font-family);
@@ -195,7 +195,7 @@
 .btn-corp-primary {
   height: 46px;
   background-color: var(--primary-color);
-  color: #FFFFFF;
+  color: var(--text);
   font-size: 14px;
   font-weight: 600;
   border: none;

@@ -92,15 +92,15 @@
 }
 
 .dot.healthy {
-  background-color: #16A34A;
+  background-color: var(--success);
 }
 
 .dot.warning {
-  background-color: #F59E0B;
+  background-color: var(--warning);
 }
 
 .dot.danger {
-  background-color: #DC2626;
+  background-color: var(--danger);
 }
 
 .btn-table-action {

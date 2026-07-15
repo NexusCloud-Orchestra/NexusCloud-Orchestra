@@ -6,6 +6,12 @@ function FontSettings({ fontSize, fontFamily, onChangeFontSize, onChangeFontFami
     { id: 'Roboto', name: 'Roboto' },
     { id: 'Open Sans', name: 'Open Sans' },
     { id: 'Poppins', name: 'Poppins' },
+    { id: 'Montserrat', name: 'Montserrat' },
+    { id: 'Lato', name: 'Lato' },
+    { id: 'Outfit', name: 'Outfit' },
+    { id: 'DM Sans', name: 'DM Sans' },
+    { id: 'Plus Jakarta Sans', name: 'Plus Jakarta Sans' },
+    { id: 'Fira Code', name: 'Fira Code' },
     { id: 'system-ui', name: 'System Default' },
   ];
 

@@ -20,7 +20,7 @@
 }
 
 .page-content-wrapper {
-  padding: 32px;
+  padding: var(--layout-padding, 32px);
   flex: 1;
   max-width: 1400px;
   width: 100%;
@@ -58,23 +58,23 @@
 .dashboard-grid-two-cols {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 24px;
-  margin-bottom: 24px;
+  gap: var(--layout-gap, 24px);
+  margin-bottom: var(--layout-padding, 24px);
 }
 
 .dashboard-grid-three-cols {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 24px;
-  margin-bottom: 24px;
+  gap: var(--layout-gap, 24px);
+  margin-bottom: var(--layout-padding, 24px);
 }
 
 /* Section Containers */
 .dashboard-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-bottom: 32px;
+  gap: var(--section-gap, 16px);
+  margin-bottom: var(--layout-padding, 32px);
 }
 
 .dashboard-section-header {

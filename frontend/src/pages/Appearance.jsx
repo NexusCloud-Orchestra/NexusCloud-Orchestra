@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import useTheme from '../hooks/useTheme';
 import ThemeSelector from '../components/ThemeSelector';
 import AccentColorPicker from '../components/AccentColorPicker';
 import SidebarSettings from '../components/SidebarSettings';
 import DensitySelector from '../components/DensitySelector';
 import FontSettings from '../components/FontSettings';
-import LanguageSelector from '../components/LanguageSelector';
 import AccessibilitySettings from '../components/AccessibilitySettings';
 import AppearancePreview from '../components/AppearancePreview';
 import SaveBar from '../components/SaveBar';
 import '../css/Appearance.css';
 
 const DEFAULT_SETTINGS = {
-  theme: 'system',
   accentColor: 'blue',
   sidebar: {
     expanded: true,
@@ -46,6 +45,7 @@ const DEFAULT_SETTINGS = {
 
 function Appearance() {
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [successBanner, setSuccessBanner] = useState('');
 
@@ -63,12 +63,6 @@ function Appearance() {
 
   // Apply settings preview instantly to the document
   useEffect(() => {
-    let activeTheme = settings.theme;
-    if (activeTheme === 'system') {
-      activeTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    document.documentElement.setAttribute('data-theme', activeTheme);
-
     const colors = {
       blue: '#2563EB',
       green: '#16A34A',
@@ -80,11 +74,13 @@ function Appearance() {
     const accentHex = colors[settings.accentColor] || '#2563EB';
     document.documentElement.style.setProperty('--accent-color', accentHex);
     document.documentElement.style.setProperty('--primary-color', accentHex);
+    document.documentElement.style.setProperty('--primary', accentHex);
 
     const fontSizes = { 0: '12px', 1: '14px', 2: '16px', 3: '18px' };
     document.documentElement.style.setProperty('--base-font-size', fontSizes[settings.fontSize]);
-    document.documentElement.style.setProperty('--font-family', settings.fontFamily === 'system-ui' ? 'sans-serif' : settings.fontFamily);
-  }, [settings.theme, settings.accentColor, settings.fontSize, settings.fontFamily]);
+    document.documentElement.style.setProperty('--font-family', settings.fontFamily === 'system-ui' ? 'sans-serif' : `"${settings.fontFamily}", sans-serif`);
+    document.documentElement.setAttribute('data-density', settings.density);
+  }, [settings.accentColor, settings.fontSize, settings.fontFamily, settings.density]);
 
   const handleSave = () => {
     localStorage.setItem('nexus_appearance_settings', JSON.stringify(settings));
@@ -103,12 +99,6 @@ function Appearance() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        let activeTheme = parsed.theme;
-        if (activeTheme === 'system') {
-          activeTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        }
-        document.documentElement.setAttribute('data-theme', activeTheme);
-
         const colors = {
           blue: '#2563EB',
           green: '#16A34A',
@@ -120,20 +110,23 @@ function Appearance() {
         const accentHex = colors[parsed.accentColor] || '#2563EB';
         document.documentElement.style.setProperty('--accent-color', accentHex);
         document.documentElement.style.setProperty('--primary-color', accentHex);
+        document.documentElement.style.setProperty('--primary', accentHex);
 
         const fontSizes = { 0: '12px', 1: '14px', 2: '16px', 3: '18px' };
         document.documentElement.style.setProperty('--base-font-size', fontSizes[parsed.fontSize]);
-        document.documentElement.style.setProperty('--font-family', parsed.fontFamily === 'system-ui' ? 'sans-serif' : parsed.fontFamily);
+        document.documentElement.style.setProperty('--font-family', parsed.fontFamily === 'system-ui' ? 'sans-serif' : `"${parsed.fontFamily}", sans-serif`);
+        document.documentElement.setAttribute('data-density', parsed.density);
       } catch (e) {
         console.error(e);
       }
     } else {
       // Revert to defaults if no saved preferences exist
-      document.documentElement.removeAttribute('data-theme');
       document.documentElement.style.removeProperty('--accent-color');
       document.documentElement.style.removeProperty('--primary-color');
+      document.documentElement.style.removeProperty('--primary');
       document.documentElement.style.removeProperty('--base-font-size');
       document.documentElement.style.removeProperty('--font-family');
+      document.documentElement.removeAttribute('data-density');
     }
     navigate('/');
   };
@@ -164,8 +157,8 @@ function Appearance() {
           <div className="appearance-sections-stack">
             {/* SECTION 1: Theme */}
             <ThemeSelector
-              value={settings.theme}
-              onChange={(theme) => setSettings((prev) => ({ ...prev, theme }))}
+              value={theme}
+              onChange={(newTheme) => setTheme(newTheme)}
             />
 
             {/* SECTION 2: Accent Color */}
@@ -199,30 +192,7 @@ function Appearance() {
               onChangeFontFamily={(fontFamily) => setSettings((prev) => ({ ...prev, fontFamily }))}
             />
 
-            {/* SECTION 7: Dashboard Layout */}
-            <div className="appearance-section-card">
-              <h3 className="appearance-section-title">Dashboard Layout</h3>
-              <p className="appearance-section-desc">Select configuration structure of the primary dashboard view.</p>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-                {[
-                  { id: 'default', name: 'Default Layout', desc: 'Balanced summary charts and quick links.' },
-                  { id: 'compact', name: 'Compact Layout', desc: 'Denser resource lists, summary metrics only.' },
-                  { id: 'analytics', name: 'Analytics First', desc: 'Historical usage trends charts prioritized.' },
-                  { id: 'storage', name: 'Storage First', desc: 'Storage connected pool allocation prioritized.' },
-                ].map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => setSettings((prev) => ({ ...prev, dashboardLayout: item.id }))}
-                    className={`sidebar-option-card ${settings.dashboardLayout === item.id ? 'active' : ''}`}
-                    style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left' }}
-                  >
-                    <span style={{ fontWeight: 600 }}>{item.name}</span>
-                    <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 'normal' }}>{item.desc}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+
 
             {/* SECTION 8: Animations */}
             <div className="appearance-section-card">
@@ -317,21 +287,13 @@ function Appearance() {
               }
             />
 
-            {/* SECTION 11 & 12: Language & Format selectors */}
-            <LanguageSelector
-              language={settings.language}
-              dateFormat={settings.dateFormat}
-              timeFormat={settings.timeFormat}
-              onChangeLanguage={(language) => setSettings((prev) => ({ ...prev, language }))}
-              onChangeDateFormat={(dateFormat) => setSettings((prev) => ({ ...prev, dateFormat }))}
-              onChangeTimeFormat={(timeFormat) => setSettings((prev) => ({ ...prev, timeFormat }))}
-            />
+
           </div>
 
           {/* SECTION 13: Live Preview Column (Sticky) */}
           <div>
             <AppearancePreview
-              theme={settings.theme}
+              theme={theme}
               accentColor={settings.accentColor}
               fontSize={settings.fontSize}
               sidebar={settings.sidebar}

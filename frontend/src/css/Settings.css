@@ -118,7 +118,7 @@
 
 .plan-badge.pro {
   background-color: #D1FAE5;
-  color: #065F46;
+  color: var(--success);
 }
 
 .btn-signout {
