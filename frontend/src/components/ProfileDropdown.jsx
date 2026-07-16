@@ -33,7 +33,6 @@ function ProfileDropdown({ onClose, avatarRef }) {
     { name: 'Appearance', path: '/appearance', icon: '🎨' },
     { name: 'Activity Log', path: '/profile#activity', icon: '📜' },
     { name: 'Billing & Subscription', path: '/subscription', icon: '💳' },
-    { name: 'Help & Support', path: '/profile#help', icon: '❓' },
   ];
 
   return (

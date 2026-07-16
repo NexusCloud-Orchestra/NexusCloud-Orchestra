@@ -138,6 +138,47 @@ function Files() {
       if (confirmRes.ok) {
         setSuccessMessage(`File "${file.name}" uploaded and synchronized successfully!`);
         fetchInitialData(); // Refresh list & quota
+
+        // Audio & Desktop notification triggers
+        try {
+          const saved = localStorage.getItem('nexus_appearance_settings');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed.notifications) {
+              if (parsed.notifications.playSound !== false) {
+                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav');
+                audio.play().catch(e => console.error('Audio chime failed:', e));
+              }
+              if (parsed.notifications.desktop !== false) {
+                if (Notification.permission === 'granted') {
+                  new Notification('Upload Complete', {
+                    body: `File "${file.name}" uploaded and synchronized successfully!`,
+                  });
+                } else if (Notification.permission !== 'denied') {
+                  Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                      new Notification('Upload Complete', {
+                        body: `File "${file.name}" uploaded and synchronized successfully!`,
+                      });
+                    }
+                  });
+                }
+              }
+            }
+          } else {
+            // Default behavior if settings don't exist yet: play sound & show notification
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav');
+            audio.play().catch(e => console.error('Audio chime failed:', e));
+            
+            if (Notification.permission === 'granted') {
+              new Notification('Upload Complete', {
+                body: `File "${file.name}" uploaded and synchronized successfully!`,
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Failed to trigger notifications', e);
+        }
       } else {
         const errData = await confirmRes.json();
         throw new Error(errData.detail || 'Upload confirmation failed');

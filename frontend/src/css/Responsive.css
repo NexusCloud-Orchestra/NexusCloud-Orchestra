@@ -6,3 +6,72 @@
     display: none;
   }
 }
+
+/* Help & Support Responsive Override */
+@media (max-width: 1200px) {
+  .helpsupport-grid-6col {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .helpsupport-grid-4col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 992px) {
+  .helpsupport-grid-3col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .helpsupport-grid-2col {
+    grid-template-columns: 1fr;
+  }
+  .cloud-guides-grid {
+    grid-template-columns: 1fr;
+  }
+  .priority-toggle-group {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .helpsupport-page-container {
+    padding: 20px;
+  }
+  .helpsupport-grid-6col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .helpsupport-grid-3col {
+    grid-template-columns: 1fr;
+  }
+  .helpsupport-grid-4col {
+    grid-template-columns: 1fr;
+  }
+  .emergency-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+  .emergency-button {
+    width: 100%;
+    text-align: center;
+  }
+  .form-grid-2col {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .helpsupport-grid-6col {
+    grid-template-columns: 1fr;
+  }
+  .priority-toggle-group {
+    grid-template-columns: 1fr;
+  }
+  .helpsupport-title {
+    font-size: 24px;
+  }
+  .ticket-form-card {
+    padding: 20px;
+  }
+}
