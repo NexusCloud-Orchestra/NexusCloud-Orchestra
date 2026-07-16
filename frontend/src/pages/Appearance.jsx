@@ -15,8 +15,6 @@ const DEFAULT_SETTINGS = {
   accentColor: 'blue',
   sidebar: {
     expanded: true,
-    collapsed: false,
-    auto: false,
     icons_only: false,
   },
   density: 'comfortable',
@@ -80,10 +78,17 @@ function Appearance() {
     document.documentElement.style.setProperty('--base-font-size', fontSizes[settings.fontSize]);
     document.documentElement.style.setProperty('--font-family', settings.fontFamily === 'system-ui' ? 'sans-serif' : `"${settings.fontFamily}", sans-serif`);
     document.documentElement.setAttribute('data-density', settings.density);
-  }, [settings.accentColor, settings.fontSize, settings.fontFamily, settings.density]);
+    document.documentElement.setAttribute('data-animations-enabled', settings.animations.enable.toString());
+    document.documentElement.setAttribute('data-reduce-motion', settings.animations.reduceMotion.toString());
+  }, [settings.accentColor, settings.fontSize, settings.fontFamily, settings.density, settings.animations.enable, settings.animations.reduceMotion]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('nexus_sidebar_preview', { detail: settings.sidebar }));
+  }, [settings.sidebar]);
 
   const handleSave = () => {
     localStorage.setItem('nexus_appearance_settings', JSON.stringify(settings));
+    window.dispatchEvent(new Event('nexus_settings_updated'));
 
     setSuccessBanner('Appearance settings updated successfully.');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -96,6 +101,7 @@ function Appearance() {
   const handleCancel = () => {
     // Re-apply original saved settings to revert the live preview
     const saved = localStorage.getItem('nexus_appearance_settings');
+    window.dispatchEvent(new Event('nexus_settings_updated'));
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -116,6 +122,10 @@ function Appearance() {
         document.documentElement.style.setProperty('--base-font-size', fontSizes[parsed.fontSize]);
         document.documentElement.style.setProperty('--font-family', parsed.fontFamily === 'system-ui' ? 'sans-serif' : `"${parsed.fontFamily}", sans-serif`);
         document.documentElement.setAttribute('data-density', parsed.density);
+        if (parsed.animations) {
+          document.documentElement.setAttribute('data-animations-enabled', parsed.animations.enable.toString());
+          document.documentElement.setAttribute('data-reduce-motion', parsed.animations.reduceMotion.toString());
+        }
       } catch (e) {
         console.error(e);
       }
@@ -127,6 +137,8 @@ function Appearance() {
       document.documentElement.style.removeProperty('--base-font-size');
       document.documentElement.style.removeProperty('--font-family');
       document.documentElement.removeAttribute('data-density');
+      document.documentElement.removeAttribute('data-animations-enabled');
+      document.documentElement.removeAttribute('data-reduce-motion');
     }
     navigate('/');
   };
@@ -262,12 +274,17 @@ function Appearance() {
                       <input
                         type="checkbox"
                         checked={settings.notifications[item.id]}
-                        onChange={() =>
+                        onChange={() => {
+                          if (item.id === 'desktop' && !settings.notifications.desktop) {
+                            if (Notification.permission !== 'granted') {
+                              Notification.requestPermission();
+                            }
+                          }
                           setSettings((prev) => ({
                             ...prev,
                             notifications: { ...prev.notifications, [item.id]: !prev.notifications[item.id] },
-                          }))
-                        }
+                          }));
+                        }}
                       />
                       <span className="appearance-switch-slider"></span>
                     </label>

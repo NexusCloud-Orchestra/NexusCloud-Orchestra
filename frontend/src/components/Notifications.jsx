@@ -1,13 +1,6 @@
 import '../css/ProfileDropdown.css';
 
-function Notifications({ onClose }) {
-  const notifications = [
-    { id: 1, text: 'Storage allocation almost full (AWS S3 exceeds 90%)', type: 'warning', time: '10m ago' },
-    { id: 2, text: 'Nightly backup successful', type: 'success', time: '8h ago' },
-    { id: 3, text: 'File "Project.pdf" shared with team members', type: 'info', time: '1d ago' },
-    { id: 4, text: 'Google Drive connection disconnected', type: 'danger', time: '2d ago' },
-  ];
-
+function Notifications({ notifications, onMarkAllRead, onClose }) {
   const dotColor = (type) => {
     if (type === 'warning') return '#F59E0B';
     if (type === 'success') return '#16A34A';
@@ -23,15 +16,17 @@ function Notifications({ onClose }) {
       <div className="notifications-dropdown">
         <div className="notifications-header">
           <span className="notifications-title">Notifications</span>
-          <button className="notifications-mark-read">Mark all read</button>
+          <button className="notifications-mark-read" onClick={onMarkAllRead}>Mark all read</button>
         </div>
 
         <div className="notifications-list">
           {notifications.map((item) => (
-            <div key={item.id} className="notification-item">
+            <div key={item.id} className={`notification-item ${item.read ? 'read' : ''}`} style={item.read ? { opacity: 0.6 } : {}}>
               <div className="notification-row">
-                <span className="notification-dot" style={{ backgroundColor: dotColor(item.type) }} />
-                <span className="notification-text">{item.text}</span>
+                {!item.read && <span className="notification-dot" style={{ backgroundColor: dotColor(item.type) }} />}
+                <span className="notification-text" style={item.read ? { fontWeight: 'normal' } : { fontWeight: '500' }}>
+                  {item.text}
+                </span>
               </div>
               <span className="notification-time">{item.time}</span>
             </div>

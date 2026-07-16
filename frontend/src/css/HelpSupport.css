@@ -1,0 +1,82 @@
+/* HelpSupport.css */
+.helpsupport-page-container {
+  padding: 32px;
+  background-color: var(--background, #F8FAFC);
+  min-height: 100vh;
+  color: var(--text, #111827);
+  font-family: 'Inter', sans-serif;
+  box-sizing: border-box;
+}
+
+.helpsupport-section {
+  margin-bottom: 48px;
+}
+
+.helpsupport-section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text, #111827);
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border, #E5E7EB);
+  padding-bottom: 12px;
+}
+
+.helpsupport-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.helpsupport-grid-3col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.helpsupport-grid-4col {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.helpsupport-grid-6col {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+}
+
+/* Breadcrumbs & Header styling */
+.helpsupport-header {
+  margin-bottom: 32px;
+}
+
+.helpsupport-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--secondary-text, #6B7280);
+  margin-bottom: 12px;
+}
+
+.helpsupport-breadcrumbs span {
+  cursor: pointer;
+}
+
+.helpsupport-breadcrumbs span:hover {
+  color: var(--buttons, #2563EB);
+}
+
+.helpsupport-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text, #111827);
+  margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
+}
+
+.helpsupport-subtitle {
+  font-size: 15px;
+  color: var(--secondary-text, #6B7280);
+  margin: 0;
+}

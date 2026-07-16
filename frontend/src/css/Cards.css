@@ -191,3 +191,328 @@
   display: flex;
   justify-content: flex-end;
 }
+
+/* Help & Support Cards */
+.help-card {
+  background-color: var(--card, #ffffff);
+  border: 1px solid var(--border, #E5E7EB);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.help-card:hover {
+  border-color: var(--input-border, #CBD5E1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.help-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.help-card-icon {
+  color: var(--buttons, #2563EB);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-card-status-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--success, #16A34A);
+  background-color: rgba(34, 197, 94, 0.15);
+  padding: 2px 8px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.help-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text, #111827);
+  margin: 0 0 8px 0;
+}
+
+.help-card-desc {
+  font-size: 14px;
+  color: var(--secondary-text, #6B7280);
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+  flex-grow: 1;
+}
+
+.help-card-button {
+  background-color: var(--card, #ffffff);
+  border: 1px solid var(--border, #E5E7EB);
+  color: var(--text, #111827);
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.help-card-button:hover {
+  background-color: var(--background, #F8FAFC);
+  border-color: var(--input-border, #CBD5E1);
+}
+
+.help-btn-primary {
+  background-color: var(--buttons, #2563EB);
+  border-color: var(--buttons, #2563EB);
+  color: #ffffff;
+}
+
+.help-btn-primary:hover {
+  background-color: var(--primary-hover, #1D4ED8);
+  border-color: var(--primary-hover, #1D4ED8);
+}
+
+/* System Status Styles */
+.system-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.system-status-card {
+  background-color: var(--card, #ffffff);
+  border: 1px solid var(--border, #E5E7EB);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.system-status-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text, #111827);
+}
+
+.system-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--success, #16A34A);
+}
+
+.system-status-badge::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background-color: var(--success, #16A34A);
+  border-radius: 50%;
+}
+
+/* Table Style for Cloud Connections */
+.help-table-wrapper {
+  background-color: var(--card, #ffffff);
+  border: 1px solid var(--border, #E5E7EB);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.help-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+
+.help-table th {
+  background-color: var(--table-header, #F8FAFC);
+  font-weight: 600;
+  color: var(--text, #111827);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border, #E5E7EB);
+}
+
+.help-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border, #E5E7EB);
+  color: var(--secondary-text, #6B7280);
+}
+
+.help-table tr:last-child td {
+  border-bottom: none;
+}
+
+.help-table tr:hover td {
+  background-color: var(--hover, #F8FAFC);
+}
+
+.provider-cell {
+  font-weight: 500;
+  color: var(--text, #111827);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-indicator-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.status-pill-connected {
+  color: var(--success, #16A34A);
+  background-color: rgba(34, 197, 94, 0.15);
+}
+
+.status-pill-disconnected {
+  color: var(--danger, #DC2626);
+  background-color: rgba(239, 68, 68, 0.15);
+}
+
+.status-pill-warning {
+  color: var(--warning, #D97706);
+  background-color: rgba(250, 204, 21, 0.15);
+}
+
+/* Cloud Guides Grid */
+.cloud-guides-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.cloud-guide-card {
+  background-color: var(--card, #ffffff);
+  border: 1px solid var(--border, #E5E7EB);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.15s ease;
+}
+
+.cloud-guide-card:hover {
+  border-color: var(--input-border, #CBD5E1);
+}
+
+.cloud-logo-wrapper {
+  width: 48px;
+  height: 48px;
+  background-color: var(--background, #F8FAFC);
+  border: 1px solid var(--border, #E5E7EB);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.cloud-guide-content {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.cloud-guide-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text, #111827);
+  margin: 0 0 4px 0;
+}
+
+.cloud-guide-desc {
+  font-size: 13px;
+  color: var(--secondary-text, #6B7280);
+  margin: 0 0 16px 0;
+  line-height: 1.4;
+}
+
+.cloud-guide-link {
+  font-size: 13px;
+  color: var(--buttons, #2563EB);
+  font-weight: 500;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cloud-guide-link:hover {
+  color: var(--primary-hover, #1D4ED8);
+}
+
+/* Emergency Alert */
+.emergency-card {
+  background-color: var(--hover, #FFFBEB);
+  border: 1px solid var(--warning, #FDE68A);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.emergency-info-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.emergency-icon {
+  color: var(--warning, #D97706);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.emergency-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text, #92400E);
+  margin: 0 0 4px 0;
+}
+
+.emergency-desc {
+  font-size: 14px;
+  color: var(--secondary-text, #B45309);
+  margin: 0;
+}
+
+.emergency-button {
+  background-color: var(--warning, #D97706);
+  border: 1px solid var(--warning, #D97706);
+  color: var(--background, #ffffff);
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.emergency-button:hover {
+  background-color: var(--primary-hover, #B45309);
+}

@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import '../css/Sidebar.css';
 
-function Sidebar({ collapsed, setCollapsed }) {
+function Sidebar({ collapsed, setCollapsed, iconsOnly }) {
   const location = useLocation();
 
   const menuItems = [
@@ -11,6 +11,7 @@ function Sidebar({ collapsed, setCollapsed }) {
     { name: 'Connected Clouds', path: '/clouds', icon: '☁️' },
     { name: 'Analytics', path: '/analytics', icon: '📈' },
     { name: 'Subscription', path: '/subscription', icon: '💳' },
+    { name: 'Help & Support', path: '/help-support', icon: '❓' },
   ];
 
   return (
@@ -20,13 +21,15 @@ function Sidebar({ collapsed, setCollapsed }) {
           <span className="brand-icon">☁️</span>
           {!collapsed && <span>nexus cloud</span>}
         </Link>
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="sidebar-toggle-btn"
-          title={collapsed ? 'Expand menu' : 'Collapse menu'}
-        >
-          {collapsed ? '→' : '←'}
-        </button>
+        {!iconsOnly && (
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="sidebar-toggle-btn"
+            title={collapsed ? 'Expand menu' : 'Collapse menu'}
+          >
+            {collapsed ? '→' : '←'}
+          </button>
+        )}
       </div>
 
       <nav className="sidebar-menu">

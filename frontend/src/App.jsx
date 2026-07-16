@@ -15,6 +15,7 @@ import Profile from './pages/Profile';
 import ConnectCloud from './pages/ConnectCloud';
 import Subscription from './pages/Subscription';
 import Appearance from './pages/Appearance';
+import HelpSupport from './pages/HelpSupport';
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
 import ThemeProvider from './provider/ThemeProvider';
@@ -28,6 +29,50 @@ import './css/responsive.css';
 function App() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [sidebarSettings, setSidebarSettings] = useState({
+    expanded: true,
+    icons_only: false,
+  });
+
+  const loadSidebarSettings = () => {
+    const saved = localStorage.getItem('nexus_appearance_settings');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.sidebar) {
+          setSidebarSettings(parsed.sidebar);
+        }
+      } catch (e) {
+        console.error('Error parsing sidebar settings', e);
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadSidebarSettings();
+
+    const handlePreview = (e) => {
+      if (e.detail) {
+        setSidebarSettings(e.detail);
+      }
+    };
+
+    window.addEventListener('nexus_settings_updated', loadSidebarSettings);
+    window.addEventListener('nexus_sidebar_preview', handlePreview);
+
+    return () => {
+      window.removeEventListener('nexus_settings_updated', loadSidebarSettings);
+      window.removeEventListener('nexus_sidebar_preview', handlePreview);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (sidebarSettings.expanded) {
+      setCollapsed(false);
+    } else if (sidebarSettings.icons_only) {
+      setCollapsed(true);
+    }
+  }, [sidebarSettings]);
 
   // Initialize saved appearance settings on startup
   useEffect(() => {
@@ -60,6 +105,10 @@ function App() {
         if (parsed.fontFamily) {
           document.documentElement.style.setProperty('--font-family', parsed.fontFamily === 'system-ui' ? 'sans-serif' : parsed.fontFamily);
         }
+        if (parsed.animations) {
+          document.documentElement.setAttribute('data-animations-enabled', parsed.animations.enable.toString());
+          document.documentElement.setAttribute('data-reduce-motion', parsed.animations.reduceMotion.toString());
+        }
       } catch (e) {
         console.error('Error loading appearance configuration', e);
       }
@@ -75,7 +124,7 @@ function App() {
       <div className="app-shell">
         {!isOuterPage ? (
           <div className="app-container">
-            <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+            <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} iconsOnly={sidebarSettings.icons_only} />
             <div className={`main-content-layout ${collapsed ? 'collapsed' : ''}`}>
               <Navbar />
               <Routes>
@@ -89,6 +138,7 @@ function App() {
                 <Route path="/connect-cloud" element={<ConnectCloud />} />
                 <Route path="/subscription" element={<Subscription />} />
                 <Route path="/appearance" element={<Appearance />} />
+                <Route path="/help-support" element={<HelpSupport />} />
               </Routes>
             </div>
           </div>
