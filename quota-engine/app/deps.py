@@ -2,21 +2,9 @@
 FastAPI Dependencies Module.
 
 This module houses reusable dependencies for FastAPI route controllers.
+All routes should import get_db from here rather than directly from database.py.
 """
 
-from typing import Generator
-from sqlalchemy.orm import Session
-from app.database import SessionLocal
-
-def get_db() -> Generator[Session, None, None]:
-    """
-    Dependency to get a SQLAlchemy database session.
-    
-    Yields:
-        Session: An active database session.
-    """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Re-export the async get_db dependency from database.py.
+# This keeps deps.py as the single import point for route dependencies.
+from app.database import get_db  # noqa: F401

@@ -1,15 +1,16 @@
 """
 Database configuration and session management.
 
-This module sets up the SQLAlchemy database engine, session makers, and the declarative
-base for our ORM models. It reads configuration from the environment using python-dotenv.
+This module sets up the SQLAlchemy async database engine, session makers, and the
+declarative base for our ORM models. It reads configuration from the environment
+using python-dotenv.
 """
 
 import os
-from typing import Generator
+from typing import AsyncGenerator
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker, AsyncEngine
+from sqlalchemy.orm import DeclarativeBase
 
 # Load environment variables from the .env file.
 # In a local development environment, this loads variables from the .env file.
@@ -26,11 +27,11 @@ if not DATABASE_URL:
 # ==============================================================================
 # Database Engine Initialization
 # ==============================================================================
-# create_engine() initializes the connection pool to the database using the specified
-# driver and connection credentials. It doesn't connect to the database immediately;
-# the connection is established only when a query is executed.
+# create_async_engine() initializes an async connection pool to the database using
+# the specified async driver (asyncpg) and connection credentials. It doesn't connect
+# to the database immediately; the connection is established only when a query is executed.
 print("DATABASE_URL =", DATABASE_URL)
-engine = create_engine(
+engine: AsyncEngine = create_async_engine(
     DATABASE_URL,
     # echo=True prints all generated SQL statements to standard out.
     # Very useful for debugging during development.
@@ -38,20 +39,23 @@ engine = create_engine(
 )
 
 # ==============================================================================
-# Session Maker Configuration
+# Async Session Maker Configuration
 # ==============================================================================
-# SessionLocal is a factory for database sessions. Each call to SessionLocal()
-# instantiates a database session.
+# AsyncSessionLocal is a factory for async database sessions. Each call creates
+# an AsyncSession bound to our async engine.
 #
 # - autocommit=False: Prevents transactions from committing automatically. You must
 #   explicitly call db.commit() to persist changes.
 # - autoflush=False: Prevents SQLAlchemy from sending pending changes to the database
 #   before querying. Gives developers precise control over transaction flushes.
-# - bind=engine: Associates the sessions created by this factory with our engine.
-SessionLocal = sessionmaker(
+# - expire_on_commit=False: Keeps loaded attributes accessible after commit without
+#   issuing additional SELECT queries (important for async contexts).
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
     autocommit=False,
     autoflush=False,
-    bind=engine,
+    expire_on_commit=False,
 )
 
 # ==============================================================================
@@ -68,21 +72,19 @@ class Base(DeclarativeBase):
 
 
 # ==============================================================================
-# Database Session Lifecycle Function
+# Async Database Session Lifecycle Function
 # ==============================================================================
-# This utility function yields a database session. It handles the lifecycle of a session:
-# 1. Open the session.
-# 2. Yield it to the caller (used as a FastAPI dependency).
+# This async generator yields an AsyncSession for use as a FastAPI dependency.
+# It handles the full lifecycle of the session:
+# 1. Open the async session.
+# 2. Yield it to the caller (used as a FastAPI dependency via Depends).
 # 3. Cleanly close it once the request cycle finishes, returning the connection to the pool.
-def get_db() -> Generator[Session, None, None]:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
-    Database session dependency helper.
-    
+    Async database session dependency helper.
+
     Yields:
-        Session: A database session object bound to SessionLocal.
+        AsyncSession: An async database session object bound to AsyncSessionLocal.
     """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    async with AsyncSessionLocal() as session:
+        yield session
