@@ -105,6 +105,7 @@ async def create_file(db: AsyncSession, user_id: int, data: FileCreate) -> File:
     db.add(new_file)
 
     # ── Step 5: Update quota in-memory (no commit yet) ───────────────────────
+    quota_id = quota.id  # capture PK before commit for cache invalidation
     quota.used_storage += data.size
     quota.remaining_storage = quota.total_storage - quota.used_storage
 
@@ -113,6 +114,11 @@ async def create_file(db: AsyncSession, user_id: int, data: FileCreate) -> File:
     # If the commit fails, the AsyncSession context manager in get_db()
     # automatically rolls back, leaving both tables unchanged.
     await db.commit()
+
+    # Evict the stale Redis cache entry so the next quota read is fresh.
+    # Local import avoids a circular dependency with quota_engine.
+    from app.services.quota_engine import invalidate_quota_cache  # noqa: PLC0415
+    invalidate_quota_cache(quota_id)
 
     # ── Step 7: Refresh to load server-generated fields (id, uploaded_at) ────
     await db.refresh(new_file)
@@ -172,6 +178,7 @@ async def delete_file(db: AsyncSession, user_id: int, file_id: int) -> bool:
     # If the user somehow has no quota (e.g., it was deleted manually),
     # we still delete the file to avoid orphaned records.
     quota = await _get_quota(db, user_id)
+    quota_id = quota.id if quota is not None else None  # capture PK before deletion
     if quota is not None:
         # Clamp to 0 so used_storage never goes negative.
         quota.used_storage = max(quota.used_storage - file.size, 0)
@@ -182,6 +189,12 @@ async def delete_file(db: AsyncSession, user_id: int, file_id: int) -> bool:
 
     # ── Step 5: Single atomic commit ─────────────────────────────────────────
     await db.commit()
+
+    # Evict the stale Redis cache entry (if a quota existed).
+    if quota_id is not None:
+        from app.services.quota_engine import invalidate_quota_cache  # noqa: PLC0415
+        invalidate_quota_cache(quota_id)
+
     return True
 
 
