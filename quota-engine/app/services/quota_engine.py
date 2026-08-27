@@ -6,34 +6,51 @@ Architecture
 This module sits between the HTTP router and the database, providing a
 cache-aside read pattern backed by Redis.
 
-Cache key format : quota:{connection_id}
-                   where connection_id is the integer primary-key of the
-                   quota row (used as a stable, human-readable identifier).
+Two cache key schemes are used:
 
-Cache value      : JSON string  {"free_bytes": ..., "used_bytes": ...,
-                                  "polled_at": ...}
+  1. ``quota:{user_id}``  (used by get_cached_quota)
+     ─────────────────────────────────────────────
+     Key used by the public summary route
+     (GET /quota/{user_id}/summary).  The user_id is the application-level
+     identifier passed in the URL, making the cache key predictable without
+     a database round-trip.
 
-TTL              : 900 seconds (15 minutes)
+     Cache value:
+         {
+             "user_id": <int>,
+             "total_storage": <int>,
+             "used_bytes": <int>,
+             "free_bytes": <int>,
+             "usage_percentage": <float>,
+             "polled_at": <ISO-8601 string>
+         }
 
-Cache-aside flow
-----------------
+  2. ``quota:{connection_id}``  (used by poll_connection / poll_all_user_connections)
+     ──────────────────────────────────────────────────────────────────────────────
+     Legacy key used by internal polling helpers.  connection_id is the
+     integer primary-key of the Quota row.
+
+TTL              : 900 seconds (15 minutes) for both schemes.
+
+Cache-aside flow (get_cached_quota)
+-----------------------------------
   Request
     |
     v
-  Redis GET quota:{connection_id}
+  Redis GET quota:{user_id}
     |
     +-- HIT  ─────────────────────────────────────→ return cached dict
     |
     +-- MISS
           |
           v
-        Existing quota_service.get_quota_summary(db, user_id)
+        quota_service.get_quota_summary(db, user_id)
           |
           v
         Build cache payload
           |
           v
-        Redis SETEX quota:{connection_id} 900 <json>
+        Redis SETEX quota:{user_id} 900 <json>
           |
           v
         return fresh dict
@@ -43,8 +60,8 @@ Design decisions
 * Redis errors are caught and logged — they never propagate to the caller.
   A Redis outage degrades gracefully to a cache miss (DB is always the
   source of truth).
-* The connection_id used as the cache key is the database primary-key of
-  the quota row, giving us a stable, collision-free identifier.
+* Corrupt or undecodable JSON in Redis is treated as a cache miss rather
+  than crashing the API.  The bad key is discarded and the DB is queried.
 * No application startup code is changed — imports are safe at module level.
 """
 
@@ -121,6 +138,8 @@ def poll_connection(connection_id: int | str) -> dict[str, Any] | None:
     provider calls.  Use it when you only want to inspect what is currently
     in the cache without triggering a refresh.
 
+    Cache key: ``quota:{connection_id}``  (uses the Quota row PK)
+
     Returns:
         dict  if the key exists in Redis, e.g.
               {"free_bytes": 5368709120, "used_bytes": 1073741824,
@@ -137,44 +156,139 @@ def poll_connection(connection_id: int | str) -> dict[str, Any] | None:
 
 
 async def get_cached_quota(
+    user_id: int,
+    redis: Any,
+    db: AsyncSession,
+) -> dict[str, Any] | None:
+    """
+    Cache-aside read for a user's quota summary.
+
+    This is the primary caching entry-point used by the summary route
+    (GET /quota/{user_id}/summary).  It uses ``quota:{user_id}`` as the
+    Redis key so that cache lookups need no prior DB round-trip.
+
+    Flow
+    ----
+    1. Check Redis for ``quota:{user_id}``.
+    2. CACHE HIT  → deserialise the cached JSON and return immediately.
+       Logs: ``[Cache] CACHE HIT  quota:{user_id}``
+    3. CACHE MISS → call quota_service.get_quota_summary(), build the
+                    cache payload, store it with a 900-second TTL, and
+                    return the fresh payload.
+       Logs: ``[Cache] CACHE MISS quota:{user_id} — querying database``
+             ``[Cache] WRITE quota:{user_id} (TTL=900s)``
+
+    If the cached value exists but cannot be decoded as JSON (corrupt data),
+    it is treated as a CACHE MISS rather than crashing the API.  The bad
+    key is over-written with fresh data on the next write.
+
+    Args:
+        user_id:  The user whose quota is being queried.  Also used as
+                  the Redis cache key suffix (``quota:{user_id}``).
+        redis:    A redis-py (or compatible) client instance injected
+                  via FastAPI's Depends mechanism.
+        db:       An active async SQLAlchemy session.
+
+    Returns:
+        dict containing quota summary fields on success::
+
+            {
+                "user_id": int,
+                "total_storage": int,
+                "used_bytes": int,
+                "free_bytes": int,
+                "usage_percentage": float,
+                "polled_at": str   # ISO-8601 UTC timestamp
+            }
+
+        None if no quota record exists for the user.
+    """
+    key = _cache_key(user_id)   # → "quota:{user_id}"
+
+    # ------------------------------------------------------------------
+    # Step 1: Try Redis first.
+    # ------------------------------------------------------------------
+    raw: str | None = None
+    try:
+        raw = redis.get(key)
+    except Exception as redis_exc:
+        logger.warning("[Redis] GET %s failed: %s", key, redis_exc)
+
+    if raw is not None:
+        try:
+            cached = json.loads(raw)
+            logger.info("[Cache] CACHE HIT  %s", key)
+            return cached
+        except (json.JSONDecodeError, TypeError, ValueError) as decode_exc:
+            # Corrupt cache entry — treat as a miss rather than crashing.
+            logger.warning(
+                "[Cache] CACHE HIT %s — JSON decode failed (%s); treating as CACHE MISS",
+                key,
+                decode_exc,
+            )
+            # Fall through to DB query; the key will be overwritten below.
+
+    logger.info("[Cache] CACHE MISS %s — querying database", key)
+
+    # ------------------------------------------------------------------
+    # Step 2: Database fallback — delegate to the existing service.
+    # ------------------------------------------------------------------
+    summary = await quota_service.get_quota_summary(db, user_id)
+    if summary is None:
+        # No quota exists for this user — nothing to cache.
+        return None
+
+    # ------------------------------------------------------------------
+    # Step 3: Build the cache payload.
+    # Includes all QuotaSummary fields plus polled_at so callers receive
+    # the full picture without an extra DB query.
+    # ------------------------------------------------------------------
+    payload: dict[str, Any] = {
+        "user_id": summary.user_id,
+        "total_storage": summary.total_storage,
+        "used_bytes": summary.used_storage,
+        "free_bytes": summary.remaining_storage,
+        "usage_percentage": summary.usage_percentage,
+        "polled_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # ------------------------------------------------------------------
+    # Step 4: Write to Redis with a 900-second TTL.
+    # ------------------------------------------------------------------
+    try:
+        redis.setex(key, CACHE_TTL, json.dumps(payload))
+        logger.info("[Cache] WRITE %s (TTL=%ds)", key, CACHE_TTL)
+    except Exception as write_exc:
+        logger.warning("[Redis] SETEX %s failed: %s", key, write_exc)
+
+    return payload
+
+
+async def _get_cached_quota_by_connection_id(
     connection_id: int,
     user_id: int,
     db: AsyncSession,
 ) -> dict[str, Any] | None:
     """
-    Cache-aside read for a user's quota.
+    Internal cache-aside helper that uses ``quota:{connection_id}`` as the key.
 
-    1. Check Redis for ``quota:{connection_id}``.
-    2. On HIT  → return the cached dict immediately.
-    3. On MISS → fetch from the database via quota_service, build the
-                 cache payload, write it to Redis with a 900-second TTL,
-                 and return the fresh dict.
-
-    Args:
-        connection_id:  Stable identifier used as the Redis cache key.
-                        In the quota-engine context this is the database
-                        primary-key of the Quota row.
-        user_id:        The user whose quota is being queried.
-        db:             An active async SQLAlchemy session.
-
-    Returns:
-        dict with keys ``free_bytes``, ``used_bytes``, ``polled_at`` on
-        success; None if no quota record exists for the user.
+    This is the original implementation preserved for use by
+    ``poll_all_user_connections``.  New callers should prefer
+    ``get_cached_quota`` (which keys on ``quota:{user_id}``).
     """
     key = _cache_key(connection_id)
 
     # --- Step 1: cache read ---
     cached = _safe_redis_get(key)
     if cached is not None:
-        logger.info("[Cache] HIT  %s", key)
+        logger.info("[Cache] CACHE HIT  %s", key)
         return cached
 
-    logger.info("[Cache] MISS %s  — querying database", key)
+    logger.info("[Cache] CACHE MISS %s — querying database", key)
 
     # --- Step 2: database fallback using existing quota_service ---
     summary = await quota_service.get_quota_summary(db, user_id)
     if summary is None:
-        # No quota exists for this user — nothing to cache.
         return None
 
     # --- Step 3: build cache payload ---
@@ -230,7 +344,7 @@ async def poll_all_user_connections(
 
     connection_id = quota.id   # quota PK is used as the cache key
 
-    cached = await get_cached_quota(connection_id, user_id, db)
+    cached = await _get_cached_quota_by_connection_id(connection_id, user_id, db)
     if cached is None:
         return []
 

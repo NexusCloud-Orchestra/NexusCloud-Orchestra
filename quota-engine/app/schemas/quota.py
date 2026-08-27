@@ -83,3 +83,27 @@ class QuotaSummary(BaseModel):
     used_storage: int
     remaining_storage: int
     usage_percentage: float  # e.g., 30.0 means the user has used 30% of their quota.
+
+
+class QuotaCachedSummary(BaseModel):
+    """
+    Response schema for GET /quota/{user_id}/summary when Redis caching is active.
+
+    Mirrors QuotaSummary but uses the cache-payload field names
+    (``used_bytes`` / ``free_bytes``) and adds ``polled_at`` so callers
+    can tell how fresh the data is.
+
+    Field mapping vs the DB model
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    - ``used_bytes``      → Quota.used_storage
+    - ``free_bytes``      → Quota.remaining_storage
+    - ``total_storage``   → Quota.total_storage  (unchanged)
+    - ``usage_percentage`` → computed by quota_service
+    - ``polled_at``       → UTC timestamp written when the DB was last queried
+    """
+    user_id: int
+    total_storage: int
+    used_bytes: int       # mirrors Quota.used_storage
+    free_bytes: int       # mirrors Quota.remaining_storage
+    usage_percentage: float
+    polled_at: str        # ISO-8601 UTC string, e.g. "2026-08-27T12:00:00+00:00"
