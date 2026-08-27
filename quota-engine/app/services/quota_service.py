@@ -152,6 +152,10 @@ async def update_quota(db: AsyncSession, user_id: int, data: QuotaUpdate) -> Quo
 
     await db.commit()
     await db.refresh(quota)
+    # Evict the cached entry so the next read fetches the updated values.
+    # Local import avoids the quota_service <-> quota_engine circular import.
+    from app.services.quota_engine import invalidate_quota_cache  # noqa: PLC0415
+    invalidate_quota_cache(quota.id)
     return quota
 
 
@@ -166,8 +170,13 @@ async def delete_quota(db: AsyncSession, user_id: int) -> bool:
     if quota is None:
         return False
 
+    quota_id = quota.id   # capture before deletion
     await db.delete(quota)
     await db.commit()
+    # Evict the cached entry for the deleted quota.
+    # Local import avoids the quota_service <-> quota_engine circular import.
+    from app.services.quota_engine import invalidate_quota_cache  # noqa: PLC0415
+    invalidate_quota_cache(quota_id)
     return True
 
 

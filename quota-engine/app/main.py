@@ -13,6 +13,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
+# Redis connectivity helper (safe — never crashes startup)
+from app.services.redis_client import ping_redis
+
 load_dotenv()
 
 # Import database engine, Base class, and models.
@@ -41,6 +44,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await conn.run_sync(Base.metadata.create_all)
 
     print("Tables created successfully!")
+
+    # Non-blocking Redis connectivity check at startup.
+    # The application starts regardless of whether Redis is reachable.
+    if ping_redis():
+        print("[Redis] Connected and ready.")
+    else:
+        print("[Redis] WARNING: Redis not reachable. Caching is disabled for this session.")
 
     yield
 
@@ -104,3 +114,24 @@ def health_check() -> Dict[str, str]:
     that the service is running and responsive.
     """
     return {"status": "healthy"}
+
+
+# ==============================================================================
+# Redis health check endpoint
+# ==============================================================================
+@app.get("/redis-health", response_model=Dict[str, str])
+def redis_health_check() -> Dict[str, str]:
+    """
+    Redis connectivity check endpoint.
+
+    Sends a PING to the Redis server and returns whether it is reachable.
+    This endpoint is safe — it never crashes the application even when
+    Redis is unavailable.
+
+    Response:
+        {"redis": "connected"}   — Redis responded to PING
+        {"redis": "unavailable"} — Redis did not respond
+    """
+    reachable = ping_redis()
+    status = "connected" if reachable else "unavailable"
+    return {"redis": status}

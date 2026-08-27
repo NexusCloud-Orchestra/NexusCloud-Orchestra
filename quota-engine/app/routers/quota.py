@@ -3,6 +3,7 @@ Quota router — HTTP endpoints for the Quota resource.
 
 URL pattern: /quota/{user_id}
 All DB work is delegated to quota_service.py.
+Cache-aside reads go through quota_engine.get_cached_quota().
 This file only handles HTTP concerns: parsing requests, returning responses, error codes.
 """
 
@@ -10,9 +11,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
-from app.deps import get_db
-from app.schemas.quota import QuotaCreate, QuotaUpdate, QuotaResponse, QuotaSummary
+from app.deps import get_db, get_redis
+from app.schemas.quota import QuotaCreate, QuotaUpdate, QuotaResponse, QuotaSummary, QuotaCachedSummary
 from app.services import quota_service
+from app.services import quota_engine
 
 router = APIRouter(
     prefix="/quota",
@@ -101,12 +103,26 @@ async def get_quota(user_id: int, db: AsyncSession = Depends(get_db)):
 # ==============================================================================
 @router.get(
     "/{user_id}/summary",
-    response_model=QuotaSummary,
-    summary="Get quota usage summary with percentage",
+    response_model=QuotaCachedSummary,
+    summary="Get quota usage summary with percentage (Redis-cached)",
 )
-async def get_quota_summary(user_id: int, db: AsyncSession = Depends(get_db)):
+async def get_quota_summary(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis),
+):
     """
-    Return quota usage including a computed `usage_percentage`.
+    Return quota usage including a computed ``usage_percentage``.
+
+    This endpoint is backed by a Redis cache-aside layer:
+
+    - **CACHE HIT** — The quota data was found in Redis under the key
+      ``quota:{user_id}`` and is returned directly without hitting the database.
+      The response includes a ``polled_at`` field showing when the data was
+      last fetched from the DB.
+
+    - **CACHE MISS** — Redis had no entry for this user.  The quota is fetched
+      from PostgreSQL, stored in Redis with a **900-second TTL**, and returned.
 
     ```
     usage_percentage = (used_storage / total_storage) * 100
@@ -114,8 +130,11 @@ async def get_quota_summary(user_id: int, db: AsyncSession = Depends(get_db)):
 
     - Returns **404** if the user does not exist.
     - Returns **404** if the user has no quota yet.
-    - Safe against division by zero when `total_storage` is 0.
+    - Safe against division by zero when ``total_storage`` is 0.
+    - Safe against corrupt Redis data: invalid cached JSON is treated as a
+      cache miss rather than crashing the API.
     """
+    # Verify the user exists before touching the cache (gives a clean 404).
     user_found = await quota_service.user_exists(db, user_id)
     if not user_found:
         raise HTTPException(
@@ -123,14 +142,16 @@ async def get_quota_summary(user_id: int, db: AsyncSession = Depends(get_db)):
             detail=f"User with ID {user_id} does not exist.",
         )
 
-    summary = await quota_service.get_quota_summary(db, user_id)
-    if summary is None:
+    # Delegate to the cache-aside layer.
+    # get_cached_quota handles: Redis check → CACHE HIT or DB query → CACHE MISS.
+    cached_summary = await quota_engine.get_cached_quota(user_id, redis, db)
+    if cached_summary is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"User {user_id} has no quota assigned yet.",
         )
 
-    return summary
+    return cached_summary
 
 
 # ==============================================================================
