@@ -39,6 +39,19 @@ async def create_connection(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new cloud connection and initialize its storage quota snapshot."""
+    from app.services.providers import get_provider
+    provider_instance = get_provider(
+        provider=payload.provider,
+        bucket_name=payload.bucket_name,
+        credentials=payload.credentials,
+        region=payload.region
+    )
+    if not provider_instance.validate_credentials():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid credentials or bucket not accessible."
+        )
+
     # Convert credentials dict to JSON string and encrypt it
     creds_json = json.dumps(payload.credentials)
     encrypted_creds = encrypt(creds_json)

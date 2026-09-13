@@ -80,11 +80,10 @@ async def request_upload(
 
     # Decrypt connection credentials
     creds_dict = json.loads(decrypt(connection.encrypted_creds))
-    provider_client = get_provider(connection.provider, creds_dict, connection.region)
+    provider_client = get_provider(connection.provider, connection.bucket_name, creds_dict, connection.region)
 
     # Generate presigned upload URL
-    upload_url = await provider_client.get_presigned_upload_url(
-        bucket=connection.bucket_name,
+    upload_url = provider_client.generate_upload_url(
         object_key=object_key,
     )
 
@@ -228,11 +227,10 @@ async def download_file(
     # Decrypt credentials and get provider client
     connection = file_record.connection
     creds_dict = json.loads(decrypt(connection.encrypted_creds))
-    provider_client = get_provider(connection.provider, creds_dict, connection.region)
+    provider_client = get_provider(connection.provider, connection.bucket_name, creds_dict, connection.region)
 
     # Generate download URL
-    download_url = await provider_client.get_presigned_download_url(
-        bucket=connection.bucket_name,
+    download_url = provider_client.generate_download_url(
         object_key=file_record.object_key,
     )
 
@@ -275,10 +273,9 @@ async def delete_file(
     # Delete object from provider
     connection = file_record.connection
     creds_dict = json.loads(decrypt(connection.encrypted_creds))
-    provider_client = get_provider(connection.provider, creds_dict, connection.region)
+    provider_client = get_provider(connection.provider, connection.bucket_name, creds_dict, connection.region)
     
-    await provider_client.delete_object(
-        bucket=connection.bucket_name,
+    provider_client.delete_object(
         object_key=file_record.object_key,
     )
 

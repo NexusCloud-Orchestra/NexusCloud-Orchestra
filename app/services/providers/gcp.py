@@ -1,71 +1,69 @@
 import json
+import datetime
 from google.cloud import storage
-from app.services.providers.base import BaseProvider, SimulatedProvider
+from google.api_core.exceptions import GoogleAPIError
+from app.services.providers.base import BaseProvider
 
 
 class GCPProvider(BaseProvider):
-    def __init__(self, credentials: dict):
-        self.credentials = credentials
-        self.simulated = True
-
-        service_account_info = credentials.get("service_account_json") or credentials.get("credentials_json")
-        if service_account_info and "mock" not in str(service_account_info).lower() and "test" not in str(service_account_info).lower():
+    def __init__(self, bucket_name: str, credentials: dict, region: str | None = None):
+        super().__init__(bucket_name, credentials, region)
+        
+        # Credentials can be a JSON string or a dict.
+        service_account_info = self.credentials
+        if isinstance(service_account_info, str):
             try:
-                if isinstance(service_account_info, str):
-                    info = json.loads(service_account_info)
-                else:
-                    info = service_account_info
-                self.client = storage.Client.from_service_account_info(info)
-                self.simulated = False
-            except Exception:
-                self.fallback = SimulatedProvider()
-        else:
-            self.fallback = SimulatedProvider()
+                service_account_info = json.loads(service_account_info)
+            except json.JSONDecodeError:
+                pass
+                
+        self.client = storage.Client.from_service_account_info(service_account_info)
+        self.bucket = self.client.bucket(self.bucket_name)
 
-    async def get_presigned_upload_url(self, bucket: str, object_key: str, expires_in: int = 3600) -> str:
-        if self.simulated:
-            return await self.fallback.get_presigned_upload_url(bucket, object_key, expires_in)
+    def validate_credentials(self) -> bool:
+        """Validate by trying to check if the bucket exists or list a single blob."""
         try:
-            bucket_obj = self.client.bucket(bucket)
-            blob = bucket_obj.blob(object_key)
-            from datetime import timedelta
-            return blob.generate_signed_url(
-                version="v4",
-                expiration=timedelta(seconds=expires_in),
-                method="PUT"
-            )
-        except Exception:
-            return await self.fallback.get_presigned_upload_url(bucket, object_key, expires_in)
+            self.bucket.exists()
+            return True
+        except GoogleAPIError as e:
+            print(f"GCP validation error: {e}")
+            return False
+        except Exception as e:
+            print(f"GCP init error: {e}")
+            return False
 
-    async def get_presigned_download_url(self, bucket: str, object_key: str, expires_in: int = 3600) -> str:
-        if self.simulated:
-            return await self.fallback.get_presigned_download_url(bucket, object_key, expires_in)
+    def get_used_bytes(self) -> int:
+        """Sum all blob sizes in the bucket."""
         try:
-            bucket_obj = self.client.bucket(bucket)
-            blob = bucket_obj.blob(object_key)
-            from datetime import timedelta
-            return blob.generate_signed_url(
-                version="v4",
-                expiration=timedelta(seconds=expires_in),
-                method="GET"
-            )
-        except Exception:
-            return await self.fallback.get_presigned_download_url(bucket, object_key, expires_in)
+            blobs = self.client.list_blobs(self.bucket_name)
+            return sum(blob.size for blob in blobs if blob.size is not None)
+        except GoogleAPIError:
+            return 0
 
-    async def delete_object(self, bucket: str, object_key: str) -> None:
-        if self.simulated:
-            return await self.fallback.delete_object(bucket, object_key)
+    def generate_upload_url(self, object_key: str, expires_in: int = 3600) -> str:
+        """Generate a signed URL for PUT."""
+        blob = self.bucket.blob(object_key)
+        return blob.generate_signed_url(
+            version="v4",
+            expiration=datetime.timedelta(seconds=expires_in),
+            method="PUT"
+        )
+
+    def generate_download_url(self, object_key: str, expires_in: int = 3600) -> str:
+        """Generate a signed URL for GET."""
+        blob = self.bucket.blob(object_key)
+        return blob.generate_signed_url(
+            version="v4",
+            expiration=datetime.timedelta(seconds=expires_in),
+            method="GET"
+        )
+
+    def delete_object(self, object_key: str) -> bool:
+        """Delete an object from GCP bucket."""
         try:
-            bucket_obj = self.client.bucket(bucket)
-            blob = bucket_obj.blob(object_key)
+            blob = self.bucket.blob(object_key)
             blob.delete()
-        except Exception:
-            await self.fallback.delete_object(bucket, object_key)
-
-    async def get_quota(self, bucket: str) -> dict:
-        if self.simulated:
-            return await self.fallback.get_quota(bucket)
-        return {
-            "used_bytes": 0,
-            "limit_bytes": 5 * 1024 * 1024 * 1024
-        }
+            return True
+        except GoogleAPIError as e:
+            print(f"GCP delete error for {object_key}: {e}")
+            return False
