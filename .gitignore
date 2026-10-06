@@ -44,3 +44,7 @@ docker-compose.override.yml
 # Personal Notes & Obsidian Vaults
 NexusCloud Learning/
 NexusCloud\ Learning/
+
+# Local data & build cache
+storage/*.bin
+frontend/.vite/
