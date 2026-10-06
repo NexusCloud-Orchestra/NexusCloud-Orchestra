@@ -1,25 +1,49 @@
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import contains_eager, selectinload
 
 from app.core.deps import audit, current_user
 from app.core.security import decrypt_credentials
 from app.db.models import CloudConnection, FileRecord, Quota, User
 from app.db.session import get_db
-from app.schemas import FileOut, UploadIn, UploadOut
+from app.schemas import (
+    FileOut, RouteCandidateOut, RouteComponents, RoutePreviewIn, RoutePreviewOut, RouteWeights, UploadIn, UploadOut,
+)
 from app.services.catalog import PLANS, PROVIDERS
 from app.services.providers import LocalProvider, provider_for
 from app.services.quota import invalidate_quota
-from app.services.router import Candidate, SmartRouter
+from app.services.router import (
+    WEIGHT_CAPACITY, WEIGHT_EGRESS, WEIGHT_FIT, WEIGHT_PERMANENCE, Candidate, Evaluation, SmartRouter,
+)
 
 router = APIRouter(prefix="/files", tags=["files"])
 
+BLOCK_NO_CONNECTIONS = "no_connections"
+BLOCK_PLAN_LIMIT = "plan_limit"
+BLOCK_NO_SINGLE_CLOUD = "no_single_cloud"
+BLOCK_INSUFFICIENT = "insufficient_quota"
+BLOCK_MESSAGES = {
+    BLOCK_NO_CONNECTIONS: "Connect a cloud before uploading",
+    BLOCK_PLAN_LIMIT: "Plan storage limit exceeded. Upgrade your plan or delete files.",
+    BLOCK_NO_SINGLE_CLOUD: "No single cloud has enough free space for this file",
+    BLOCK_INSUFFICIENT: "Insufficient connected cloud quota",
+}
+
+
+@dataclass(frozen=True)
+class Placement:
+    evaluations: list[Evaluation]
+    selected: Evaluation | None
+    blocked: str | None
+
 
 async def _file(db: AsyncSession, user_id: UUID, file_id: UUID, lock: bool = False):
-    statement = select(FileRecord, CloudConnection).join(CloudConnection, FileRecord.connection_id == CloudConnection.id).where(
+    statement = select(FileRecord, CloudConnection).join(FileRecord.connection).options(contains_eager(FileRecord.connection)).where(
         FileRecord.id == file_id, FileRecord.user_id == user_id, CloudConnection.user_id == user_id
     )
     if lock:
@@ -30,37 +54,78 @@ async def _file(db: AsyncSession, user_id: UUID, file_id: UUID, lock: bool = Fal
     return result
 
 
-@router.post("/upload-request", response_model=UploadOut)
-async def upload_request(body: UploadIn, request: Request, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
-    # Lock the user row so concurrent upload reservations cannot overbook the plan.
-    user = await db.scalar(select(User).where(User.id == user.id).with_for_update())
-    connections = (await db.scalars(select(CloudConnection).where(CloudConnection.user_id == user.id, CloudConnection.is_active.is_(True)))).all()
-    if not connections:
-        raise HTTPException(400, "Connect a cloud before uploading")
+async def _placement(db: AsyncSession, user: User, size_bytes: int) -> Placement:
+    """Collect routing inputs exactly as the upload path sees them and score every active connection."""
+    connections = (await db.scalars(select(CloudConnection).where(
+        CloudConnection.user_id == user.id, CloudConnection.is_active.is_(True)
+    ).order_by(CloudConnection.created_at))).all()
     usage_rows = (await db.execute(
         select(FileRecord.connection_id, FileRecord.status, func.sum(FileRecord.size_bytes))
         .where(FileRecord.user_id == user.id, FileRecord.status.in_(("active", "pending")))
         .group_by(FileRecord.connection_id, FileRecord.status)
     )).all()
     usage = {(connection_id, status): amount for connection_id, status, amount in usage_rows}
-    active_total = sum(amount for _, status, amount in usage_rows if status == "active")
-    pending_total = sum(amount for _, status, amount in usage_rows if status == "pending")
+    committed = sum(amount for _, _, amount in usage_rows)
     plan_limit = PLANS[user.plan].max_bytes
-    if plan_limit is not None and active_total + pending_total + body.size_bytes > plan_limit:
-        raise HTTPException(400, "Plan storage limit exceeded. Upgrade your plan or delete files.")
     candidates = []
-    total_free = 0
     for connection in connections:
         consumed = usage.get((connection.id, "active"), 0) + usage.get((connection.id, "pending"), 0)
-        free = max(0, PROVIDERS[connection.provider].free_bytes - consumed)
-        total_free += free
-        candidates.append(Candidate(connection, free))
-    selected = SmartRouter().select(candidates, body.size_bytes)
-    if selected is None:
-        if total_free >= body.size_bytes:
-            raise HTTPException(400, "No single cloud has enough free space for this file")
-        raise HTTPException(400, "Insufficient connected cloud quota")
-    connection = selected.connection
+        candidates.append(Candidate(connection, max(0, PROVIDERS[connection.provider].free_bytes - consumed)))
+    router_ = SmartRouter()
+    evaluations = router_.evaluate(candidates, size_bytes)
+    blocked = None
+    if not connections:
+        blocked = BLOCK_NO_CONNECTIONS
+    elif plan_limit is not None and committed + size_bytes > plan_limit:
+        blocked = BLOCK_PLAN_LIMIT
+    selected = None if blocked else router_.best(evaluations)
+    if blocked is None and selected is None:
+        total_free = sum(c.free_bytes for c in candidates)
+        blocked = BLOCK_NO_SINGLE_CLOUD if total_free >= size_bytes else BLOCK_INSUFFICIENT
+    return Placement(evaluations, selected, blocked)
+
+
+@router.post("/route-preview", response_model=RoutePreviewOut)
+async def route_preview(body: RoutePreviewIn, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    """Read-only Smart Router decision. Creates no reservation and issues no URL."""
+    placement = await _placement(db, user, body.size_bytes)
+    ranked = sorted(
+        placement.evaluations,
+        key=lambda e: (e.eligible, e.score or 0.0, str(e.candidate.connection.id)),
+        reverse=True,
+    )
+    return RoutePreviewOut(
+        size_bytes=body.size_bytes,
+        selected_connection_id=placement.selected.candidate.connection.id if placement.selected else None,
+        blocked_reason=placement.blocked,
+        message=BLOCK_MESSAGES.get(placement.blocked),
+        weights=RouteWeights(capacity=WEIGHT_CAPACITY, egress=WEIGHT_EGRESS, permanence=WEIGHT_PERMANENCE, fit=WEIGHT_FIT),
+        candidates=[
+            RouteCandidateOut(
+                connection_id=e.candidate.connection.id,
+                provider=e.candidate.connection.provider,
+                display_name=e.candidate.connection.display_name,
+                free_bytes=e.candidate.free_bytes,
+                eligible=e.eligible,
+                score=round(e.score, 4) if e.score is not None else None,
+                components=RouteComponents(
+                    capacity=round(e.capacity, 4), egress=round(e.egress, 4),
+                    permanence=round(e.permanence, 4), fit=round(e.fit, 4),
+                ) if e.eligible else None,
+            )
+            for e in ranked
+        ],
+    )
+
+
+@router.post("/upload-request", response_model=UploadOut)
+async def upload_request(body: UploadIn, request: Request, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    # Lock the user row so concurrent upload reservations cannot overbook the plan.
+    user = await db.scalar(select(User).where(User.id == user.id).with_for_update())
+    placement = await _placement(db, user, body.size_bytes)
+    if placement.selected is None:
+        raise HTTPException(400, BLOCK_MESSAGES[placement.blocked])
+    connection = placement.selected.candidate.connection
     file = FileRecord(
         user_id=user.id, connection_id=connection.id, original_name=body.original_name,
         object_key=f"{user.id}/{uuid4()}", size_bytes=body.size_bytes, mime_type=body.mime_type,
@@ -80,8 +145,31 @@ async def upload_request(body: UploadIn, request: Request, user: User = Depends(
     await invalidate_quota(user.id)
     return UploadOut(
         file_id=file.id, provider=connection.provider, bucket_name=connection.bucket_name,
-        upload_url=url, expires_at=file.upload_expires_at, required_headers=headers
+        upload_url=url, expires_at=file.upload_expires_at, required_headers=headers,
+        connection_id=connection.id,
     )
+
+
+@router.post("/cancel-upload/{file_id}", status_code=204)
+async def cancel_upload(file_id: UUID, request: Request, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    """Release a pending reservation after a failed or abandoned browser PUT."""
+    await db.scalar(select(User).where(User.id == user.id).with_for_update())
+    file, connection = await _file(db, user.id, file_id, True)
+    if file.status != "pending":
+        raise HTTPException(409, "Only pending uploads can be cancelled")
+    try:
+        provider = provider_for(connection.provider)
+        credentials = decrypt_credentials(connection.encrypted_creds)
+        if await provider.exists(connection, credentials, file.object_key, file.id):
+            await provider.delete(connection, credentials, file.object_key, file.id)
+        file.status = "cancelled"
+    except Exception:
+        # The cleanup worker retries cleanup_failed records; disconnect stays blocked until it succeeds.
+        file.status = "cleanup_failed"
+        file.upload_expires_at = datetime.now(timezone.utc)
+    audit(db, request, user.id, "UPLOAD_CANCEL", str(file.id))
+    await db.commit()
+    await invalidate_quota(user.id)
 
 
 @router.post("/confirm-upload/{file_id}", response_model=FileOut)
@@ -120,7 +208,11 @@ async def confirm_upload(file_id: UUID, request: Request, user: User = Depends(c
 
 @router.get("", response_model=list[FileOut])
 async def list_files(user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
-    return (await db.scalars(select(FileRecord).where(FileRecord.user_id == user.id, FileRecord.status == "active").order_by(FileRecord.uploaded_at.desc()))).all()
+    return (await db.scalars(
+        select(FileRecord).options(selectinload(FileRecord.connection))
+        .where(FileRecord.user_id == user.id, FileRecord.status == "active")
+        .order_by(FileRecord.uploaded_at.desc())
+    )).all()
 
 
 @router.get("/download/{file_id}")
