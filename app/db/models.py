@@ -67,6 +67,11 @@ class FileRecord(Base):
     uploaded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     connection: Mapped[CloudConnection] = relationship(back_populates="files")
+
+    @property
+    def provider(self) -> str:
+        # Callers must have the connection loaded (selectinload or same-session identity map).
+        return self.connection.provider
     __table_args__ = (Index("ix_file_user_status", "user_id", "status"),)
 
 
