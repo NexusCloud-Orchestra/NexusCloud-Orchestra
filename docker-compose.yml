@@ -1,23 +1,50 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: nexuscloud_db
     environment:
-      POSTGRES_USER: your_userID
-      POSTGRES_PASSWORD: your_password
+      POSTGRES_USER: nexuscloud
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
       POSTGRES_DB: nexuscloud
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexuscloud"]
+      interval: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: nexuscloud_redis
-    ports:
-      - "6379:6379"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://nexuscloud:${POSTGRES_PASSWORD}@postgres:5432/nexuscloud
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "7575:7575"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  worker:
+    build: .
+    command: ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "-B", "--loglevel=info"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://nexuscloud:${POSTGRES_PASSWORD}@postgres:5432/nexuscloud
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   pgdata:
