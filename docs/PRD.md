@@ -716,7 +716,7 @@ The existing `tests/test_flow.py` validates the complete lifecycle:
 
 | Criteria | Status |
 |---|---|
-| Production Dockerfile and CI/CD pipeline | 🔲 Planned |
+| Production Dockerfile and CI/CD pipeline | 🟡 Images, CI and registry release configured; cloud deployment pending |
 | RLaaS rate limiter deployment | 🔲 Planned |
 | IBM Cloud Object Storage integration | 🔲 Planned |
 | Monitoring and alerting (Prometheus + Grafana) | 🔲 Planned |
