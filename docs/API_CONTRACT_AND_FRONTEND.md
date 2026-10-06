@@ -26,6 +26,7 @@ This file is the implementation contract for the Kimi frontend agent. Source req
 | POST | `/auth/change-password` | Bearer + `{current_password,new_password}` | 200; sign in again |
 | POST | `/auth/plan` | Bearer + `{plan}` | 200 `User`; downgrades checked; paid upgrades currently return 403 until billing is integrated |
 | GET | `/auth/audit-logs` | Bearer | 200 array of `AuditLog`, newest first, max 100 |
+| POST | `/auth/delete-account` | Bearer + `{password}` | 204; 400 wrong password; 409 while active, pending or cleanup-failed files remain. Erases profile, connections, encrypted credentials, file metadata, sessions and audit log |
 
 `User`: `{id,first_name,last_name,email,plan,created_at}`. Plans: `free`, `starter`, `pro`, `team`. Password minimum is 8 characters and maximum is 72 UTF-8 bytes. `Tokens`: `{access_token,refresh_token,token_type:"bearer"}`. Access expires in 30 minutes, refresh in 7 days. On a 401, perform a single coordinated refresh attempt and retry the original request once; otherwise clear auth and navigate to login. Store refresh tokens securely; an httpOnly cookie/BFF is preferred for production. This API currently returns the refresh token in JSON, so if using a browser-only SPA keep it in memory where possible and recognize that page reload will require login. Do not put access or refresh tokens in URLs or localStorage.
 
@@ -74,20 +75,25 @@ The backend does not accept custom endpoints. Connection creation checks provide
 
 | Method | Path | Request | Success |
 |---|---|---|---|
+| POST | `/files/route-preview` | Bearer + `{size_bytes}` | 200 `RoutePreview` (read-only; reserves nothing, issues no URL) |
 | POST | `/files/upload-request` | Bearer + `{original_name,size_bytes,mime_type}` | 200 `UploadTicket` |
 | POST | `/files/confirm-upload/{file_id}` | Bearer | 200 `File` |
+| POST | `/files/cancel-upload/{file_id}` | Bearer | 204; releases a pending reservation; 409 if not pending |
 | GET | `/files` | Bearer | 200 `File[]` (active only) |
 | GET | `/files/download/{file_id}` | Bearer | 200 `{download_url,expires_in_seconds:3600}` |
 | DELETE | `/files/{file_id}` | Bearer | 204 |
 | GET | `/quota/summary` | Bearer | 200 `QuotaSummary` |
 
-`UploadTicket`: `{file_id,provider,bucket_name,upload_url,expires_at,required_headers}`. Upload URL expires in at most 15 minutes. `File`: `{id,original_name,size_bytes,mime_type,status,uploaded_at,connection_id}`. Upload request accepts a file from 1 byte through 5 GiB; filenames cannot contain path separators or control characters.
+`UploadTicket`: `{file_id,provider,bucket_name,upload_url,expires_at,required_headers,connection_id}`. Upload URL expires in at most 15 minutes. `File`: `{id,original_name,size_bytes,mime_type,status,uploaded_at,connection_id,provider}`.
+
+`RoutePreview`: `{size_bytes,selected_connection_id,blocked_reason,message,weights:{capacity,egress,permanence,fit},candidates:[{connection_id,provider,display_name,free_bytes,eligible,score,components}]}`. It runs the same placement code as `upload-request` against current usage. `blocked_reason` is `null` or one of `no_connections`, `plan_limit`, `no_single_cloud`, `insufficient_quota`; `message` is then the exact text `upload-request` would return with HTTP 400. Candidates are ranked by score (ineligible last). `components` are the weighted contributions and sum to `score`; they are `null` for ineligible candidates. A later `upload-request` can choose differently if usage changes in between. Upload request accepts a file from 1 byte through 5 GiB; filenames cannot contain path separators or control characters.
 
 Upload flow:
 
 1. Call `POST /files/upload-request` with the browser file's name, exact byte length and MIME type. If `file.type` is empty, use `application/octet-stream`.
 2. Use `XMLHttpRequest` to `PUT` the actual file bytes directly to `upload_url`, applying every `required_headers` entry exactly. Track progress via `xhr.upload.onprogress`. Do **not** add the NexusCloud bearer token. Configure CORS on the destination cloud bucket/container to allow the frontend origin, `PUT` and required headers. The URL may be on an entirely different host.
 3. Only after a successful 2xx PUT, call `POST /files/confirm-upload/{file_id}`. On 409, the object has not appeared, its size differs, or the ticket expired. Request a new ticket if it expired.
+   If the PUT fails, the user aborts, or confirmation returns 409, call `POST /files/cancel-upload/{file_id}` so the reservation is released immediately instead of after the 15-minute expiry sweep. Do not cancel after a transient confirmation failure (network/502); retry confirmation instead.
 4. Refresh `/files` and `/quota/summary` after confirmation or deletion.
 
 For download, call `/files/download/{id}` and navigate to or fetch `download_url` immediately. It expires in at most 60 minutes. Avoid persisting signed URLs. Failed confirmation should leave the file out of the active list; the backend releases its pending reservation after expiry cleanup.
@@ -112,6 +118,8 @@ For download, call `/files/download/{id}` and navigate to or fetch `download_url
 }
 ```
 
+`QuotaSummary` also carries `total_reserved_bytes` (pending upload reservations), `plan` and `plan_limit_bytes` (`null` when the plan has no byte cap).
+
 The connection capacity figures are provider free-tier estimates, not live cloud billing balances. Pending uploads reserve capacity. A plan may lower the total usable limit below the sum of connected clouds.
 
 ## Frontend pages and behaviors
@@ -126,7 +134,8 @@ Use the PRD dual-shell design: public shell for Landing, Login, Register, Forgot
 | Clouds / Connect Cloud | Provider cards, credential wizard, connection list, safe disconnect action |
 | Storage | Quota donut and per-connection capacity breakdown |
 | Subscription | Plan catalog and current plan; explain that paid upgrades are unavailable until billing is wired |
-| Settings / Profile | Profile display, password change and sign-in again |
+| Settings / Profile | Profile display, password change and sign-in again, account deletion |
+| Smart Routing | `POST /files/route-preview` decision, ranking and per-factor score components |
 | Account Security | Login/activity history via audit logs, logout; label unsupported controls clearly |
 | Help | Static setup/CORS and credential guides, links to service health |
 
