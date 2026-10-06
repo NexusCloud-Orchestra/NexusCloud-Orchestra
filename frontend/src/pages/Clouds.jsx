@@ -1,388 +1,192 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import CloudCard from '../components/CloudCard';
-import { API_URL } from '../config';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Cloud, Plus, Unlink, MapPin, CalendarDays } from 'lucide-react';
+import { connectionApi, quotaApi } from '../lib/api';
+import { formatBytes, formatDate } from '../lib/utils';
+import { ProviderIcon, providerMeta } from '../components/providers';
+import Alert from '../components/Alert';
+import EmptyState from '../components/EmptyState';
+import Modal from '../components/Modal';
 
-function Clouds() {
-  const navigate = useNavigate();
+export default function Clouds() {
   const [connections, setConnections] = useState([]);
+  const [usage, setUsage] = useState({});
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState('');
+  const [pendingDisconnect, setPendingDisconnect] = useState(null);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [disconnectError, setDisconnectError] = useState('');
 
-  // Form states
-  const [provider, setProvider] = useState('aws');
-  const [displayName, setDisplayName] = useState('');
-  const [bucketName, setBucketName] = useState('');
-  const [region, setRegion] = useState('us-east-1');
-  
-  // Dynamic credentials states
-  const [key1, setKey1] = useState('');
-  const [key2, setKey2] = useState('');
-
-  useEffect(() => {
-    fetchConnections();
-  }, []);
-
-  const fetchConnections = async () => {
+  const load = async () => {
     setLoading(true);
-    const token = localStorage.getItem('nexus_access_token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
-    // Demo mode — show empty state
-    if (token === 'mock_demo_token') {
-      setConnections([]);
-      setLoading(false);
-      return;
-    }
-
+    setError('');
     try {
-      const res = await fetch(`${API_URL}/api/v1/quota/summary`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const results = await Promise.all([connectionApi.list(), quotaApi.summary()]);
+      const conns = results[0] || [];
+      setConnections(conns);
+      const byId = {};
+      ((results[1] && results[1].by_connection) || []).forEach((c) => {
+        byId[c.connection_id] = c;
       });
-      if (res.status === 401) {
-        localStorage.removeItem('nexus_access_token');
-        navigate('/login');
-        return;
-      }
-      if (res.ok) {
-        const data = await res.json();
-        setConnections(data.by_connection || []);
-      } else {
-        setErrorMessage('Failed to load connections.');
-      }
+      setUsage(byId);
     } catch (err) {
-      setErrorMessage('Network error loading connections.');
+      setError(err.message || 'Could not load connections.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLinkAccount = async (e) => {
-    e.preventDefault();
-    setErrorMessage('');
-    setSuccessMessage('');
+  useEffect(() => {
+    load();
+  }, []);
 
-    const token = localStorage.getItem('nexus_access_token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
-    // Build credentials dictionary dynamically based on provider
-    let credentials = {};
-    if (provider === 'aws' || provider === 'r2' || provider === 'b2') {
-      credentials = {
-        access_key_id: key1,
-        secret_access_key: key2
-      };
-      if (provider === 'r2') {
-        credentials.endpoint_url = key1.includes('http') ? key1 : `https://${key1}.r2.cloudflarestorage.com`;
-      }
-    } else if (provider === 'azure') {
-      credentials = {
-        connection_string: key1
-      };
-    } else if (provider === 'gcp') {
-      try {
-        credentials = {
-          service_account_json: JSON.parse(key1)
-        };
-      } catch (err) {
-        setErrorMessage('Invalid Service Account JSON format.');
-        return;
-      }
-    }
-
-    const payload = {
-      provider,
-      display_name: displayName,
-      bucket_name: bucketName,
-      region: region || null,
-      credentials
-    };
-
+  const handleDisconnect = async () => {
+    if (!pendingDisconnect) return;
+    setDisconnecting(true);
+    setDisconnectError('');
     try {
-      const res = await fetch(`${API_URL}/api/v1/connections`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        setSuccessMessage('Cloud storage linked successfully!');
-        // Reset form
-        setDisplayName('');
-        setBucketName('');
-        setRegion('us-east-1');
-        setKey1('');
-        setKey2('');
-        setShowModal(false);
-        fetchConnections();
-      } else {
-        const errData = await res.json();
-        setErrorMessage(errData.detail || 'Failed to link account.');
-      }
+      await connectionApi.remove(pendingDisconnect.id);
+      setPendingDisconnect(null);
+      await load();
     } catch (err) {
-      setErrorMessage('Network error linking cloud account.');
-    }
-  };
-
-  const handleDeleteConnection = async (connId) => {
-    if (!window.confirm('Are you sure you want to unlink and delete this cloud connection?')) {
-      return;
-    }
-    const token = localStorage.getItem('nexus_access_token');
-    try {
-      const res = await fetch(`${API_URL}/api/v1/connections/${connId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (res.ok) {
-        fetchConnections();
+      if (err.status === 409) {
+        setDisconnectError(
+          'Active files remain on this cloud. Delete those files first, then disconnect.'
+        );
       } else {
-        alert('Failed to delete connection.');
+        setDisconnectError(err.message || 'Could not disconnect this cloud.');
       }
-    } catch (err) {
-      alert('Network error unlinking connection.');
+    } finally {
+      setDisconnecting(false);
     }
   };
 
   return (
     <div className="page-content-wrapper">
-      <style>{`
-        .modal-overlay {
-          position: fixed;
-          top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(15, 23, 42, 0.7);
-          backdrop-filter: blur(8px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-        }
-        .modal-content {
-          background: var(--card);
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          padding: 32px;
-          width: 100%;
-          max-width: 550px;
-          box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
-          color: var(--text);
-          box-sizing: border-box;
-          max-height: 90vh;
-          overflow-y: auto;
-        }
-        .form-group-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-          margin-bottom: 16px;
-        }
-        .form-group {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          margin-bottom: 16px;
-        }
-        .form-label {
-          font-size: 13.5px;
-          font-weight: 600;
-          color: var(--text);
-        }
-        .form-select-box {
-          height: 40px;
-          padding: 0 12px;
-          border: 1px solid var(--input-border);
-          border-radius: 6px;
-          font-size: 14px;
-          background-color: var(--input-bg);
-          color: var(--input-text);
-          box-sizing: border-box;
-        }
-        .form-textarea-box {
-          padding: 10px 12px;
-          border: 1px solid var(--input-border);
-          border-radius: 6px;
-          font-size: 14px;
-          background-color: var(--input-bg);
-          color: var(--input-text);
-          font-family: monospace;
-          box-sizing: border-box;
-          min-height: 100px;
-          resize: vertical;
-        }
-      `}</style>
-
-      <div className="welcome-header-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="page-header">
         <div>
-          <h1 className="welcome-heading">Cloud Providers</h1>
-          <p className="welcome-subtitle">Configure, reconnect, and monitor individual cloud endpoints.</p>
+          <h1 className="page-title">Clouds</h1>
+          <p className="page-subtitle">
+            Your connected storage providers. Credentials are encrypted at rest and never shown again after linking.
+          </p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-nav-action btn-nav-primary">
-          ➕ Link Storage Account
-        </button>
+        <div className="page-actions">
+          <Link to="/connect-cloud" className="btn btn-primary"><Plus size={16} /> Connect a cloud</Link>
+        </div>
       </div>
 
-      {successMessage && <div className="clouds-success-banner">{successMessage}</div>}
-      {errorMessage && <div className="clouds-error-banner">{errorMessage}</div>}
+      {error ? <Alert type="error">{error}</Alert> : null}
 
       {loading ? (
-        <div className="clouds-loading">Loading cloud storage endpoints...</div>
-      ) : connections.length === 0 ? (
-        <div className="clouds-empty-state">
-          <div className="clouds-empty-icon">☁️</div>
-          <h3 className="clouds-empty-title">No Cloud Connections Linked</h3>
-          <p className="clouds-empty-desc">Add your first S3, Azure, or GCP vault storage to establish a unified pool.</p>
-          <button onClick={() => setShowModal(true)} className="btn-nav-action btn-nav-primary clouds-empty-btn">Link Storage Account</button>
-        </div>
-      ) : (
-        <div className="providers-grid">
-          {connections.map((conn) => (
-            <CloudCard
-              key={conn.connection_id}
-              provider={conn.provider}
-              displayName={conn.display_name}
-              bucketName={conn.bucket_name}
-              status="connected"
-              usedStorage={Number((conn.used_bytes / (1024 * 1024 * 1024)).toFixed(2))}
-              limitStorage={Number((conn.limit_bytes / (1024 * 1024 * 1024)).toFixed(2))}
-              onManage={() => handleDeleteConnection(conn.connection_id)}
-            />
+        <div className="grid grid-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="skeleton" style={{ height: 190 }} />
           ))}
         </div>
-      )}
-
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h2 style={{ fontSize: '22px', margin: '0 0 20px 0', fontWeight: 700 }}>Link Storage Account</h2>
-            <form onSubmit={handleLinkAccount}>
-              <div className="form-group-row">
-                <div className="form-group">
-                  <label className="form-label">Cloud Provider</label>
-                  <select className="form-select-box" value={provider} onChange={(e) => setProvider(e.target.value)}>
-                    <option value="aws">Amazon S3</option>
-                    <option value="azure">Azure Blob Storage</option>
-                    <option value="gcp">Google Cloud Storage</option>
-                    <option value="r2">Cloudflare R2</option>
-                    <option value="b2">Backblaze B2</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Display Name</label>
-                  <input
-                    type="text"
-                    className="form-input-box"
-                    placeholder="e.g. AWS Core Storage"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-group-row">
-                <div className="form-group">
-                  <label className="form-label">Bucket / Container Name</label>
-                  <input
-                    type="text"
-                    className="form-input-box"
-                    placeholder="e.g. my-bucket-name"
-                    value={bucketName}
-                    onChange={(e) => setBucketName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Region (Optional)</label>
-                  <input
-                    type="text"
-                    className="form-input-box"
-                    placeholder="e.g. us-east-1"
-                    value={region}
-                    onChange={(e) => setRegion(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {provider === 'aws' || provider === 'r2' || provider === 'b2' ? (
-                <>
-                  <div className="form-group">
-                    <label className="form-label">
-                      {provider === 'r2' ? 'Cloudflare Account ID (or Endpoint URL)' : 'Access Key ID'}
-                    </label>
-                    <input
-                      type="text"
-                      className="form-input-box"
-                      placeholder={provider === 'r2' ? 'e.g. <account_id>' : 'e.g. AKIAIOSFODNN7EXAMPLE'}
-                      value={key1}
-                      onChange={(e) => setKey1(e.target.value)}
-                      required
-                    />
+      ) : connections.length === 0 ? (
+        <div className="card">
+          <EmptyState
+            icon={<Cloud size={26} />}
+            title="No clouds connected"
+            message="Link a provider to pool its free tier into your storage. You can connect AWS, Azure, GCP, R2, B2, Oracle or IBM."
+            action={<Link to="/connect-cloud" className="btn btn-primary btn-sm">Connect your first cloud</Link>}
+          />
+        </div>
+      ) : (
+        <div className="grid grid-3">
+          {connections.map((conn) => {
+            const u = usage[conn.id];
+            const pct = u && u.limit_bytes > 0 ? Math.min((u.used_bytes / u.limit_bytes) * 100, 100) : 0;
+            return (
+              <div key={conn.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <ProviderIcon provider={conn.provider} size={38} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {conn.display_name}
+                    </div>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--muted)' }}>
+                      {providerMeta(conn.provider).name}
+                    </div>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Secret Access Key</label>
-                    <input
-                      type="password"
-                      className="form-input-box"
-                      placeholder="e.g. wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-                      value={key2}
-                      onChange={(e) => setKey2(e.target.value)}
-                      required
-                    />
-                  </div>
-                </>
-              ) : provider === 'azure' ? (
-                <div className="form-group">
-                  <label className="form-label">Connection String</label>
-                  <textarea
-                    className="form-textarea-box"
-                    placeholder="DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net"
-                    value={key1}
-                    onChange={(e) => setKey1(e.target.value)}
-                    required
-                  />
+                  {conn.is_active ? (
+                    <span className="badge badge-success">Active</span>
+                  ) : (
+                    <span className="badge badge-neutral">Inactive</span>
+                  )}
                 </div>
-              ) : (
-                <div className="form-group">
-                  <label className="form-label">Service Account JSON</label>
-                  <textarea
-                    className="form-textarea-box"
-                    placeholder='{ "type": "service_account", "project_id": "...", ... }'
-                    value={key1}
-                    onChange={(e) => setKey1(e.target.value)}
-                    required
-                  />
-                </div>
-              )}
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-                <button type="button" onClick={() => setShowModal(false)} className="btn-nav-action btn-nav-secondary">
-                  Cancel
-                </button>
-                <button type="submit" className="btn-nav-action btn-nav-primary">
-                  Authenticate & Link Account
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7, fontSize: '0.82rem', color: 'var(--muted)' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Cloud size={13} /> <span className="mono">{conn.bucket_name}</span>
+                  </span>
+                  {conn.region ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <MapPin size={13} /> {conn.region}
+                    </span>
+                  ) : null}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <CalendarDays size={13} /> Linked {formatDate(conn.created_at)}
+                  </span>
+                </div>
+
+                {u ? (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: 'var(--muted)', marginBottom: 5 }}>
+                      <span>{formatBytes(u.used_bytes)} used</span>
+                      <span>{formatBytes(u.limit_bytes)} est. limit</span>
+                    </div>
+                    <div className="progress-track">
+                      <div className="progress-fill" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                ) : null}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto' }}>
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    onClick={() => {
+                      setDisconnectError('');
+                      setPendingDisconnect(conn);
+                    }}
+                  >
+                    <Unlink size={14} /> Disconnect
+                  </button>
+                </div>
               </div>
-            </form>
-          </div>
+            );
+          })}
         </div>
       )}
+
+      {pendingDisconnect ? (
+        <Modal
+          title={`Disconnect "${pendingDisconnect.display_name}"?`}
+          subtitle={`${providerMeta(pendingDisconnect.provider).name} · ${pendingDisconnect.bucket_name}`}
+          onClose={() => {
+            if (!disconnecting) setPendingDisconnect(null);
+          }}
+          footer={
+            <>
+              <button type="button" className="btn btn-ghost" onClick={() => setPendingDisconnect(null)} disabled={disconnecting}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-danger" onClick={handleDisconnect} disabled={disconnecting}>
+                {disconnecting ? <span className="spinner" /> : null}
+                Disconnect
+              </button>
+            </>
+          }
+        >
+          {disconnectError ? <Alert type="error">{disconnectError}</Alert> : null}
+          <p style={{ color: 'var(--muted)', fontSize: '0.88rem', lineHeight: 1.55 }}>
+            The stored credentials for this connection are purged immediately on disconnect.
+            If any files still live on this cloud, the request is refused — delete them first so
+            you do not lose access to your data.
+          </p>
+        </Modal>
+      ) : null}
     </div>
   );
 }
-
-export default Clouds;

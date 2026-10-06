@@ -1,346 +1,349 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import RecentFiles from '../components/RecentFiles';
-import { API_URL } from '../config';
+import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { CloudUpload, Download, Trash2, FileStack, File as FileIcon } from 'lucide-react';
+import { fileApi, connectionApi, quotaApi, uploadToSignedUrl } from '../lib/api';
+import { formatBytes, formatDate } from '../lib/utils';
+import Alert from '../components/Alert';
+import EmptyState from '../components/EmptyState';
+import Modal from '../components/Modal';
+import DonutChart from '../components/DonutChart';
 
-function Files() {
-  const navigate = useNavigate();
+const MAX_FILE_BYTES = 5 * 1024 * 1024 * 1024;
+
+export default function Files() {
   const [files, setFiles] = useState([]);
   const [connections, setConnections] = useState([]);
+  const [quota, setQuota] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadFileName, setUploadFileName] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+  const [upload, setUpload] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const inputRef = useRef(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const results = await Promise.all([
+        fileApi.list(),
+        connectionApi.list(),
+        quotaApi.summary(),
+      ]);
+      setFiles(results[0] || []);
+      setConnections(results[1] || []);
+      setQuota(results[2]);
+    } catch (err) {
+      setError(err.message || 'Could not load files.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    fetchInitialData();
+    load();
   }, []);
 
-  const fetchInitialData = async () => {
-    setLoading(true);
-    const token = localStorage.getItem('nexus_access_token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
-    // Demo mode — show empty state
-    if (token === 'mock_demo_token') {
-      setConnections([]);
-      setFiles([]);
-      setLoading(false);
-      return;
-    }
-
+  const refreshQuietly = async () => {
     try {
-      // 1. Fetch active connections
-      const connRes = await fetch(`${API_URL}/api/v1/connections`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (connRes.status === 401) {
-        localStorage.removeItem('nexus_access_token');
-        navigate('/login');
-        return;
-      }
-      const activeConns = connRes.ok ? await connRes.json() : [];
-      setConnections(activeConns);
-
-      // 2. Fetch files list
-      const fileRes = await fetch(`${API_URL}/api/v1/files`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (fileRes.ok) {
-        const fileList = await fileRes.json();
-        setFiles(fileList);
-      }
+      const results = await Promise.all([fileApi.list(), quotaApi.summary()]);
+      setFiles(results[0] || []);
+      setQuota(results[1]);
     } catch (err) {
-      setErrorMessage('Network error fetching storage data.');
-    } finally {
-      setLoading(false);
+      /* stale data is acceptable until the next manual refresh */
     }
   };
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleFiles = async (fileList) => {
+    const file = fileList && fileList[0];
+    if (!file || upload) return;
+
+    setError('');
+    setNotice('');
 
     if (connections.length === 0) {
-      setErrorMessage('Please link at least one Cloud Provider first.');
+      setError('Connect at least one cloud provider before uploading.');
+      return;
+    }
+    if (file.size < 1) {
+      setError('Empty files (0 bytes) cannot be uploaded.');
+      return;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      setError('Files are limited to 5 GiB each.');
+      return;
+    }
+    if (/[/\\]/.test(file.name)) {
+      setError('Filenames cannot contain path separators.');
       return;
     }
 
-    setErrorMessage('');
-    setSuccessMessage('');
-    setUploading(true);
-    setUploadProgress(0);
-    setUploadFileName(file.name);
-
-    const token = localStorage.getItem('nexus_access_token');
+    setUpload({ name: file.name, progress: 0, phase: 'requesting' });
 
     try {
-      // Step 1: Request Upload URL from Smart Router
-      const reqRes = await fetch(`${API_URL}/api/v1/files/upload-request`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          original_name: file.name,
-          size_bytes: file.size,
-          mime_type: file.type || 'application/octet-stream'
-        })
+      const ticket = await fileApi.uploadRequest({
+        original_name: file.name,
+        size_bytes: file.size,
+        mime_type: file.type || 'application/octet-stream',
       });
 
-      if (!reqRes.ok) {
-        const errData = await reqRes.json();
-        throw new Error(errData.detail || 'Upload request failed');
-      }
-
-      const reqData = await reqRes.json();
-      const { file_id, upload_url } = reqData;
-
-      // Step 2: Upload Binary Payload using XMLHttpRequest (to track progress!)
-      await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', upload_url);
-        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const pct = Math.round((event.loaded / event.total) * 100);
-            setUploadProgress(pct);
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status === 200 || xhr.status === 201 || xhr.status === 204) {
-            resolve();
-          } else {
-            reject(new Error(`Binary transfer failed with status ${xhr.status}`));
-          }
-        };
-
-        xhr.onerror = () => reject(new Error('Network error during transfer.'));
-        xhr.send(file);
+      setUpload({ name: file.name, progress: 0, phase: 'uploading' });
+      await uploadToSignedUrl({
+        uploadUrl: ticket.upload_url,
+        requiredHeaders: ticket.required_headers,
+        file,
+        onProgress: (pct) => setUpload((u) => (u ? Object.assign({}, u, { progress: pct }) : u)),
       });
 
-      // Step 3: Confirm Upload
-      const confirmRes = await fetch(`${API_URL}/api/v1/files/confirm-upload/${file_id}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      setUpload((u) => (u ? Object.assign({}, u, { progress: 100, phase: 'confirming' }) : u));
+      await fileApi.confirmUpload(ticket.file_id);
 
-      if (confirmRes.ok) {
-        setSuccessMessage(`File "${file.name}" uploaded and synchronized successfully!`);
-        fetchInitialData(); // Refresh list & quota
-
-        // Audio & Desktop notification triggers
-        try {
-          const saved = localStorage.getItem('nexus_appearance_settings');
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            if (parsed.notifications) {
-              if (parsed.notifications.playSound !== false) {
-                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav');
-                audio.play().catch(e => console.error('Audio chime failed:', e));
-              }
-              if (parsed.notifications.desktop !== false) {
-                if (Notification.permission === 'granted') {
-                  new Notification('Upload Complete', {
-                    body: `File "${file.name}" uploaded and synchronized successfully!`,
-                  });
-                } else if (Notification.permission !== 'denied') {
-                  Notification.requestPermission().then(permission => {
-                    if (permission === 'granted') {
-                      new Notification('Upload Complete', {
-                        body: `File "${file.name}" uploaded and synchronized successfully!`,
-                      });
-                    }
-                  });
-                }
-              }
-            }
-          } else {
-            // Default behavior if settings don't exist yet: play sound & show notification
-            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav');
-            audio.play().catch(e => console.error('Audio chime failed:', e));
-            
-            if (Notification.permission === 'granted') {
-              new Notification('Upload Complete', {
-                body: `File "${file.name}" uploaded and synchronized successfully!`,
-              });
-            }
-          }
-        } catch (e) {
-          console.error('Failed to trigger notifications', e);
-        }
-      } else {
-        const errData = await confirmRes.json();
-        throw new Error(errData.detail || 'Upload confirmation failed');
-      }
-
+      setNotice(`"${file.name}" uploaded and placed on ${ticket.provider}.`);
+      await refreshQuietly();
     } catch (err) {
-      setErrorMessage(err.message || 'File upload failed.');
+      setError(err.message || 'Upload failed. Please try again.');
     } finally {
-      setUploading(false);
-      setUploadFileName('');
-      setUploadProgress(0);
+      setUpload(null);
+      if (inputRef.current) inputRef.current.value = '';
     }
   };
 
-  const handleDownloadFile = async (fileId) => {
-    const token = localStorage.getItem('nexus_access_token');
+  const handleDownload = async (file) => {
+    setError('');
     try {
-      const res = await fetch(`${API_URL}/api/v1/files/download/${fileId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        // Open download link in a new window or trigger download
-        window.open(data.download_url, '_blank');
-      } else {
-        alert('Failed to retrieve file download link.');
-      }
+      const data = await fileApi.download(file.id);
+      window.open(data.download_url, '_blank', 'noopener,noreferrer');
     } catch (err) {
-      alert('Network error downloading file.');
+      setError(err.message || 'Could not get a download link.');
     }
   };
 
-  const handleDeleteFile = async (fileId) => {
-    if (!window.confirm('Are you sure you want to delete this file permanently?')) {
-      return;
-    }
-    const token = localStorage.getItem('nexus_access_token');
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    setError('');
     try {
-      const res = await fetch(`${API_URL}/api/v1/files/${fileId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setSuccessMessage('File deleted successfully.');
-        fetchInitialData();
-      } else {
-        alert('Failed to delete file.');
-      }
+      await fileApi.remove(pendingDelete.id);
+      setNotice(`"${pendingDelete.original_name}" deleted.`);
+      setPendingDelete(null);
+      await refreshQuietly();
     } catch (err) {
-      alert('Network error deleting file.');
+      setError(err.message || 'Could not delete the file.');
+    } finally {
+      setDeleting(false);
     }
   };
+
+  const used = quota && quota.total_used_bytes ? quota.total_used_bytes : 0;
+  const limit = quota && quota.total_limit_bytes ? quota.total_limit_bytes : 0;
+  const byConnection = quota && quota.by_connection ? quota.by_connection : [];
 
   return (
     <div className="page-content-wrapper">
-      <style>{`
-        .uploader-zone {
-          border: 2px dashed var(--border);
-          border-radius: 8px;
-          background-color: var(--card);
-          padding: 40px 24px;
-          text-align: center;
-          margin-bottom: 32px;
-          transition: border-color 0.2s ease;
-          position: relative;
-        }
-        .uploader-zone:hover {
-          border-color: var(--primary);
-        }
-        .uploader-title {
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--text);
-          margin: 0 0 8px 0;
-        }
-        .uploader-subtitle {
-          font-size: 13px;
-          color: var(--muted);
-          margin: 0 0 20px 0;
-        }
-        .file-input-btn {
-          background-color: var(--input-bg);
-          border: 1px solid var(--border);
-          color: var(--text);
-          padding: 10px 20px;
-          border-radius: 6px;
-          font-weight: 600;
-          font-size: 13.5px;
-          cursor: pointer;
-          display: inline-block;
-        }
-        .file-input-btn:hover {
-          border-color: var(--primary);
-        }
-        .progress-bar-container {
-          max-width: 400px;
-          margin: 20px auto 0 auto;
-          background: var(--border);
-          border-radius: 999px;
-          height: 8px;
-          overflow: hidden;
-        }
-        .progress-bar-fill {
-          height: 100%;
-          background: var(--primary);
-          border-radius: 999px;
-          transition: width 0.1s linear;
-        }
-        .progress-text {
-          font-size: 12.5px;
-          color: var(--muted);
-          margin-top: 8px;
-          font-weight: 500;
-        }
-      `}</style>
-
-      <div className="welcome-header-section">
-        <h1 className="welcome-heading">My Files</h1>
-        <p className="welcome-subtitle">Browse, search, upload, and sync files across your linked storage volumes.</p>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Files</h1>
+          <p className="page-subtitle">
+            Uploads go straight from your browser to the chosen cloud — NexusCloud never sees the bytes.
+          </p>
+        </div>
+        <div className="page-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => inputRef.current && inputRef.current.click()}
+            disabled={Boolean(upload) || connections.length === 0}
+          >
+            <CloudUpload size={16} /> Upload file
+          </button>
+        </div>
       </div>
 
-      {successMessage && <div className="clouds-success-banner">{successMessage}</div>}
-      {errorMessage && <div className="clouds-error-banner">{errorMessage}</div>}
+      {error ? <Alert type="error">{error}</Alert> : null}
+      {notice ? <Alert type="success">{notice}</Alert> : null}
 
-      {connections.length === 0 ? (
-        <div className="files-warning-banner">
-          <span>⚠️</span>
-          <span>
-            <strong>No active cloud storage providers linked.</strong> Please link an account in the <strong>Cloud Providers</strong> tab first to establish a storage destination for uploads.
-          </span>
-        </div>
-      ) : (
-        <div className="uploader-zone">
-          {uploading ? (
-            <div>
-              <div className="uploader-title">Uploading File...</div>
-              <div className="uploader-subtitle" style={{ fontFamily: 'monospace' }}>{uploadFileName}</div>
-              <div className="progress-bar-container">
-                <div className="progress-bar-fill" style={{ width: `${uploadProgress}%` }} />
-              </div>
-              <div className="progress-text">{uploadProgress}% complete</div>
+      <div
+        className={`dropzone${dragOver ? ' drag-over' : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          handleFiles(e.dataTransfer.files);
+        }}
+        onClick={() => !upload && inputRef.current && inputRef.current.click()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && inputRef.current) inputRef.current.click();
+        }}
+        aria-label="Upload a file by dropping it here or browsing"
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          hidden
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+        {upload ? (
+          <div style={{ width: '100%', maxWidth: 460 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, gap: 12 }}>
+              <strong style={{ fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {upload.name}
+              </strong>
+              <span style={{ fontSize: '0.78rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                {upload.phase === 'requesting' ? 'Requesting ticket…' : null}
+                {upload.phase === 'uploading' ? `${upload.progress}%` : null}
+                {upload.phase === 'confirming' ? 'Confirming…' : null}
+              </span>
             </div>
-          ) : (
-            <div>
-              <div className="uploader-title">Select a File to Upload</div>
-              <div className="uploader-subtitle">Vanguard Smart Router will automatically analyze and route your file to the optimal cloud provider.</div>
-              <label className="file-input-btn">
-                Browse Files
-                <input type="file" onChange={handleFileUpload} style={{ display: 'none' }} />
-              </label>
+            <div className="progress-track">
+              <div className="progress-fill" style={{ width: `${upload.progress}%` }} />
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        ) : (
+          <>
+            <div className="empty-state-icon"><CloudUpload size={24} /></div>
+            <h3>Drop a file here, or click to browse</h3>
+            <p>
+              1 byte to 5 GiB per file. The router picks the best connected cloud and the
+              browser PUTs directly to a signed URL.
+            </p>
+            {connections.length === 0 && !loading ? (
+              <p style={{ color: 'var(--warning)', fontWeight: 600 }}>
+                No clouds connected yet — <Link to="/connect-cloud" style={{ color: 'inherit' }}>connect one first</Link>.
+              </p>
+            ) : null}
+          </>
+        )}
+      </div>
 
-      {loading ? (
-        <div style={{ padding: '40px', textAlign: 'center', fontSize: '15px', color: '#6B7280' }}>Loading storage directories...</div>
-      ) : (
-        <RecentFiles files={files} onDownload={handleDownloadFile} onDelete={handleDeleteFile} />
-      )}
+      <div className="card table-card">
+        <div className="card-header" style={{ padding: 'var(--card-padding) var(--card-padding) 0' }}>
+          <div>
+            <h3 className="card-title">Active files</h3>
+            <p className="card-subtitle">{files.length} object{files.length === 1 ? '' : 's'} in your pool</p>
+          </div>
+          {limit > 0 ? (
+            <span className="badge badge-accent">{formatBytes(used)} of {formatBytes(limit)}</span>
+          ) : null}
+        </div>
+
+        {loading ? (
+          <div style={{ padding: 'var(--card-padding)' }}>
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="skeleton" style={{ height: 44, marginBottom: 10 }} />
+            ))}
+          </div>
+        ) : files.length === 0 ? (
+          <EmptyState
+            icon={<FileStack size={26} />}
+            title="No files yet"
+            message="Upload your first file and it will appear here with download and delete actions."
+          />
+        ) : (
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Size</th>
+                  <th>Type</th>
+                  <th>Uploaded</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {files.map((f) => (
+                  <tr key={f.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, maxWidth: 320 }}>
+                        <FileIcon size={16} style={{ color: 'var(--muted)', flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={f.original_name}>
+                          {f.original_name}
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{formatBytes(f.size_bytes)}</td>
+                    <td style={{ color: 'var(--muted)' }}>{f.mime_type || '—'}</td>
+                    <td style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{formatDate(f.uploaded_at)}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          className="btn-icon"
+                          onClick={() => handleDownload(f)}
+                          title="Download"
+                          aria-label={`Download ${f.original_name}`}
+                        >
+                          <Download size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-icon"
+                          onClick={() => setPendingDelete(f)}
+                          title="Delete"
+                          aria-label={`Delete ${f.original_name}`}
+                          style={{ color: 'var(--danger)' }}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {limit > 0 ? (
+        <div className="card" style={{ maxWidth: 560 }}>
+          <div className="card-header">
+            <div>
+              <h3 className="card-title">Pool usage</h3>
+              <p className="card-subtitle">Pending uploads reserve capacity until they expire</p>
+            </div>
+          </div>
+          <DonutChart
+            used={used}
+            total={limit}
+            segments={byConnection.map((c) => ({ id: c.connection_id, used: c.used_bytes }))}
+          />
+        </div>
+      ) : null}
+
+      {pendingDelete ? (
+        <Modal
+          title="Delete file?"
+          subtitle={`"${pendingDelete.original_name}" will be removed from its cloud permanently.`}
+          onClose={() => {
+            if (!deleting) setPendingDelete(null);
+          }}
+          footer={
+            <>
+              <button type="button" className="btn btn-ghost" onClick={() => setPendingDelete(null)} disabled={deleting}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={deleting}>
+                {deleting ? <span className="spinner" /> : null}
+                Delete permanently
+              </button>
+            </>
+          }
+        >
+          <p style={{ color: 'var(--muted)', fontSize: '0.88rem', lineHeight: 1.55 }}>
+            This deletes the object from the destination bucket and releases its quota reservation.
+            This action cannot be undone.
+          </p>
+        </Modal>
+      ) : null}
     </div>
   );
 }
-
-export default Files;

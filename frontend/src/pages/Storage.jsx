@@ -1,78 +1,135 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import StorageChart from '../components/StorageChart';
-import Analytics from '../components/Analytics';
-import { API_URL } from '../config';
+import { useEffect, useState } from 'react';
+import { PieChart } from 'lucide-react';
+import { quotaApi } from '../lib/api';
+import { formatBytes } from '../lib/utils';
+import DonutChart from '../components/DonutChart';
+import EmptyState from '../components/EmptyState';
+import Alert from '../components/Alert';
+import { ProviderIcon, providerMeta } from '../components/providers';
 
-function Storage() {
-  const navigate = useNavigate();
+export default function Storage() {
   const [quota, setQuota] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchQuotaData();
+    quotaApi
+      .summary()
+      .then(setQuota)
+      .catch((err) => setError(err.message || 'Could not load quota.'))
+      .finally(() => setLoading(false));
   }, []);
 
-  const fetchQuotaData = async () => {
-    setLoading(true);
-    const token = localStorage.getItem('nexus_access_token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
-    // Demo mode — show empty state
-    if (token === 'mock_demo_token') {
-      setQuota({ total_used_bytes: 0, total_free_bytes: 0, total_limit_bytes: 0, by_connection: [] });
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const quotaRes = await fetch(`${API_URL}/api/v1/quota/summary`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (quotaRes.status === 401) {
-        localStorage.removeItem('nexus_access_token');
-        navigate('/login');
-        return;
-      }
-      const quotaData = quotaRes.ok ? await quotaRes.json() : null;
-      setQuota(quotaData);
-    } catch (err) {
-      console.error('Error fetching quota summary:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const usedBytes = quota?.total_used_bytes || 0;
-
-  if (loading) {
-    return (
-      <div style={{ padding: '80px 0', textAlign: 'center', fontSize: '15px', color: '#6B7280' }}>
-        Loading storage allocation...
-      </div>
-    );
-  }
+  const used = quota?.total_used_bytes ?? 0;
+  const limit = quota?.total_limit_bytes ?? 0;
+  const free = quota?.total_free_bytes ?? 0;
+  const conns = quota?.by_connection ?? [];
 
   return (
     <div className="page-content-wrapper">
-      <div className="welcome-header-section">
-        <h1 className="welcome-heading">Storage Management</h1>
-        <p className="welcome-subtitle">Detailed breakdown of virtual volume sizes and usage patterns.</p>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Storage</h1>
+          <p className="page-subtitle">
+            Capacity figures are provider free-tier estimates, not live billing balances.
+            Pending uploads reserve capacity until they expire.
+          </p>
+        </div>
       </div>
 
-      <div className="dashboard-grid-two-cols">
-        <div>
-          <StorageChart connections={quota?.by_connection || []} totalUsed={usedBytes} />
+      {error ? <Alert type="error">{error}</Alert> : null}
+
+      {loading ? (
+        <div className="grid grid-2">
+          <div className="skeleton" style={{ height: 260 }} />
+          <div className="skeleton" style={{ height: 260 }} />
         </div>
-        <div>
-          <Analytics />
+      ) : limit === 0 && conns.length === 0 ? (
+        <div className="card">
+          <EmptyState
+            icon={<PieChart size={26} />}
+            title="No storage pool yet"
+            message="Connect a cloud provider to start building pooled capacity."
+          />
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="grid grid-3">
+            <div className="card stat-card">
+              <span className="stat-label">Total pool</span>
+              <span className="stat-value">{formatBytes(limit)}</span>
+              <span className="stat-meta">Across {conns.length} connection{conns.length === 1 ? '' : 's'}</span>
+            </div>
+            <div className="card stat-card">
+              <span className="stat-label">Used</span>
+              <span className="stat-value">{formatBytes(used)}</span>
+              <span className="stat-meta">{quota?.usage_percentage ?? 0}% of pool</span>
+            </div>
+            <div className="card stat-card">
+              <span className="stat-label">Free</span>
+              <span className="stat-value">{formatBytes(free)}</span>
+              <span className="stat-meta">Available for new uploads</span>
+            </div>
+          </div>
+
+          <div className="grid grid-2">
+            <div className="card">
+              <div className="card-header">
+                <div>
+                  <h3 className="card-title">Usage</h3>
+                  <p className="card-subtitle">Used vs free, per connection</p>
+                </div>
+              </div>
+              <DonutChart
+                used={used}
+                total={limit}
+                segments={conns.map((c) => ({ id: c.connection_id, used: c.used_bytes }))}
+              />
+            </div>
+
+            <div className="card table-card">
+              <div className="card-header" style={{ padding: 'var(--card-padding) var(--card-padding) 0' }}>
+                <div>
+                  <h3 className="card-title">Per-connection breakdown</h3>
+                  <p className="card-subtitle">Used / reserved / estimated limit</p>
+                </div>
+              </div>
+              <div className="table-scroll">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Connection</th>
+                      <th>Used</th>
+                      <th>Reserved</th>
+                      <th>Est. limit</th>
+                      <th>Free</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {conns.map((c) => (
+                      <tr key={c.connection_id}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <ProviderIcon provider={c.provider} size={24} />
+                            <div>
+                              <div style={{ fontWeight: 600 }}>{c.display_name || providerMeta(c.provider).name}</div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>{providerMeta(c.provider).name}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>{formatBytes(c.used_bytes)}</td>
+                        <td style={{ color: 'var(--muted)' }}>{formatBytes(c.reserved_bytes)}</td>
+                        <td>{formatBytes(c.limit_bytes)}</td>
+                        <td style={{ color: 'var(--success)' }}>{formatBytes(c.free_bytes)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
-
-export default Storage;
