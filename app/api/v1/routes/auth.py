@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,7 +13,7 @@ from app.core.deps import audit, current_user
 from app.core.security import digest_token, hash_password, parse_token, verify_password
 from app.db.models import AccessRevocation, AuditLog, CloudConnection, FileRecord, PasswordReset, Quota, RefreshSession, User
 from app.db.session import get_db
-from app.schemas import AuditOut, ChangePasswordIn, EmailIn, LoginIn, PlanIn, RefreshIn, RegisterIn, ResetIn, TokenOut, UserOut
+from app.schemas import AuditOut, ChangePasswordIn, DeleteAccountIn, EmailIn, LoginIn, PlanIn, RefreshIn, RegisterIn, ResetIn, TokenOut, UserOut
 from app.services.auth import create_reset, create_tokens, revoke_sessions, send_reset_email
 from app.services.catalog import PLANS
 from app.services.quota import invalidate_quota
@@ -147,3 +147,22 @@ async def set_plan(body: PlanIn, request: Request, user: User = Depends(current_
 @router.get("/audit-logs", response_model=list[AuditOut])
 async def audit_logs(user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
     return (await db.scalars(select(AuditLog).where(AuditLog.user_id == user.id).order_by(AuditLog.created_at.desc()).limit(100))).all()
+
+
+@router.post("/delete-account", status_code=204)
+async def delete_account(body: DeleteAccountIn, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    """Erase the account and all metadata (BRD 11.1). Cloud objects must be deleted first so none are orphaned."""
+    user = await db.scalar(select(User).where(User.id == user.id).with_for_update())
+    if not verify_password(body.password, user.password_hash):
+        raise HTTPException(400, "Password is incorrect")
+    remaining = await db.scalar(select(func.count()).select_from(FileRecord).where(
+        FileRecord.user_id == user.id, FileRecord.status.in_(("active", "pending", "cleanup_failed"))
+    ))
+    if remaining:
+        raise HTTPException(409, "Delete your files or wait for pending upload cleanup before deleting the account")
+    # Explicit child deletes keep this portable to databases without enforced FK cascades.
+    for model in (FileRecord, CloudConnection, AuditLog, Quota, RefreshSession, AccessRevocation, PasswordReset):
+        await db.execute(delete(model).where(model.user_id == user.id))
+    await db.delete(user)
+    await db.commit()
+    await invalidate_quota(user.id)
