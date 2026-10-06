@@ -1,265 +1,101 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import Logo from '../components/Logo';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import AuthLayout from '../components/AuthLayout';
 import PasswordInput from '../components/PasswordInput';
-import NeuralBackground from '../components/NeuralBackground';
-import { API_URL } from '../config';
-import '../css/Login.css';
+import Alert from '../components/Alert';
+import { useAuth } from '../auth/AuthContext';
+import { detailsToFieldErrors } from '../lib/utils';
 
-function Login() {
+export default function Login() {
+  const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({ email: '', password: '' });
-  const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: undefined }));
   };
 
-  const handleSignIn = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.email) {
-      setErrors({ email: 'Please enter your email address.' });
-      return;
-    }
-    if (!form.password) {
-      setErrors({ password: 'Please enter your password.' });
+    const nextErrors = {};
+    if (!form.email.trim()) nextErrors.email = 'Enter your email address.';
+    if (!form.password) nextErrors.password = 'Enter your password.';
+    if (Object.keys(nextErrors).length) {
+      setErrors(nextErrors);
       return;
     }
 
     setErrors({});
     setErrorMessage('');
-    setIsSubmitting(true);
-
-    fetch(`${API_URL}/api/v1/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: form.email,
-        password: form.password,
-      }),
-    })
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.detail || 'Authentication failed');
-        }
-        localStorage.setItem('nexus_access_token', data.access_token);
-        localStorage.setItem('nexus_refresh_token', data.refresh_token);
-        navigate('/');
-      })
-      .catch((err) => {
-        if (form.email === 'demo@nexus.com' && form.password === 'password123') {
-          localStorage.setItem('nexus_access_token', 'mock_demo_token');
-          localStorage.setItem('nexus_refresh_token', 'mock_demo_refresh_token');
-          navigate('/');
-        } else {
-          setErrorMessage(err.message || 'An error occurred. Please try again.');
-        }
-      })
-      .finally(() => {
-        setIsSubmitting(false);
-      });
-  };
-
-  const handleDemoLogin = (e) => {
-    e.preventDefault();
-    setForm({ email: 'demo@nexus.com', password: 'password123' });
-    setErrors({});
-    setErrorMessage('');
-    setIsSubmitting(true);
-
-    fetch(`${API_URL}/api/v1/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: 'demo@nexus.com',
-        password: 'password123',
-      }),
-    })
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.detail || 'Authentication failed');
-        }
-        localStorage.setItem('nexus_access_token', data.access_token);
-        localStorage.setItem('nexus_refresh_token', data.refresh_token);
-        navigate('/');
-      })
-      .catch(() => {
-        // Fallback
-        localStorage.setItem('nexus_access_token', 'mock_demo_token');
-        localStorage.setItem('nexus_refresh_token', 'mock_demo_refresh_token');
-        navigate('/');
-      })
-      .finally(() => {
-        setIsSubmitting(false);
-      });
+    setSubmitting(true);
+    try {
+      await login(form.email.trim(), form.password);
+      navigate(location.state?.from || '/dashboard', { replace: true });
+    } catch (err) {
+      setErrors(detailsToFieldErrors(err.details));
+      setErrorMessage(err.message || 'Sign-in failed. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <div className="auth-split-layout fade-in">
-      {/* LEFT PANEL: Clean Dark Sidebar */}
-      <aside className="auth-left-sidebar">
-        <NeuralBackground />
-        <div>
-          <Logo textColor="#FFFFFF" />
-          <div className="sidebar-content">
-            <h2 className="sidebar-tagline">Secure Multi-Cloud Storage Orchestration</h2>
-            <p className="sidebar-desc">
-              Aggregate AWS, GCP, Azure, and Cloudflare storage tiers into a single smart-routed endpoint.
-            </p>
-          </div>
+    <AuthLayout>
+      <h1 className="auth-card-heading">Welcome back</h1>
+      <p className="auth-card-sub">Sign in to orchestrate your connected clouds.</p>
+
+      {errorMessage ? <Alert type="error">{errorMessage}</Alert> : null}
+
+      <form onSubmit={handleSubmit} noValidate>
+        <div className="field">
+          <label className="field-label" htmlFor="email">Email address</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            className={`input${errors.email ? ' has-error' : ''}`}
+            value={form.email}
+            onChange={handleChange}
+            placeholder="you@example.com"
+            autoComplete="email"
+            autoFocus
+          />
+          {errors.email ? <span className="field-error">{errors.email}</span> : null}
         </div>
 
-        {/* Minimal Corporate SVG Cloud Diagram */}
-        <div className="cloud-mockup-wrapper">
-          <svg className="cloud-svg-diagram" width="280" height="180" viewBox="0 0 280 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Orchestrator node */}
-            <rect x="110" y="70" width="60" height="40" rx="6" fill="#2563EB" />
-            <text x="140" y="94" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="Inter">NEXUS</text>
-            
-            {/* Storage node AWS */}
-            <rect x="20" y="20" width="50" height="30" rx="4" fill="#1E293B" stroke="#334155" strokeWidth="1" />
-            <text x="45" y="38" fill="#94A3B8" fontSize="9" textAnchor="middle" fontFamily="Inter">AWS</text>
-            
-            {/* Storage node GCP */}
-            <rect x="210" y="20" width="50" height="30" rx="4" fill="#1E293B" stroke="#334155" strokeWidth="1" />
-            <text x="235" y="38" fill="#94A3B8" fontSize="9" textAnchor="middle" fontFamily="Inter">GCP</text>
-            
-            {/* Storage node Azure */}
-            <rect x="20" y="130" width="50" height="30" rx="4" fill="#1E293B" stroke="#334155" strokeWidth="1" />
-            <text x="45" y="148" fill="#94A3B8" fontSize="9" textAnchor="middle" fontFamily="Inter">AZURE</text>
-
-            {/* Storage node R2 */}
-            <rect x="210" y="130" width="50" height="30" rx="4" fill="#1E293B" stroke="#334155" strokeWidth="1" />
-            <text x="235" y="148" fill="#94A3B8" fontSize="9" textAnchor="middle" fontFamily="Inter">CF R2</text>
-
-            {/* Connecting lines */}
-            <path d="M70 35 L110 75" stroke="#334155" strokeWidth="1.5" className="connection-line" />
-            <path d="M210 35 L170 75" stroke="#334155" strokeWidth="1.5" className="connection-line" />
-            <path d="M70 145 L110 105" stroke="#334155" strokeWidth="1.5" className="connection-line" />
-            <path d="M210 145 L170 105" stroke="#334155" strokeWidth="1.5" className="connection-line" />
-
-            {/* Pulsing signal nodes (neurons) moving along the pathways */}
-            <circle r="3" fill="#38BDF8">
-              <animateMotion dur="2.5s" repeatCount="indefinite" path="M 70 35 L 110 75" />
-            </circle>
-            <circle r="3" fill="#0EA5E9">
-              <animateMotion dur="3.2s" repeatCount="indefinite" path="M 210 35 L 170 75" />
-            </circle>
-            <circle r="3" fill="#2563EB">
-              <animateMotion dur="2.8s" repeatCount="indefinite" path="M 70 145 L 110 105" />
-            </circle>
-            <circle r="3" fill="#38BDF8">
-              <animateMotion dur="3.5s" repeatCount="indefinite" path="M 210 145 L 170 105" />
-            </circle>
-          </svg>
+        <div className="field">
+          <label className="field-label" htmlFor="password">Password</label>
+          <PasswordInput
+            id="password"
+            name="password"
+            value={form.password}
+            onChange={handleChange}
+            error={errors.password}
+          />
+          {errors.password ? <span className="field-error">{errors.password}</span> : null}
         </div>
-      </aside>
 
-      {/* RIGHT PANEL: Clean Light Corporate Form */}
-      <section className="auth-form-panel">
-        <div className="corporate-auth-card">
-          <div className="form-header">
-            <h1 className="auth-title">Welcome Back</h1>
-            <p className="auth-subtitle">Sign in to continue.</p>
-          </div>
-
-          {errorMessage && (
-            <div style={{
-              backgroundColor: '#FEF2F2',
-              border: '1px solid #FCA5A5',
-              color: '#991B1B',
-              padding: '12px 16px',
-              borderRadius: '8px',
-              fontSize: '14px',
-              marginBottom: '16px'
-            }}>
-              {errorMessage}
-            </div>
-          )}
-
-          <form onSubmit={handleSignIn} noValidate className="form-layout">
-            <div className="input-container">
-              <label htmlFor="login-email" className="input-label">Email Address</label>
-              <input
-                type="email"
-                id="login-email"
-                name="email"
-                value={form.email}
-                onChange={handleChange}
-                placeholder="name123@gmail.com"
-                className={`corp-input ${errors.email ? 'is-invalid' : ''}`}
-              />
-              {errors.email && <div className="error-message">{errors.email}</div>}
-            </div>
-
-            <div className="input-container">
-              <label htmlFor="login-password" className="input-label">Password</label>
-              <PasswordInput
-                value={form.password}
-                onChange={handleChange}
-                name="password"
-                placeholder="••••••••"
-                id="login-password"
-                className={`corp-input ${errors.password ? 'is-invalid' : ''}`}
-              />
-              {errors.password && <div className="error-message">{errors.password}</div>}
-            </div>
-
-            <div className="options-row">
-              <label className="checkbox-wrap">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                <span>Remember this device</span>
-              </label>
-              <Link to="#" className="forgot-link">
-                Forgot password?
-              </Link>
-            </div>
-
-            <button type="submit" className="btn-corp-primary" disabled={isSubmitting}>
-              {isSubmitting ? 'Signing in...' : 'Sign In'}
-            </button>
-
-            <button type="button" onClick={handleDemoLogin} className="btn-corp-secondary" style={{
-              height: '46px',
-              backgroundColor: 'transparent',
-              color: 'var(--primary-color)',
-              border: '1.5px solid var(--primary-color)',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '100%',
-              fontWeight: '600',
-              transition: 'all 150ms ease',
-              marginTop: '4px'
-            }} disabled={isSubmitting}>
-              Try with Demo Account
-            </button>
-
-            <div className="auth-switch-text">
-              Don't have an account?
-              <Link to="/register">Create Account</Link>
-            </div>
-          </form>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '-6px 0 18px' }}>
+          <Link to="/forgot-password" style={{ fontSize: '0.82rem', fontWeight: 600 }}>
+            Forgot password?
+          </Link>
         </div>
-      </section>
-    </div>
+
+        <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
+          {submitting ? <span className="spinner" /> : null}
+          {submitting ? 'Signing in…' : 'Sign in'}
+        </button>
+      </form>
+
+      <p className="auth-card-foot">
+        New to NexusCloud? <Link to="/register">Create an account</Link>
+      </p>
+    </AuthLayout>
   );
 }
-
-export default Login;

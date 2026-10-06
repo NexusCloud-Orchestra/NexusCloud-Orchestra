@@ -1,98 +1,171 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import '../css/Home.css';
+import { ShieldCheck, CloudUpload, Route, Lock, Gauge, Check } from 'lucide-react';
+import Logo from '../components/Logo';
+import { ProviderIcon, providerMeta } from '../components/providers';
+import { catalogApi } from '../lib/api';
+import { formatBytes, planLabel } from '../lib/utils';
 
-function Home() {
+const FEATURES = [
+  {
+    icon: Route,
+    title: 'Smart placement routing',
+    text: 'Every upload is scored across your connected clouds by free capacity, egress cost and permanence, then placed on the best fit automatically.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Zero Data Touch',
+    text: 'File bytes move directly between your browser and your own cloud buckets over provider-signed URLs. NexusCloud never stores content.',
+  },
+  {
+    icon: Lock,
+    title: 'Encrypted credentials',
+    text: 'Cloud keys are encrypted at rest with AES-256-GCM and only decrypted in memory long enough to mint a signed URL.',
+  },
+  {
+    icon: CloudUpload,
+    title: 'Direct-to-cloud uploads',
+    text: 'Browser PUTs straight to the destination bucket with live progress — no proxy bottleneck, no double bandwidth billing.',
+  },
+  {
+    icon: Gauge,
+    title: 'Unified quota',
+    text: 'See pooled capacity, per-connection usage and pending reservations across every provider from one dashboard.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Account security trail',
+    text: 'Sign-ins, password changes and connection events are recorded in an audit log you can review any time.',
+  },
+];
+
+export default function Home() {
+  const [providers, setProviders] = useState([]);
+  const [plans, setPlans] = useState([]);
+  const [catalogFailed, setCatalogFailed] = useState(false);
+
+  useEffect(() => {
+    Promise.all([catalogApi.providers(), catalogApi.plans()])
+      .then(([p, pl]) => {
+        setProviders(p || []);
+        setPlans(pl || []);
+      })
+      .catch(() => setCatalogFailed(true));
+  }, []);
+
   return (
-    <div className="home-page">
-      {/* Header / Navbar */}
-      <header className="home-header">
-        <nav className="home-nav">
-          <Link to="/" className="logo-container">
-            <div className="logo-icon">☁️</div>
-            <span>Nexus cloud</span>
-          </Link>
-
-          <div className="nav-links">
-            <a href="#features" className="nav-link">Features</a>
-            <a href="#how" className="nav-link">How it works</a>
-            <a href="#providers" className="nav-link">Providers</a>
-            <Link to="/help-support" className="nav-link">Support</Link>
-          </div>
-
-          <div className="nav-actions">
-            <Link to="/login" className="btn-signin">Sign in</Link>
-            <Link to="/register" className="btn-primary">
-              Get Started <span className="arrow">→</span>
-            </Link>
-          </div>
-        </nav>
-      </header>
-
-      {/* Hero Section */}
-      <main className="hero-section">
-        <div className="badge-container">
-          <span className="badge-sparkle">⚡</span>
-          <span>Unified Cloud Storage Orchestration</span>
+    <div className="landing">
+      <nav className="landing-nav">
+        <span className="sidebar-brand" style={{ border: 'none', padding: 0, margin: 0 }}>
+          <Logo />
+        </span>
+        <div className="landing-nav-links">
+          <Link to="/login" className="btn btn-ghost btn-sm">Sign in</Link>
+          <Link to="/register" className="btn btn-primary btn-sm">Get started</Link>
         </div>
+      </nav>
 
+      <section className="landing-hero">
+        <span className="hero-eyebrow">Multi-cloud storage orchestration</span>
         <h1 className="hero-title">
-          Master your clouds.
-          <span className="italic-gradient">Unify your storage.</span>
+          Pool every free tier into <span className="gradient-text">one intelligent drive</span>
         </h1>
-
-        <p className="hero-subtitle">
-          Connect AWS, GCP, Azure, R2, and Backblaze. Turn upto 70+ GB of idle free tiers into a single, smart-routed, zero-egress cloud drive—complete with one API and dashboard.
+        <p className="hero-sub">
+          Connect AWS S3, Azure Blob, Google Cloud, Cloudflare R2, Backblaze B2, Oracle and IBM.
+          NexusCloud routes each file to the best destination while your data never leaves your own clouds.
         </p>
-
         <div className="hero-ctas">
-          <Link to="/register" className="btn-primary btn-large">
-            Connect your clouds <span className="arrow">→</span>
-          </Link>
-          <a href="#how" className="btn-secondary">
-            See how it works
-          </a>
+          <Link to="/register" className="btn btn-primary">Create free account</Link>
+          <Link to="/login" className="btn btn-ghost">Sign in</Link>
         </div>
+        <p className="hero-note">Free plan includes 2 cloud connections and 5 GiB of routed storage.</p>
+      </section>
 
-        {/* Social Proof / Cloud Providers */}
-        <section id="providers" className="social-proof">
-          <span className="social-title">Supported Cloud Providers</span>
-          <div className="logo-grid">
-            <span className="social-logo">Amazon S3</span>
-            <span className="social-logo">Google Cloud</span>
-            <span className="social-logo">Azure Blob</span>
-            <span className="social-logo">Cloudflare R2</span>
-            <span className="social-logo">Backblaze B2</span>
-          </div>
-        </section>
-      </main>
-
-      {/* Features Section */}
-      <section id="features" className="features-section">
-        <span className="section-label">Features</span>
-        <h2 className="section-title">Designed for multi-cloud efficiency</h2>
-
-        <div className="features-grid">
-          <div className="feature-card">
-            <div className="feature-icon">🤖</div>
-            <h3>Smart Routing</h3>
-            <p>Automatically scores and routes uploads to the cheapest, fastest, or free tier cloud dynamically based on size and access patterns.</p>
-          </div>
-
-          <div className="feature-card">
-            <div className="feature-icon">🔌</div>
-            <h3>Unified API</h3>
-            <p>Interact with all your buckets through a single S3-compatible API. Stop managing multiple SDKs, credentials, and endpoints.</p>
-          </div>
-
-          <div className="feature-card">
-            <div className="feature-icon">🛡️</div>
-            <h3>Egress Optimization</h3>
-            <p>Utilize free tier allowances and smart CDN/proximity caching to avoid expensive cloud egress fee traps.</p>
-          </div>
+      <section className="landing-section">
+        <div className="landing-section-head">
+          <h2 className="landing-section-title">Built for ownership, not lock-in</h2>
+          <p className="landing-section-sub">Your buckets, your keys, your bytes — we only orchestrate.</p>
+        </div>
+        <div className="feature-grid">
+          {FEATURES.map((f) => (
+            <div key={f.title} className="card feature-card">
+              <div className="feature-icon">
+                <f.icon size={20} />
+              </div>
+              <h3>{f.title}</h3>
+              <p>{f.text}</p>
+            </div>
+          ))}
         </div>
       </section>
+
+      <section className="landing-section">
+        <div className="landing-section-head">
+          <h2 className="landing-section-title">Supported providers</h2>
+          <p className="landing-section-sub">
+            Free-tier figures are estimates published by each provider, not live billing balances.
+          </p>
+        </div>
+        {catalogFailed ? (
+          <p style={{ textAlign: 'center', color: 'var(--muted)' }}>
+            Provider catalog is unavailable right now — the API may be offline.
+          </p>
+        ) : (
+          <div className="provider-grid">
+            {providers.map((p) => (
+              <div key={p.name} className="card provider-tile">
+                <ProviderIcon provider={p.name} size={34} />
+                <div>
+                  <div className="provider-tile-name">{providerMeta(p.name).name}</div>
+                  <div className="provider-tile-meta">
+                    ~{formatBytes(p.free_bytes)} free tier{p.permanent ? ' · always free' : ' · 12 months'}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="landing-section">
+        <div className="landing-section-head">
+          <h2 className="landing-section-title">Plans</h2>
+          <p className="landing-section-sub">Start free. Paid upgrades open once billing is integrated.</p>
+        </div>
+        {plans.length > 0 ? (
+          <div className="pricing-grid">
+            {plans.map((plan) => (
+              <div key={plan.name} className={`card plan-card${plan.name === 'free' ? ' featured' : ''}`}>
+                <div className="plan-card-name">
+                  {planLabel(plan.name)}
+                  {plan.name === 'free' ? <span className="badge badge-accent">Current offer</span> : null}
+                </div>
+                <ul className="plan-features">
+                  <li><Check size={15} /> {plan.max_connections ? `Up to ${plan.max_connections} cloud connections` : 'Unlimited cloud connections'}</li>
+                  <li><Check size={15} /> {plan.max_bytes ? `${formatBytes(plan.max_bytes)} pooled storage` : 'Unlimited pooled storage'}</li>
+                  <li><Check size={15} /> {plan.seats} {plan.seats === 1 ? 'seat' : 'seats'}</li>
+                </ul>
+                <Link to="/register" className={`btn ${plan.name === 'free' ? 'btn-primary' : 'btn-ghost'} btn-block`}>
+                  {plan.name === 'free' ? 'Start free' : 'Coming with billing'}
+                </Link>
+              </div>
+            ))}
+          </div>
+        ) : (
+          !catalogFailed && <p style={{ textAlign: 'center', color: 'var(--muted)' }}>Loading plans…</p>
+        )}
+      </section>
+
+      <section className="landing-cta card">
+        <h2>Ready to unify your clouds?</h2>
+        <p>Connect your first provider in minutes and let the router do the rest.</p>
+        <Link to="/register" className="btn btn-primary">Create free account</Link>
+      </section>
+
+      <footer className="landing-footer">
+        <span>NexusCloud — multi-cloud storage orchestrator</span>
+        <span>Zero Data Touch · AES-256-GCM credential encryption</span>
+      </footer>
     </div>
   );
 }
-
-export default Home;

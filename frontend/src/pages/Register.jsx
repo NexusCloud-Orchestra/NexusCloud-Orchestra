@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Logo from '../components/Logo';
+import { Check, X } from 'lucide-react';
+import AuthLayout from '../components/AuthLayout';
 import PasswordInput from '../components/PasswordInput';
-import NeuralBackground from '../components/NeuralBackground';
-import { API_URL } from '../config';
-import '../css/Register.css';
+import Alert from '../components/Alert';
+import { useAuth } from '../auth/AuthContext';
+import { detailsToFieldErrors } from '../lib/utils';
 
-function Register() {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export default function Register() {
+  const { register } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     firstName: '',
@@ -15,239 +19,170 @@ function Register() {
     password: '',
     confirmPassword: '',
   });
-
   const [errors, setErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: undefined }));
   };
 
-  const handleRegister = (e) => {
+  // Contract: password minimum 8 characters, maximum 72 UTF-8 bytes.
+  const passwordBytes = new TextEncoder().encode(form.password).length;
+  const rules = [
+    { ok: form.password.length >= 8, label: 'At least 8 characters' },
+    { ok: form.password.length > 0 && passwordBytes <= 72, label: 'At most 72 bytes (UTF-8)' },
+    { ok: form.confirmPassword.length > 0 && form.confirmPassword === form.password, label: 'Passwords match' },
+  ];
+
+  const validate = () => {
+    const next = {};
+    if (!form.firstName.trim()) next.firstName = 'First name is required.';
+    if (!form.lastName.trim()) next.lastName = 'Last name is required.';
+    if (!form.email.trim()) next.email = 'Email is required.';
+    else if (!EMAIL_RE.test(form.email.trim())) next.email = 'Enter a valid email address.';
+    if (form.password.length < 8) next.password = 'Password must be at least 8 characters.';
+    else if (passwordBytes > 72) next.password = 'Password must be at most 72 bytes (UTF-8).';
+    if (form.confirmPassword !== form.password) next.confirmPassword = 'Passwords do not match.';
+    return next;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const nextErrors = {};
-
-    if (!form.firstName.trim()) nextErrors.firstName = 'First name is required.';
-    if (!form.lastName.trim()) nextErrors.lastName = 'Last name is required.';
-    if (!form.email.trim()) {
-      nextErrors.email = 'Email is required.';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      nextErrors.email = 'Please enter a valid email address.';
-    }
-    if (!form.password) {
-      nextErrors.password = 'Password is required.';
-    } else if (form.password.length < 8) {
-      nextErrors.password = 'Password must be at least 8 characters.';
-    }
-    if (form.confirmPassword !== form.password) {
-      nextErrors.confirmPassword = 'Passwords do not match.';
-    }
-
-    if (Object.keys(nextErrors).length > 0) {
-      setErrors(nextErrors);
+    const next = validate();
+    if (Object.keys(next).length) {
+      setErrors(next);
       return;
     }
 
     setErrors({});
     setErrorMessage('');
-    setIsSubmitting(true);
-
-    fetch(`${API_URL}/api/v1/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        first_name: form.firstName,
-        last_name: form.lastName,
-        email: form.email,
+    setSubmitting(true);
+    try {
+      await register({
+        first_name: form.firstName.trim(),
+        last_name: form.lastName.trim(),
+        email: form.email.trim(),
         password: form.password,
-      }),
-    })
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.detail || 'Failed to create account.');
-        }
-        navigate('/login');
-      })
-      .catch((err) => {
-        setErrorMessage(err.message || 'An error occurred. Please try again.');
-      })
-      .finally(() => {
-        setIsSubmitting(false);
       });
+      navigate('/login', {
+        state: { registered: true },
+        replace: true,
+      });
+    } catch (err) {
+      setErrors(detailsToFieldErrors(err.details));
+      setErrorMessage(err.message || 'Could not create your account. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <div className="auth-split-layout fade-in">
-      {/* LEFT PANEL: Clean Dark Sidebar */}
-      <aside className="auth-left-sidebar">
-        <NeuralBackground />
-        <div>
-          <Logo textColor="#FFFFFF" />
-          <div className="sidebar-content">
-            <h2 className="sidebar-tagline">Secure Multi-Cloud Storage Orchestration</h2>
-            <p className="sidebar-desc">
-              Aggregate AWS, GCP, Azure, and Cloudflare storage tiers into a single smart-routed endpoint.
-            </p>
+    <AuthLayout>
+      <h1 className="auth-card-heading">Create your account</h1>
+      <p className="auth-card-sub">Start pooling free-tier storage across your clouds.</p>
+
+      {errorMessage ? <Alert type="error">{errorMessage}</Alert> : null}
+
+      <form onSubmit={handleSubmit} noValidate>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="field">
+            <label className="field-label" htmlFor="firstName">First name</label>
+            <input
+              id="firstName"
+              name="firstName"
+              className={`input${errors.firstName ? ' has-error' : ''}`}
+              value={form.firstName}
+              onChange={handleChange}
+              placeholder="Ada"
+              autoComplete="given-name"
+              autoFocus
+            />
+            {errors.firstName ? <span className="field-error">{errors.firstName}</span> : null}
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="lastName">Last name</label>
+            <input
+              id="lastName"
+              name="lastName"
+              className={`input${errors.lastName ? ' has-error' : ''}`}
+              value={form.lastName}
+              onChange={handleChange}
+              placeholder="Lovelace"
+              autoComplete="family-name"
+            />
+            {errors.lastName ? <span className="field-error">{errors.lastName}</span> : null}
           </div>
         </div>
 
-        {/* Minimal Corporate SVG Cloud Diagram */}
-        <div className="cloud-mockup-wrapper">
-          <svg className="cloud-svg-diagram" width="280" height="180" viewBox="0 0 280 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Orchestrator node */}
-            <rect x="110" y="70" width="60" height="40" rx="6" fill="#2563EB" />
-            <text x="140" y="94" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="Inter">NEXUS</text>
-            
-            {/* Storage node AWS */}
-            <rect x="20" y="20" width="50" height="30" rx="4" fill="#1E293B" stroke="#334155" strokeWidth="1" />
-            <text x="45" y="38" fill="#94A3B8" fontSize="9" textAnchor="middle" fontFamily="Inter">AWS</text>
-            
-            {/* Storage node GCP */}
-            <rect x="210" y="20" width="50" height="30" rx="4" fill="#1E293B" stroke="#334155" strokeWidth="1" />
-            <text x="235" y="38" fill="#94A3B8" fontSize="9" textAnchor="middle" fontFamily="Inter">GCP</text>
-            
-            {/* Storage node Azure */}
-            <rect x="20" y="130" width="50" height="30" rx="4" fill="#1E293B" stroke="#334155" strokeWidth="1" />
-            <text x="45" y="148" fill="#94A3B8" fontSize="9" textAnchor="middle" fontFamily="Inter">AZURE</text>
-
-            {/* Storage node R2 */}
-            <rect x="210" y="130" width="50" height="30" rx="4" fill="#1E293B" stroke="#334155" strokeWidth="1" />
-            <text x="235" y="148" fill="#94A3B8" fontSize="9" textAnchor="middle" fontFamily="Inter">CF R2</text>
-
-            {/* Connecting lines */}
-            <path d="M70 35 L110 75" stroke="#334155" strokeWidth="1.5" className="connection-line" />
-            <path d="M210 35 L170 75" stroke="#334155" strokeWidth="1.5" className="connection-line" />
-            <path d="M70 145 L110 105" stroke="#334155" strokeWidth="1.5" className="connection-line" />
-            <path d="M210 145 L170 105" stroke="#334155" strokeWidth="1.5" className="connection-line" />
-
-            {/* Pulsing signal nodes (neurons) moving along the pathways */}
-            <circle r="3" fill="#38BDF8">
-              <animateMotion dur="2.5s" repeatCount="indefinite" path="M 70 35 L 110 75" />
-            </circle>
-            <circle r="3" fill="#0EA5E9">
-              <animateMotion dur="3.2s" repeatCount="indefinite" path="M 210 35 L 170 75" />
-            </circle>
-            <circle r="3" fill="#2563EB">
-              <animateMotion dur="2.8s" repeatCount="indefinite" path="M 70 145 L 110 105" />
-            </circle>
-            <circle r="3" fill="#38BDF8">
-              <animateMotion dur="3.5s" repeatCount="indefinite" path="M 210 145 L 170 105" />
-            </circle>
-          </svg>
+        <div className="field">
+          <label className="field-label" htmlFor="email">Email address</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            className={`input${errors.email ? ' has-error' : ''}`}
+            value={form.email}
+            onChange={handleChange}
+            placeholder="you@example.com"
+            autoComplete="email"
+          />
+          {errors.email ? <span className="field-error">{errors.email}</span> : null}
         </div>
-      </aside>
 
-      {/* RIGHT PANEL: Clean Light Corporate Form */}
-      <section className="auth-form-panel">
-        <div className="corporate-auth-card">
-          <div className="form-header">
-            <h1 className="auth-title">Create Account</h1>
-            <p className="auth-subtitle">Get started with your multi-cloud drive.</p>
+        <div className="field">
+          <label className="field-label" htmlFor="password">Password</label>
+          <PasswordInput
+            id="password"
+            name="password"
+            value={form.password}
+            onChange={handleChange}
+            error={errors.password}
+            autoComplete="new-password"
+          />
+          {errors.password ? <span className="field-error">{errors.password}</span> : null}
+        </div>
+
+        <div className="field">
+          <label className="field-label" htmlFor="confirmPassword">Confirm password</label>
+          <PasswordInput
+            id="confirmPassword"
+            name="confirmPassword"
+            value={form.confirmPassword}
+            onChange={handleChange}
+            error={errors.confirmPassword}
+            autoComplete="new-password"
+          />
+          {errors.confirmPassword ? <span className="field-error">{errors.confirmPassword}</span> : null}
+        </div>
+
+        {form.password ? (
+          <div className="password-rules">
+            {rules.map((rule) => (
+              <span key={rule.label} className={`password-rule${rule.ok ? ' ok' : ''}`}>
+                {rule.ok ? <Check size={13} /> : <X size={13} />}
+                {rule.label}
+              </span>
+            ))}
           </div>
+        ) : null}
 
-          {errorMessage && (
-            <div style={{
-              backgroundColor: '#FEF2F2',
-              border: '1px solid #FCA5A5',
-              color: '#991B1B',
-              padding: '12px 16px',
-              borderRadius: '8px',
-              fontSize: '14px',
-              marginBottom: '16px'
-            }}>
-              {errorMessage}
-            </div>
-          )}
+        <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
+          {submitting ? <span className="spinner" /> : null}
+          {submitting ? 'Creating account…' : 'Create account'}
+        </button>
 
-          <form onSubmit={handleRegister} noValidate className="form-layout">
-            <div className="form-grid-columns">
-              <div className="input-container">
-                <label htmlFor="reg-firstname" className="input-label">First Name</label>
-                <input
-                  type="text"
-                  id="reg-firstname"
-                  name="firstName"
-                  value={form.firstName}
-                  onChange={handleChange}
-                  placeholder="Jane"
-                  className={`corp-input ${errors.firstName ? 'is-invalid' : ''}`}
-                />
-                {errors.firstName && <div className="error-message">{errors.firstName}</div>}
-              </div>
+        <p className="auth-terms">
+          By creating an account you agree to connect only cloud accounts you own or are
+          authorized to use.
+        </p>
+      </form>
 
-              <div className="input-container">
-                <label htmlFor="reg-lastname" className="input-label">Last Name</label>
-                <input
-                  type="text"
-                  id="reg-lastname"
-                  name="lastName"
-                  value={form.lastName}
-                  onChange={handleChange}
-                  placeholder="Doe"
-                  className={`corp-input ${errors.lastName ? 'is-invalid' : ''}`}
-                />
-                {errors.lastName && <div className="error-message">{errors.lastName}</div>}
-              </div>
-            </div>
-
-            <div className="input-container">
-              <label htmlFor="reg-email" className="input-label">Email Address</label>
-              <input
-                type="email"
-                id="reg-email"
-                name="email"
-                value={form.email}
-                onChange={handleChange}
-                placeholder="name123@gmail.com"
-                className={`corp-input ${errors.email ? 'is-invalid' : ''}`}
-              />
-              {errors.email && <div className="error-message">{errors.email}</div>}
-            </div>
-
-            <div className="input-container">
-              <label htmlFor="reg-password" className="input-label">Password</label>
-              <PasswordInput
-                value={form.password}
-                onChange={handleChange}
-                name="password"
-                placeholder="At least 8 characters"
-                id="reg-password"
-                className={`corp-input ${errors.password ? 'is-invalid' : ''}`}
-              />
-              {errors.password && <div className="error-message">{errors.password}</div>}
-            </div>
-
-            <div className="input-container">
-              <label htmlFor="reg-confirmPassword" className="input-label">Confirm Password</label>
-              <PasswordInput
-                value={form.confirmPassword}
-                onChange={handleChange}
-                name="confirmPassword"
-                placeholder="••••••••"
-                id="reg-confirmPassword"
-                className={`corp-input ${errors.confirmPassword ? 'is-invalid' : ''}`}
-              />
-              {errors.confirmPassword && <div className="error-message">{errors.confirmPassword}</div>}
-            </div>
-
-            <button type="submit" className="btn-corp-primary" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating account...' : 'Create Account'}
-            </button>
-
-            <div className="auth-switch-text">
-              Already have an account?
-              <Link to="/login">Sign In</Link>
-            </div>
-          </form>
-        </div>
-      </section>
-    </div>
+      <p className="auth-card-foot">
+        Already have an account? <Link to="/login">Sign in</Link>
+      </p>
+    </AuthLayout>
   );
 }
-
-export default Register;
