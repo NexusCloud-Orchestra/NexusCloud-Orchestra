@@ -68,6 +68,7 @@ async def quota_summary(db: AsyncSession, user: User) -> dict:
     result = {
         "total_used_bytes": quota.used_bytes, "total_free_bytes": total_free,
         "total_limit_bytes": total_limit, "usage_percentage": round(100 * quota.used_bytes / total_limit, 2) if total_limit else 0,
+        "total_reserved_bytes": reserved_total, "plan": user.plan, "plan_limit_bytes": plan_limit,
         "by_connection": by_connection,
     }
     client = redis_client()
