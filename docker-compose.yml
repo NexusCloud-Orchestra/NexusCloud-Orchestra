@@ -33,6 +33,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${PUBLIC_API_URL:-http://localhost:7575}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - api
   worker:
     build: .
     command: ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "-B", "--loglevel=info"]
