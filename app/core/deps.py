@@ -14,6 +14,7 @@ bearer = HTTPBearer(auto_error=False)
 
 
 async def current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     db: AsyncSession = Depends(get_db),
 ) -> User:
@@ -30,6 +31,7 @@ async def current_user(
     revoked = await db.scalar(select(AccessRevocation.id).where(AccessRevocation.jti_hash == digest_token(claims["jti"])))
     if revoked:
         raise HTTPException(401, "Invalid or expired token")
+    request.state.user_id = str(user.id)
     return user
 
 
