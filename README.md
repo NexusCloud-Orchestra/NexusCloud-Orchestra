@@ -160,14 +160,15 @@ Authentication endpoints share a Redis-backed fixed-window limit of 10 requests 
 
 ## 🚀 Quick Start
 
-Install Python 3.12+, uv, and Docker Compose. Copy `.env.example` to `.env`, set independent random `SECRET_KEY` and `ENCRYPTION_KEY` values, and configure PostgreSQL/Redis URLs. For a local all-in-one stack:
+Install Docker Compose. Copy `.env.example` to `.env`, then set `POSTGRES_PASSWORD` and independent random `SECRET_KEY` and `ENCRYPTION_KEY` values. Compose supplies the database and Redis URLs. For a local all-in-one stack:
 
 ```bash
-docker compose up -d --build
-docker compose exec api alembic upgrade head
+docker compose build
+docker compose run --rm api alembic upgrade head
+docker compose up -d
 ```
 
-The API is at `http://localhost:7575`; OpenAPI is at `/docs`. For a host-based development server, see [the backend runbook](docs/BACKEND_RUNBOOK.md). The [API and frontend contract](docs/API_CONTRACT_AND_FRONTEND.md) describes request shapes and browser upload behavior.
+The web UI is at `http://localhost:8080`, the API at `http://localhost:7575`, and OpenAPI at `http://localhost:7575/docs`. For a host-based development server, see [the backend runbook](docs/BACKEND_RUNBOOK.md). The [deployment guide](docs/DEPLOYMENT.md) covers production images and releases; the [API and frontend contract](docs/API_CONTRACT_AND_FRONTEND.md) describes request shapes and browser upload behavior.
 
 Paid plans require a verified billing integration before users can upgrade. Provider capacity is estimated from published free tiers, and live cloud credentials and bucket CORS must be configured for real uploads.
 
