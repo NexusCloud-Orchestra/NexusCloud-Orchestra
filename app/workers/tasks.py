@@ -1,10 +1,10 @@
 import asyncio
 import logging
 from datetime import datetime, timezone
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.core.security import decrypt_credentials
-from app.db.models import CloudConnection, FileRecord
+from app.db.models import AccessRevocation, CloudConnection, FileRecord, PasswordReset, RefreshSession
 from app.db.session import SessionLocal
 from app.services.providers import provider_for
 from app.services.quota import invalidate_quota
@@ -37,6 +37,23 @@ async def _cleanup():
     for user_id in affected:
         await invalidate_quota(user_id)
     return len(files)
+
+
+async def _purge_expired_tokens():
+    """Revocation, refresh and reset rows are useless after expiry; keep the tables bounded."""
+    now = datetime.now(timezone.utc)
+    async with SessionLocal() as db:
+        removed = 0
+        for model in (AccessRevocation, RefreshSession, PasswordReset):
+            result = await db.execute(delete(model).where(model.expires_at < now))
+            removed += result.rowcount or 0
+        await db.commit()
+    return removed
+
+
+@celery_app.task(name="app.workers.tasks.purge_expired_tokens")
+def purge_expired_tokens():
+    return asyncio.run(_purge_expired_tokens())
 
 
 @celery_app.task(name="app.workers.tasks.cleanup_expired_uploads")
