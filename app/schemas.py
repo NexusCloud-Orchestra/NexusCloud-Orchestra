@@ -136,6 +136,7 @@ class UploadOut(BaseModel):
     upload_url: str
     expires_at: datetime
     required_headers: dict[str, str] = {}
+    connection_id: UUID
 
 
 class FileOut(BaseModel):
@@ -147,6 +148,7 @@ class FileOut(BaseModel):
     status: str
     uploaded_at: datetime | None
     connection_id: UUID
+    provider: str
 
 
 class AuditOut(BaseModel):
@@ -157,3 +159,62 @@ class AuditOut(BaseModel):
     ip_address: str | None
     user_agent: str | None
     created_at: datetime
+
+
+class DeleteAccountIn(BaseModel):
+    password: str = Field(min_length=1, max_length=128)
+
+
+class RoutePreviewIn(BaseModel):
+    size_bytes: int = Field(gt=0, le=5 * 1024**3)
+
+
+class RouteWeights(BaseModel):
+    capacity: float
+    egress: float
+    permanence: float
+    fit: float
+
+
+class RouteComponents(RouteWeights):
+    """Weighted contribution of each factor; the four values sum to the candidate score."""
+
+
+class RouteCandidateOut(BaseModel):
+    connection_id: UUID
+    provider: str
+    display_name: str
+    free_bytes: int
+    eligible: bool
+    score: float | None
+    components: RouteComponents | None
+
+
+class RoutePreviewOut(BaseModel):
+    size_bytes: int
+    selected_connection_id: UUID | None
+    blocked_reason: Literal["no_connections", "plan_limit", "no_single_cloud", "insufficient_quota"] | None
+    message: str | None
+    weights: RouteWeights
+    candidates: list[RouteCandidateOut]
+
+
+class QuotaConnectionOut(BaseModel):
+    connection_id: UUID
+    provider: str
+    display_name: str
+    used_bytes: int
+    reserved_bytes: int
+    limit_bytes: int
+    free_bytes: int
+
+
+class QuotaSummaryOut(BaseModel):
+    total_used_bytes: int
+    total_free_bytes: int
+    total_limit_bytes: int
+    usage_percentage: float
+    total_reserved_bytes: int = 0
+    plan: str | None = None
+    plan_limit_bytes: int | None = None
+    by_connection: list[QuotaConnectionOut]
