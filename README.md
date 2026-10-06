@@ -152,99 +152,24 @@ rclone copy file.txt r2:bucket        → One endpoint. Always.
 
 ---
 
-## 🔐 RLaaS — Rate Limiter as a Service
+## 🔐 Rate limiting
 
-NexusCloud is protected by our own **custom-built rate limiting microservice** — published as a standalone Maven package.
-
-```
-Client Request
-      │
-      ▼
-┌─────────────────────────────────────┐
-│           RLaaS Microservice        │
-│           (Java 21 + Spring Boot)   │
-│                                     │
-│  POST /check                        │
-│  { key, limit, window, algorithm }  │
-│                                     │
-│  ┌─────────────┬──────────────────┐ │
-│  │ Token       │ Sliding Window   │ │
-│  │ Bucket      │ Counter          │ │  ← All 5 algorithms
-│  ├─────────────┼──────────────────┤ │
-│  │ Fixed       │ Sliding Window   │ │
-│  │ Window      │ Log              │ │
-│  └─────────────┴──────────────────┘ │
-│                                     │
-│  → Redis distributed state store    │
-└─────────────────────────────────────┘
-      │
-      ▼
-{ allowed: true, remaining: 47, reset_at: 1720000060 }
-```
-
-| Endpoint | Algorithm | Limit |
-|---|---|---|
-| `POST /auth/login` | Sliding Window Counter | 10 req/min per IP |
-| `POST /auth/register` | Fixed Window | 5 req/min per IP |
-| `POST /files/upload` | Token Bucket | 30 req/min per user |
-| `GET /files` | Fixed Window | 60 req/min per user |
-| `POST /connections` | Fixed Window | 5 req/min per user |
+Authentication endpoints share a Redis-backed fixed-window limit of 10 requests per minute per IP, with a process-local fallback during Redis outages. The separate RLaaS service described in the original product plan is not wired into this backend.
 
 ---
 
 ## 🚀 Quick Start
 
-### Prerequisites
+Install Python 3.12+, uv, and Docker Compose. Copy `.env.example` to `.env`, set independent random `SECRET_KEY` and `ENCRYPTION_KEY` values, and configure PostgreSQL/Redis URLs. For a local all-in-one stack:
+
 ```bash
-# Required
-docker & docker compose
-python 3.12+
-uv (package manager)
-node 18+ (for frontend)
+docker compose up -d --build
+docker compose exec api alembic upgrade head
 ```
 
-### 1. Clone & Setup
-```bash
-git clone https://github.com/nexuscloud-dev/nexuscloud-backend
-cd nexuscloud-backend
+The API is at `http://localhost:7575`; OpenAPI is at `/docs`. For a host-based development server, see [the backend runbook](docs/BACKEND_RUNBOOK.md). The [API and frontend contract](docs/API_CONTRACT_AND_FRONTEND.md) describes request shapes and browser upload behavior.
 
-# Install dependencies
-uv venv && source .venv/bin/activate  # Linux/Mac
-uv add -r requirements.txt
-```
-
-### 2. Environment Setup
-```bash
-cp .env.example .env
-
-# Generate required keys
-python -c "import secrets; print('SECRET_KEY=' + secrets.token_hex(32))"
-python -c "from cryptography.fernet import Fernet; print('ENCRYPTION_KEY=' + Fernet.generate_key().decode())"
-
-# Paste both values into .env
-nano .env
-```
-
-### 3. Start Infrastructure
-```bash
-docker compose up -d
-# Starts PostgreSQL + Redis
-```
-
-### 4. Run Migrations
-```bash
-uv run alembic upgrade head
-```
-
-### 5. Start the Server
-```bash
-uv run uvicorn app.main:app --reload --port 8000
-```
-
-### 6. Open API Docs
-```
-http://localhost:8000/docs
-```
+Paid plans require a verified billing integration before users can upgrade. Provider capacity is estimated from published free tiers, and live cloud credentials and bucket CORS must be configured for real uploads.
 
 ---
 
@@ -254,44 +179,18 @@ http://localhost:8000/docs
 nexuscloud/
 ├── app/
 │   ├── api/v1/routes/
-│   │   ├── auth.py          # Register, login, refresh, /me
-│   │   ├── connections.py   # Connect/disconnect cloud accounts
-│   │   ├── files.py         # Upload, download, delete
-│   │   └── quota.py         # Unified quota summary
-│   ├── core/
-│   │   ├── config.py        # Centralised settings (pydantic)
-│   │   ├── security.py      # JWT + bcrypt
-│   │   ├── deps.py          # FastAPI dependencies
-│   │   └── vault.py         # AES-256-GCM credential encryption
-│   ├── db/
-│   │   ├── base.py          # SQLAlchemy DeclarativeBase
-│   │   ├── session.py       # Async engine + session factory
-│   │   └── registry.py      # Model registration (no circular imports)
-│   ├── models/              # PostgreSQL table definitions
-│   │   ├── user.py
-│   │   ├── connection.py
-│   │   ├── file_record.py
-│   │   ├── quota.py
-│   │   └── audit.py
-│   ├── services/
-│   │   ├── router.py        # Smart Router (core IP)
-│   │   ├── vault.py         # Credential encrypt/decrypt
-│   │   ├── quota_engine.py  # Quota polling + Redis cache
-│   │   └── providers/
-│   │       ├── base.py      # Abstract provider interface
-│   │       ├── gcp.py       # Google Cloud Storage SDK
-│   │       ├── r2.py        # Cloudflare R2 (boto3)
-│   │       ├── aws.py       # AWS S3 (boto3)
-│   │       ├── azure.py     # Azure Blob Storage
-│   │       ├── oracle.py    # Oracle OCI
-│   │       └── b2.py        # Backblaze B2
-│   ├── workers/
-│   │   ├── tasks.py         # Celery tasks (quota polling)
-│   │   └── scheduler.py     # Celery beat schedule
-│   └── main.py              # FastAPI app entry point
-├── alembic/                 # Database migrations
-├── tests/                   # Pytest test suite
-├── docs/                    # Provider setup guides
+│   │   ├── auth.py          # Account and token endpoints
+│   │   ├── connections.py   # Cloud connection endpoints
+│   │   ├── files.py         # File metadata endpoints
+│   │   └── quota.py         # Aggregated quota endpoint
+│   ├── core/                # Config, crypto, dependencies, rate limiting
+│   ├── db/                  # Async persistence and ORM models
+│   ├── services/            # Provider strategies, routing, quota and auth
+│   ├── workers/             # Expired-upload cleanup
+│   └── main.py              # API composition and middleware
+├── alembic/backend_versions/ # New backend migration lineage
+├── tests/test_backend.py    # In-process integration tests
+├── docs/                    # Product documents and frontend contract
 ├── .env.example
 ├── docker-compose.yml
 ├── Dockerfile
