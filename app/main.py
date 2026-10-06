@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 import uuid
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
@@ -28,7 +29,7 @@ class JSONFormatter(logging.Formatter):
             "logger": record.name,
             "message": record.getMessage(),
         }
-        for key in ("request_id", "method", "path", "status"):
+        for key in ("request_id", "user_id", "method", "path", "status", "duration_ms"):
             if hasattr(record, key):
                 payload[key] = getattr(record, key)
         if record.exc_info:
@@ -82,6 +83,7 @@ async def guardrails(request: Request, call_next):
         if request.url.path in (
             "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/refresh",
             "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password",
+            "/api/v1/auth/change-password", "/api/v1/auth/delete-account",
         ):
             try:
                 await limiter.check(f"auth:{request.client.host if request.client else 'unknown'}", 10)
@@ -89,9 +91,14 @@ async def guardrails(request: Request, call_next):
                 response = JSONResponse({"error": {"code": "rate_limited", "message": exc.detail, "request_id": request_id}}, status_code=429)
                 response.headers["Retry-After"] = "60"
                 return _secure_response(response, request_id)
+    started = time.perf_counter()
     response = await call_next(request)
     _secure_response(response, request_id)
-    logger.info("request completed", extra={"request_id": request_id, "method": request.method, "path": request.url.path, "status": response.status_code})
+    logger.info("request completed", extra={
+        "request_id": request_id, "user_id": getattr(request.state, "user_id", None), "method": request.method,
+        "path": request.url.path, "status": response.status_code,
+        "duration_ms": round((time.perf_counter() - started) * 1000, 1),
+    })
     return response
 
 
