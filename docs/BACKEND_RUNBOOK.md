@@ -11,7 +11,7 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 7575 --no-access-log
 uv run celery -A app.workers.celery_app:celery_app worker -B --loglevel=info
 ```
 
-The worker clears expired upload reservations and attempts to remove orphaned uploaded objects every five minutes. Failed cloud cleanup is retried on the next run. Avoid `worker -B` on multiple replicas; run a single beat scheduler if scaling workers. Tests use SQLite and fakeredis:
+The worker clears expired upload reservations and attempts to remove orphaned uploaded objects every five minutes, and purges expired token/revocation rows hourly. Failed cloud cleanup is retried on the next run. Avoid `worker -B` on multiple replicas; run a single beat scheduler if scaling workers. Tests use SQLite and fakeredis:
 
 ```bash
 uv run pytest tests/test_backend.py
