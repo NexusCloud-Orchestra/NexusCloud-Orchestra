@@ -215,3 +215,126 @@ def test_production_rejects_insecure_configuration():
         CORS_ORIGINS="https://app.example.com", SMTP_HOST="smtp.example.com", SMTP_FROM="security@example.com",
     )
     safe.assert_safe()
+
+
+async def connect(client, headers, provider, name, **extra):
+    credentials = {"aws_access_key_id": "test", "aws_secret_access_key": "secret"}
+    if provider == "r2":
+        credentials["account_id"] = "0" * 32
+    response = await client.post("/api/v1/connections", headers=headers, json={
+        "provider": provider, "display_name": name, "bucket_name": "test-bucket", "region": "us-east-1",
+        "credentials": credentials, **extra,
+    })
+    assert response.status_code == 201, response.text
+    return response.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_route_preview_explains_decision_without_reserving(client):
+    tokens = await signup(client, "router@example.com")
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    empty = (await client.post("/api/v1/files/route-preview", headers=headers, json={"size_bytes": 10})).json()
+    assert empty["blocked_reason"] == "no_connections"
+    assert empty["candidates"] == [] and empty["selected_connection_id"] is None
+    aws = await connect(client, headers, "aws", "S3")
+    r2 = await connect(client, headers, "r2", "R2")
+    preview = await client.post("/api/v1/files/route-preview", headers=headers, json={"size_bytes": 1024})
+    assert preview.status_code == 200, preview.text
+    body = preview.json()
+    assert body["selected_connection_id"] == r2 and body["blocked_reason"] is None
+    assert body["weights"] == {"capacity": 0.4, "egress": 0.3, "permanence": 0.2, "fit": 0.1}
+    assert [c["connection_id"] for c in body["candidates"]] == [r2, aws]
+    for candidate in body["candidates"]:
+        assert abs(sum(candidate["components"].values()) - candidate["score"]) < 1e-3
+    # Preview must not reserve capacity.
+    assert (await client.get("/api/v1/quota/summary", headers=headers)).json()["total_reserved_bytes"] == 0
+    ticket = (await client.post("/api/v1/files/upload-request", headers=headers, json={
+        "original_name": "a.bin", "size_bytes": 1024, "mime_type": "application/octet-stream"
+    })).json()
+    # The real upload path makes the same decision the preview reported.
+    assert ticket["connection_id"] == r2 and ticket["provider"] == "r2"
+    too_big = (await client.post("/api/v1/files/route-preview", headers=headers, json={"size_bytes": 5 * 1024**3})).json()
+    assert too_big["blocked_reason"] == "plan_limit" and too_big["selected_connection_id"] is None
+    assert too_big["message"].startswith("Plan storage limit")
+    assert (await client.post("/api/v1/files/route-preview", headers=headers, json={"size_bytes": 0})).status_code == 422
+    assert (await client.post("/api/v1/files/route-preview", json={"size_bytes": 1})).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_cancel_upload_releases_reservation(client):
+    tokens = await signup(client, "cancel@example.com")
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    other = await signup(client, "cancel-other@example.com")
+    other_headers = {"Authorization": f"Bearer {other['access_token']}"}
+    connection_id = await connect(client, headers, "aws", "S3")
+    ticket = (await client.post("/api/v1/files/upload-request", headers=headers, json={
+        "original_name": "big.bin", "size_bytes": 4096, "mime_type": "application/octet-stream"
+    })).json()
+    summary = (await client.get("/api/v1/quota/summary", headers=headers)).json()
+    assert summary["total_reserved_bytes"] == 4096 and summary["by_connection"][0]["reserved_bytes"] == 4096
+    assert summary["plan"] == "free" and summary["plan_limit_bytes"] == 5 * 1024**3
+    assert (await client.delete(f"/api/v1/connections/{connection_id}", headers=headers)).status_code == 409
+    assert (await client.post(f"/api/v1/files/cancel-upload/{ticket['file_id']}", headers=other_headers)).status_code == 404
+    assert (await client.post(f"/api/v1/files/cancel-upload/{ticket['file_id']}", headers=headers)).status_code == 204
+    assert (await client.post(f"/api/v1/files/cancel-upload/{ticket['file_id']}", headers=headers)).status_code == 409
+    assert (await client.post(f"/api/v1/files/confirm-upload/{ticket['file_id']}", headers=headers)).status_code == 409
+    assert (await client.get("/api/v1/quota/summary", headers=headers)).json()["total_reserved_bytes"] == 0
+    assert (await client.delete(f"/api/v1/connections/{connection_id}", headers=headers)).status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_file_listing_includes_provider(client):
+    tokens = await signup(client, "listing@example.com")
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    await connect(client, headers, "aws", "S3")
+    ticket = (await client.post("/api/v1/files/upload-request", headers=headers, json={
+        "original_name": "x.txt", "size_bytes": 3, "mime_type": "text/plain"
+    })).json()
+    assert (await client.put(ticket["upload_url"], content=b"abc", headers=ticket["required_headers"])).status_code == 200
+    confirmed = (await client.post(f"/api/v1/files/confirm-upload/{ticket['file_id']}", headers=headers)).json()
+    assert confirmed["provider"] == "aws"
+    files = (await client.get("/api/v1/files", headers=headers)).json()
+    assert [(f["original_name"], f["provider"]) for f in files] == [("x.txt", "aws")]
+
+
+@pytest.mark.asyncio
+async def test_delete_account_requires_password_and_empty_storage(client):
+    tokens = await signup(client, "erase@example.com")
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    connection_id = await connect(client, headers, "aws", "S3")
+    ticket = (await client.post("/api/v1/files/upload-request", headers=headers, json={
+        "original_name": "x.txt", "size_bytes": 3, "mime_type": "text/plain"
+    })).json()
+    wrong = await client.post("/api/v1/auth/delete-account", headers=headers, json={"password": "nope-nope"})
+    assert wrong.status_code == 400
+    blocked = await client.post("/api/v1/auth/delete-account", headers=headers, json={"password": "SecurePassword123!"})
+    assert blocked.status_code == 409
+    await client.post(f"/api/v1/files/cancel-upload/{ticket['file_id']}", headers=headers)
+    erased = await client.post("/api/v1/auth/delete-account", headers=headers, json={"password": "SecurePassword123!"})
+    assert erased.status_code == 204, erased.text
+    assert (await client.get("/api/v1/auth/me", headers=headers)).status_code == 401
+    assert (await client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})).status_code == 401
+    assert (await client.post("/api/v1/auth/login", json={
+        "email": "erase@example.com", "password": "SecurePassword123!"
+    })).status_code == 401
+    # The email can be registered again because no metadata survives.
+    await signup(client, "erase@example.com")
+    assert connection_id
+
+
+@pytest.mark.asyncio
+async def test_worker_purges_expired_tokens(client, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    import app.workers.tasks as tasks
+    from app.db.models import RefreshSession
+    from sqlalchemy import func, select
+    monkeypatch.setattr(tasks, "SessionLocal", main_module.SessionLocal)
+    tokens = await signup(client, "purge@example.com")
+    async with main_module.SessionLocal() as db:
+        session = await db.scalar(select(RefreshSession))
+        session.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        await db.commit()
+    assert await tasks._purge_expired_tokens() == 1
+    async with main_module.SessionLocal() as db:
+        assert await db.scalar(select(func.count()).select_from(RefreshSession)) == 0
+    assert (await client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})).status_code == 401
