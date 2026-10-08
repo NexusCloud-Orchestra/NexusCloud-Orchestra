@@ -47,7 +47,27 @@ Source of truth: `docs/context.md`, `docs/PRD.md`, `docs/BRD.md`.
 - [x] Locked, non-root API image and static frontend image with SPA routing and health endpoint
 - [x] Local Compose web service and documented migration/startup sequence
 - [x] PR checks and tag-triggered GHCR image publication; compatible frontend dependency security updates
-- [ ] Run image smoke tests and configure the target environment's deployment rollout
+- [x] Add CI image smoke checks for migration, API/web health, and SPA routing
+- [x] Audit and update runtime dependencies; replace python-jose with PyJWT; add dependency audits to CI
+- [ ] Confirm image smoke checks on CI and configure the target environment's deployment rollout
+
+## Phase 11 — Live launch acceptance
+- [x] Add a live-provider smoke script with upload/download byte check, quota assertions, and cleanup
+- [ ] Run it against at least three real providers with dedicated test buckets
+- [ ] Verify PostgreSQL, Redis, Celery, SMTP, monitoring, security, load, and recovery in the target environment
+
+## Phase 12 — Cross-cloud striping (2026-10-07)
+- [x] 16 MiB chunks across at least two BYOC provider types with deterministic SHA-256 index and direct browser transfer
+- [x] Manifest lifecycle, quota integration, cancellation, expiry cleanup, and retry after partial cloud deletion
+- [x] Cross-language Python/TypeScript index vector and cancellation/retry tests
+- [x] Version 2 common index commits to chunk content and BYOC placement, with version 1 read compatibility
+- [x] Stored-index consistency checks before signed URL issuance; incremental verified download where browser file-save streams are available
+- [ ] Real multi-provider end-to-end test, including browser CORS and signed URL behavior
+- [ ] Enforce immutable or version-pinned cloud objects so signed PUT URLs cannot overwrite confirmed chunks
+- [ ] Browser acceptance tests for streamed downloads and the 512 MiB fallback
+- [ ] Production alerting and reconciliation for `cleanup_failed` manifests and missing/modified chunks
+- [ ] Distributed rate limiting and target load-balancer/Cloud Run configuration before rollout
+- [ ] Resolve legacy database migration if upgrading an existing installation
 
 ## Verification log
 
@@ -58,6 +78,9 @@ Source of truth: `docs/context.md`, `docs/PRD.md`, `docs/BRD.md`.
 - 2026-10-05: Original `tests/test_flow.py` passed against a live localhost API with a fresh temporary SQLite database and local signed storage.
 - 2026-10-06: 13 backend tests passed (5 new: route preview, cancel upload, file provider, account deletion, token purge). `alembic check` reports no drift (no schema change). `tests/test_flow.py` passed against live uvicorn. Frontend `npm run build` passed.
 - 2026-10-06: Locked Python sync, fresh SQLite migration/drift check, wheel build, clean frontend install/build, and workflow/Compose YAML parsing passed. Image builds could not run: Docker daemon access and Compose plugin are unavailable.
+- 2026-10-07: 15 Python tests and the frontend production build/lint passed. Live-provider smoke script passed against the local storage emulator; real-provider runs remain pending. Locked Python runtime and frontend production dependency audits found no known vulnerabilities. CI image smoke steps were added but cannot be run locally because Docker daemon access is denied.
+- 2026-10-07: 19 Python tests passed, including two-provider striping, malformed manifests, cancellation after partial upload, and worker retry after partial deletion. Stripe cancellation now defers final cleanup until signed PUT URLs expire; quota is released immediately while connection/account deletion stays blocked. Browser confirmation no longer auto-cancels on an ambiguous transient response. Frontend hash vector, build, and lint passed.
+- 2026-10-07: Version 2 common index and compatibility migration added; 22 Python tests, cross-language v1/v2 vectors, frontend build, and lint passed. Stored placement tampering returns 503 instead of a signed URL; legacy v1 reads and tail-placement recovery are tested. Browser streaming download added for supported browsers; live-provider/browser acceptance remains open.
 - 2026-10-05: Disabled server access logs after finding they exposed signed URL query tokens; structured application logs omit query strings.
 
 ## Boundaries and follow-up
@@ -65,6 +88,6 @@ Source of truth: `docs/context.md`, `docs/PRD.md`, `docs/BRD.md`.
 - Live AWS/Azure/GCP/R2/B2/OCI/IBM credentials, PostgreSQL, Redis and Docker were unavailable for live integration in this environment. Provider-specific classes are implemented but real-cloud behavior still needs sandbox tests with credentials.
 - The two legacy Alembic roots conflict. The new migration lineage is for a fresh database; existing installations need a data migration.
 - Paid upgrades are blocked until verified billing is integrated. Team seats, 2FA, API keys, live analytics and file splitting are later PRD phases without a backend contract yet.
-- React Router 6 and Vite 5 still have npm audit advisories that require major-version migrations; compatible dependency updates cleared the other reported advisories.
+- React Router was upgraded to v7, clearing frontend production dependency advisories. Vite 5 and Tailwind 3 development dependencies still have npm audit advisories requiring major-version migrations; the production audit is clean.
 - The platform uses an in-process quota service against its own database; the existing standalone `quota-engine/` is not wired into this API.
 - PRD US-006 asks both for immediate credential purge on disconnect and continued access to files on that cloud. Those requirements conflict. The implemented safe behavior returns 409 until files are removed, then purges credentials.

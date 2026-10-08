@@ -3,13 +3,16 @@ import { useSearchParams } from "react-router-dom"
 import { Download, HardDrive, Link2, Trash2, X } from "lucide-react"
 import { useFiles, useConnections } from "../../hooks/use-data"
 import { useQueryClient } from "@tanstack/react-query"
-import { deleteFile, requestDownload } from "../../api/files"
+import {
+  deleteFile, deleteStripedFile, getStripedManifest, requestDownload, stripedChunkDownloadUrl,
+} from "../../api/files"
 import { ApiError } from "../../api/client"
 import { useToast } from "../../state/toast"
 import { queryKeys } from "../../state/query"
 import { useUploads } from "../../state/uploads"
 import { formatBytes, formatDateTime, fileExtension, formatRelative } from "../../lib/format"
 import { providerName } from "../../lib/providers"
+import { sha256, verifyStripeIndex } from "../../lib/striping"
 import { PageHeader, Breadcrumb } from "../../components/layout/shell"
 import { Panel, PanelHeader } from "../../components/ui/panel"
 import { EmptyState, ErrorState, ListSkeleton } from "../../components/ui/states"
@@ -23,6 +26,19 @@ import { ProviderMark } from "../../components/ui/provider-mark"
 import type { FileRecord } from "../../types/api"
 
 type SortKey = "name" | "size" | "modified"
+const MAX_BUFFERED_DOWNLOAD_BYTES = 512 * 1024 ** 2
+
+interface BrowserFileWriter {
+  write(data: ArrayBuffer): Promise<void>
+  close(): Promise<void>
+  abort(): Promise<void>
+}
+
+interface SaveFileWindow extends Window {
+  showSaveFilePicker?: (options: { suggestedName: string }) => Promise<{
+    createWritable(): Promise<BrowserFileWriter>
+  }>
+}
 
 export function FilesPage() {
   const [files] = useSearchParams()
@@ -64,18 +80,61 @@ export function FilesPage() {
 
   async function download(file: FileRecord) {
     try {
-      const ticket = await requestDownload(file.id)
-      // Signed URL must be consumed immediately; never persisted.
+      let url: string
+      if (file.storage_mode === "striped") {
+        const picker = (window as SaveFileWindow).showSaveFilePicker
+        if (!picker && file.size_bytes > MAX_BUFFERED_DOWNLOAD_BYTES) {
+          throw new Error("This browser cannot stream large downloads; use a browser with Save As support")
+        }
+        // File picker permission is tied to the click; open it before awaiting the API.
+        const handle = picker ? await picker.call(window, { suggestedName: file.original_name }) : null
+        const manifest = await getStripedManifest(file.id)
+        const ordered = [...manifest.chunks].sort((a, b) => a.index - b.index)
+        if (!await verifyStripeIndex({ ...manifest, chunks: ordered })) {
+          throw new Error("Cloud chunk index failed integrity validation")
+        }
+        if (!handle && manifest.size_bytes > MAX_BUFFERED_DOWNLOAD_BYTES) {
+          throw new Error("This browser cannot stream large downloads; use a browser with Save As support")
+        }
+        const writer = handle ? await handle.createWritable() : null
+        const pieces: ArrayBuffer[] = []
+        try {
+          for (const chunk of ordered) {
+            const signed = await stripedChunkDownloadUrl(file.id, chunk.index)
+            const response = await fetch(signed.url, { credentials: "omit" })
+            if (!response.ok) throw new Error(`Cloud download failed for chunk ${chunk.index + 1}`)
+            const bytes = await response.arrayBuffer()
+            if (bytes.byteLength !== chunk.size_bytes || await sha256(bytes) !== chunk.sha256) {
+              throw new Error(`Chunk ${chunk.index + 1} failed integrity validation`)
+            }
+            if (writer) await writer.write(bytes)
+            else pieces.push(bytes)
+          }
+          if (writer) await writer.close()
+        } catch (error) {
+          if (writer) await writer.abort().catch(() => undefined)
+          throw error
+        }
+        if (writer) {
+          toast.notify(`Download saved for ${file.original_name}`, "success")
+          return
+        }
+        url = URL.createObjectURL(new Blob(pieces, { type: manifest.mime_type }))
+      } else {
+        const ticket = await requestDownload(file.id)
+        url = ticket.download_url
+      }
       const anchor = document.createElement("a")
-      anchor.href = ticket.download_url
+      anchor.href = url
       anchor.download = file.original_name
       anchor.rel = "noopener"
       document.body.appendChild(anchor)
       anchor.click()
       anchor.remove()
+      if (file.storage_mode === "striped") window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
       toast.notify(`Download started for ${file.original_name}`, "success")
     } catch (caught) {
-      toast.notify(caught instanceof ApiError ? caught.message : "Could not create a download URL", "error")
+      toast.notify(caught instanceof Error ? caught.message : "Could not download the file", "error")
     }
   }
 
@@ -83,7 +142,11 @@ export function FilesPage() {
     if (!deleteTarget) return
     setDeleting(true)
     try {
-      await deleteFile(deleteTarget.id)
+      if (deleteTarget.storage_mode === "striped") {
+        await deleteStripedFile(deleteTarget.id)
+      } else {
+        await deleteFile(deleteTarget.id)
+      }
       toast.notify(`${deleteTarget.original_name} deleted`, "success")
       setDeleteTarget(null)
       void queryClient.invalidateQueries({ queryKey: queryKeys.files })
@@ -314,7 +377,7 @@ function FileDetail({
     ["Type", file.mime_type],
     ["Cloud", providerName(file.provider)],
     ["Status", file.status],
-    ["Connection", connection ? `${connection.display_name} · ${connection.bucket_name}` : file.connection_id],
+    ["Connection", connection ? `${connection.display_name} · ${connection.bucket_name}` : "Striped across clouds"],
     ["Region", connection?.region ?? "—"],
     ["Uploaded", formatDateTime(file.uploaded_at)],
     ["File ID", file.id],
@@ -342,8 +405,9 @@ function FileDetail({
       </dl>
       <p className="flex items-start gap-2 text-sm text-ink-3">
         <Link2 size={13} className="mt-0.5 shrink-0" aria-hidden />
-        Downloads use a signed URL from {providerName(file.provider)} that expires in 60 minutes. NexusCloud never
-        stores file content.
+        {file.storage_mode === "striped"
+          ? "Downloads reassemble browser-fetched chunks after SHA-256 verification. Every cloud must permit browser GET through CORS."
+          : `Downloads use a signed URL from ${providerName(file.provider)} that expires in 60 minutes. NexusCloud never stores file content.`}
       </p>
       <div className="flex gap-2">
         <Button size="sm" variant="secondary" onClick={onDownload}>
@@ -400,7 +464,7 @@ function UploadZone() {
         </span>
         <div>
           <p className="text-md font-medium text-ink">{dragOver ? "Release to upload" : "Drop files to upload"}</p>
-          <p className="text-sm text-ink-2">Files go directly to the selected cloud. 1 B – 5 GiB each.</p>
+          <p className="text-sm text-ink-2">Files go directly to your clouds. Files over 16 MiB stripe when two providers are connected.</p>
         </div>
       </div>
       <input

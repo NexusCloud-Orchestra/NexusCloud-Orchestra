@@ -70,8 +70,9 @@ export interface FileRecord {
   mime_type: string
   status: FileStatus
   uploaded_at: string | null
-  connection_id: string
-  provider: ProviderId
+  connection_id: string | null
+  provider: ProviderId | "multi"
+  storage_mode: "single" | "striped"
 }
 
 export interface UploadTicket {
@@ -82,6 +83,39 @@ export interface UploadTicket {
   expires_at: string
   required_headers: Record<string, string>
   connection_id: string
+}
+
+export interface StripedChunk {
+  index: number
+  chunk_id: string
+  connection_id: string
+  provider: ProviderId
+  size_bytes: number
+  sha256: string
+}
+
+export interface StripedUploadTicket {
+  file_id: string
+  index_version: number
+  index_hash: string
+  expires_at: string
+  chunks: StripedChunk[]
+}
+
+export interface StripedManifest {
+  file_id: string
+  index_version: number
+  original_name: string
+  mime_type: string
+  size_bytes: number
+  index_hash: string
+  chunks: StripedChunk[]
+}
+
+export interface SignedChunkUrl {
+  url: string
+  required_headers: Record<string, string>
+  expires_in_seconds: number
 }
 
 export interface DownloadTicket {

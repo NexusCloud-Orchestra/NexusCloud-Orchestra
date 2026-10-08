@@ -21,6 +21,12 @@ jobs:
         run: python -m pip install uv==0.12.21
       - name: Install locked dependencies
         run: uv sync --locked --extra test
+      - name: Audit locked runtime dependencies
+        run: |
+          uv export --locked --no-dev --no-emit-project --no-hashes \
+            --output-file "$RUNNER_TEMP/requirements-audit.txt" >/dev/null
+          uvx pip-audit==2.10.1 --no-deps --progress-spinner off \
+            -r "$RUNNER_TEMP/requirements-audit.txt"
       - name: Test API
         run: uv run --frozen pytest tests/test_backend.py -q
       - name: Check fresh database migration
@@ -46,6 +52,12 @@ jobs:
       - name: Install locked dependencies
         working-directory: frontend
         run: npm ci
+      - name: Check cross-language stripe index
+        working-directory: frontend
+        run: npm run test:striping
+      - name: Audit production dependencies
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=moderate
       - name: Typecheck and build
         working-directory: frontend
         env:
@@ -63,13 +75,31 @@ jobs:
         with:
           context: .
           push: false
+          load: true
+          tags: nexuscloud-api:smoke
       - name: Build frontend image
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
           push: false
+          load: true
+          tags: nexuscloud-web:smoke
           build-args: |
             VITE_API_URL=https://api.example.com
+      - name: Smoke-test both images
+        run: |
+          set -euo pipefail
+          trap 'docker rm -f nexuscloud-api-smoke nexuscloud-web-smoke >/dev/null 2>&1 || true' EXIT
+          docker run -d --name nexuscloud-api-smoke -p 7575:7575 \
+            -e DATABASE_URL=sqlite+aiosqlite:////tmp/nexuscloud-smoke.db \
+            -e SECRET_KEY=ci-access-secret-0123456789abcdef0123456789 \
+            -e ENCRYPTION_KEY=ci-encryption-secret-0123456789abcdef \
+            nexuscloud-api:smoke \
+            sh -c 'alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 7575 --no-access-log'
+          docker run -d --name nexuscloud-web-smoke -p 8080:8080 nexuscloud-web:smoke
+          curl --fail --retry 20 --retry-delay 1 --retry-connrefused http://127.0.0.1:7575/health
+          curl --fail --retry 20 --retry-delay 1 --retry-connrefused http://127.0.0.1:8080/health
+          curl --fail http://127.0.0.1:8080/app/files | grep -q '<div id="root">'
 
   publish:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')

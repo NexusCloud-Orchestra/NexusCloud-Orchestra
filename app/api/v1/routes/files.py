@@ -3,20 +3,20 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager, selectinload
 
 from app.core.deps import audit, current_user
 from app.core.security import decrypt_credentials
-from app.db.models import CloudConnection, FileRecord, Quota, User
+from app.db.models import CloudConnection, FileManifest, FileRecord, Quota, User
 from app.db.session import get_db
 from app.schemas import (
     FileOut, RouteCandidateOut, RouteComponents, RoutePreviewIn, RoutePreviewOut, RouteWeights, UploadIn, UploadOut,
 )
 from app.services.catalog import PLANS, PROVIDERS
 from app.services.providers import LocalProvider, provider_for
-from app.services.quota import invalidate_quota
+from app.services.quota import invalidate_quota, quota_usage
 from app.services.router import (
     WEIGHT_CAPACITY, WEIGHT_EGRESS, WEIGHT_FIT, WEIGHT_PERMANENCE, Candidate, Evaluation, SmartRouter,
 )
@@ -44,7 +44,8 @@ class Placement:
 
 async def _file(db: AsyncSession, user_id: UUID, file_id: UUID, lock: bool = False):
     statement = select(FileRecord, CloudConnection).join(FileRecord.connection).options(contains_eager(FileRecord.connection)).where(
-        FileRecord.id == file_id, FileRecord.user_id == user_id, CloudConnection.user_id == user_id
+        FileRecord.id == file_id, FileRecord.user_id == user_id, CloudConnection.user_id == user_id,
+        FileRecord.manifest_id.is_(None),
     )
     if lock:
         statement = statement.with_for_update()
@@ -59,17 +60,12 @@ async def _placement(db: AsyncSession, user: User, size_bytes: int) -> Placement
     connections = (await db.scalars(select(CloudConnection).where(
         CloudConnection.user_id == user.id, CloudConnection.is_active.is_(True)
     ).order_by(CloudConnection.created_at))).all()
-    usage_rows = (await db.execute(
-        select(FileRecord.connection_id, FileRecord.status, func.sum(FileRecord.size_bytes))
-        .where(FileRecord.user_id == user.id, FileRecord.status.in_(("active", "pending")))
-        .group_by(FileRecord.connection_id, FileRecord.status)
-    )).all()
-    usage = {(connection_id, status): amount for connection_id, status, amount in usage_rows}
-    committed = sum(amount for _, _, amount in usage_rows)
+    usage = await quota_usage(db, user.id)
+    committed = usage.total_active + usage.total_pending
     plan_limit = PLANS[user.plan].max_bytes
     candidates = []
     for connection in connections:
-        consumed = usage.get((connection.id, "active"), 0) + usage.get((connection.id, "pending"), 0)
+        consumed = usage.consumed(connection.id)
         candidates.append(Candidate(connection, max(0, PROVIDERS[connection.provider].free_bytes - consumed)))
     router_ = SmartRouter()
     evaluations = router_.evaluate(candidates, size_bytes)
@@ -208,11 +204,16 @@ async def confirm_upload(file_id: UUID, request: Request, user: User = Depends(c
 
 @router.get("", response_model=list[FileOut])
 async def list_files(user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
-    return (await db.scalars(
+    single = (await db.scalars(
         select(FileRecord).options(selectinload(FileRecord.connection))
-        .where(FileRecord.user_id == user.id, FileRecord.status == "active")
+        .where(FileRecord.user_id == user.id, FileRecord.status == "active", FileRecord.manifest_id.is_(None))
         .order_by(FileRecord.uploaded_at.desc())
     )).all()
+    striped = (await db.scalars(
+        select(FileManifest).where(FileManifest.user_id == user.id, FileManifest.status == "active")
+        .order_by(FileManifest.uploaded_at.desc())
+    )).all()
+    return sorted([*single, *striped], key=lambda file: file.uploaded_at, reverse=True)
 
 
 @router.get("/download/{file_id}")

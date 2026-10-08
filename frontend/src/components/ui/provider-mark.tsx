@@ -5,8 +5,8 @@ import type { ProviderId } from "../../types/api"
  * Provider identity: a small marker square in the provider's hue plus a
  * typographic short label. No giant logos, no rainbow — identity without noise.
  */
-export function ProviderMark({ provider, size = 14 }: { provider: ProviderId; size?: number }) {
-  const meta = PROVIDER_META[provider]
+export function ProviderMark({ provider, size = 14 }: { provider: ProviderId | "multi"; size?: number }) {
+  const meta = provider === "multi" ? null : PROVIDER_META[provider]
   return (
     <span
       aria-hidden

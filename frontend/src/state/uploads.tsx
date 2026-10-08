@@ -3,7 +3,9 @@ import type { ReactNode } from "react"
 import { nanoid } from "../lib/nanoid"
 import { formatBytes } from "../lib/format"
 import { providerName } from "../lib/providers"
+import { CHUNK_BYTES, sha256, verifyStripeIndex } from "../lib/striping"
 import * as filesApi from "../api/files"
+import { listConnections } from "../api/connections"
 import { ApiError } from "../api/client"
 import { useToast } from "./toast"
 import { queryKeys } from "./query"
@@ -23,8 +25,9 @@ export interface UploadItem {
   status: UploadStatus
   /** Null progress means unknown → indeterminate indicator, never a fake bar. */
   progress: number | null
-  destination: { provider: ProviderId; bucket: string } | null
+  destination: { provider: ProviderId | "multi"; bucket: string } | null
   backendFileId: string | null
+  storageMode: "single" | "striped"
   error: string | null
 }
 
@@ -72,6 +75,7 @@ export function validateFile(file: File): string | null {
 export function UploadProvider({ children, queryClient }: { children: ReactNode; queryClient: QueryClient }) {
   const [items, dispatch] = useReducer(reducer, [])
   const requests = useRef(new Map<string, XMLHttpRequest>())
+  const cancelled = useRef(new Set<string>())
   const toast = useToast()
 
   // A ref mirror keeps callbacks stable without re-binding XHR handlers.
@@ -90,7 +94,10 @@ export function UploadProvider({ children, queryClient }: { children: ReactNode;
       requests.current.delete(id)
       if (releaseReservation && backendFileId) {
         // Best-effort reservation release. A 409 simply means it is already resolved.
-        void filesApi.cancelUpload(backendFileId).catch(() => undefined)
+        const release = item?.storageMode === "striped"
+          ? filesApi.cancelStripedUpload(backendFileId)
+          : filesApi.cancelUpload(backendFileId)
+        void release.catch(() => undefined)
       }
       dispatch({ type: "patch", id, patch: { status, error } })
       invalidateFileData()
@@ -129,6 +136,103 @@ export function UploadProvider({ children, queryClient }: { children: ReactNode;
     [finish, toast],
   )
 
+  const startStripedUpload = useCallback(
+    async (id: string, file: File) => {
+      let fileId: string | null = null
+      let confirmationStarted = false
+      try {
+        const chunks: Array<{ size_bytes: number; sha256: string }> = []
+        for (let offset = 0; offset < file.size; offset += CHUNK_BYTES) {
+          if (cancelled.current.has(id)) throw new Error("Upload cancelled")
+          const piece = file.slice(offset, Math.min(offset + CHUNK_BYTES, file.size))
+          chunks.push({ size_bytes: piece.size, sha256: await sha256(piece) })
+        }
+        if (cancelled.current.has(id)) throw new Error("Upload cancelled")
+        const ticket = await filesApi.requestStripedUpload({
+          original_name: file.name, size_bytes: file.size,
+          mime_type: file.type || "application/octet-stream", chunks,
+        })
+        fileId = ticket.file_id
+        if (!await verifyStripeIndex({ ...ticket, size_bytes: file.size })) {
+          throw new Error("Cloud placement index failed integrity validation")
+        }
+        if (ticket.chunks.length !== chunks.length ||
+            ticket.chunks.some((chunk, index) =>
+              chunk.index !== index || chunk.size_bytes !== chunks[index]?.size_bytes ||
+              chunk.sha256 !== chunks[index]?.sha256
+            )) throw new Error("Cloud chunk assignments do not match the file")
+        if (cancelled.current.has(id)) throw new Error("Upload cancelled")
+        dispatch({ type: "patch", id, patch: {
+          backendFileId: fileId, storageMode: "striped",
+          destination: { provider: "multi", bucket: "Connected clouds" },
+          status: "uploading", progress: 0,
+        } })
+        let uploaded = 0
+        for (const chunk of ticket.chunks) {
+          if (cancelled.current.has(id)) throw new Error("Upload cancelled")
+          const signed = await filesApi.stripedChunkUploadUrl(fileId, chunk.index)
+          if (cancelled.current.has(id)) throw new Error("Upload cancelled")
+          const piece = file.slice(chunk.index * CHUNK_BYTES, chunk.index * CHUNK_BYTES + chunk.size_bytes)
+          await new Promise<void>((resolve, reject) => {
+            const xhr = new XMLHttpRequest()
+            requests.current.set(id, xhr)
+            xhr.open("PUT", signed.url, true)
+            for (const [name, value] of Object.entries(signed.required_headers)) xhr.setRequestHeader(name, value)
+            if (!Object.prototype.hasOwnProperty.call(signed.required_headers, "Content-Type")) {
+              xhr.setRequestHeader("Content-Type", "application/octet-stream")
+            }
+            xhr.upload.onprogress = (event) => {
+              if (event.lengthComputable) {
+                dispatch({ type: "patch", id, patch: {
+                  progress: Math.round(((uploaded + event.loaded) / file.size) * 100),
+                } })
+              }
+            }
+            xhr.onload = () => xhr.status >= 200 && xhr.status < 300
+              ? resolve()
+              : reject(new Error(`Storage rejected chunk ${chunk.index + 1} (HTTP ${xhr.status})`))
+            xhr.onerror = () => reject(new Error(`Transfer failed for chunk ${chunk.index + 1}`))
+            xhr.onabort = () => reject(new Error("Upload cancelled"))
+            xhr.send(piece)
+          })
+          requests.current.delete(id)
+          uploaded += piece.size
+          dispatch({ type: "patch", id, patch: { progress: Math.round((uploaded / file.size) * 100) } })
+        }
+        if (cancelled.current.has(id)) throw new Error("Upload cancelled")
+        dispatch({ type: "patch", id, patch: { status: "confirming", progress: 100 } })
+        confirmationStarted = true
+        let confirmed = null
+        for (let attempt = 0; attempt <= MAX_CONFIRM_RETRIES; attempt += 1) {
+          try {
+            confirmed = await filesApi.confirmStripedUpload(fileId)
+            break
+          } catch (error) {
+            if (error instanceof ApiError && error.status === 409) throw error
+            if (attempt === MAX_CONFIRM_RETRIES) throw error
+            await new Promise((resolve) => setTimeout(resolve, 900 * (attempt + 1)))
+          }
+        }
+        finish(id, "done", null, false)
+        toast.notify(`${confirmed?.original_name ?? file.name} striped across clouds`, "success")
+      } catch (error) {
+        if (fileId && !confirmationStarted) {
+          await filesApi.cancelStripedUpload(fileId).catch(() => undefined)
+        }
+        const wasCancelled = cancelled.current.has(id)
+        const message = wasCancelled ? "Upload cancelled" : confirmationStarted && !(error instanceof ApiError && error.status === 409)
+          ? "Could not confirm upload; its reservation will expire if confirmation did not succeed"
+          : error instanceof Error ? error.message : "Striped upload failed"
+        finish(id, wasCancelled ? "cancelled" : "failed", message, false)
+        if (!wasCancelled) toast.notify(`Upload failed for ${file.name}`, "error")
+      } finally {
+        requests.current.delete(id)
+        cancelled.current.delete(id)
+      }
+    },
+    [finish, toast],
+  )
+
   const startUpload = useCallback(
     async (id: string, file: File) => {
       const validation = validateFile(file)
@@ -137,6 +241,24 @@ export function UploadProvider({ children, queryClient }: { children: ReactNode;
         return
       }
       dispatch({ type: "patch", id, patch: { status: "requesting", progress: null } })
+      if (file.size > CHUNK_BYTES) {
+        try {
+          const connections = await queryClient.fetchQuery({
+            queryKey: queryKeys.connections, queryFn: listConnections,
+          })
+          if (cancelled.current.has(id)) {
+            cancelled.current.delete(id)
+            return
+          }
+          if (new Set(connections.map((connection) => connection.provider)).size >= 2) {
+            await startStripedUpload(id, file)
+            return
+          }
+        } catch (error) {
+          finish(id, "failed", error instanceof ApiError ? error.message : "Could not check connected clouds", false)
+          return
+        }
+      }
       let ticket: UploadTicket
       try {
         ticket = await filesApi.requestUpload({
@@ -148,6 +270,10 @@ export function UploadProvider({ children, queryClient }: { children: ReactNode;
         const message = error instanceof ApiError ? error.message : "Could not reach the API"
         finish(id, "failed", message, false)
         toast.notify(message, "error")
+        return
+      }
+      if (cancelled.current.has(id)) {
+        void filesApi.cancelUpload(ticket.file_id).catch(() => undefined)
         return
       }
       dispatch({
@@ -194,7 +320,7 @@ export function UploadProvider({ children, queryClient }: { children: ReactNode;
       }
       xhr.send(file)
     },
-    [confirmWithRetry, finish, toast],
+    [confirmWithRetry, finish, queryClient, startStripedUpload, toast],
   )
 
   const enqueue = useCallback(
@@ -209,6 +335,7 @@ export function UploadProvider({ children, queryClient }: { children: ReactNode;
         progress: null,
         destination: null,
         backendFileId: null,
+        storageMode: "single",
         error: null,
       }))
       dispatch({ type: "add", items })
@@ -222,14 +349,18 @@ export function UploadProvider({ children, queryClient }: { children: ReactNode;
 
   const abort = useCallback(
     (id: string) => {
+      const item = itemsRef.current.find((candidate) => candidate.id === id)
+      if (item?.status === "confirming") return
+      cancelled.current.add(id)
       const request = requests.current.get(id)
       if (request) {
         request.abort()
         return
       }
-      const item = itemsRef.current.find((candidate) => candidate.id === id)
       if (item?.backendFileId) {
-        void filesApi.cancelUpload(item.backendFileId).catch(() => undefined)
+        if (item.storageMode !== "striped") {
+          void filesApi.cancelUpload(item.backendFileId).catch(() => undefined)
+        }
       }
       dispatch({ type: "patch", id, patch: { status: "cancelled", error: "Cancelled" } })
       invalidateFileData()

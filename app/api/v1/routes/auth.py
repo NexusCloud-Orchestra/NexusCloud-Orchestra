@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.deps import audit, current_user
 from app.core.security import digest_token, hash_password, parse_token, verify_password
-from app.db.models import AccessRevocation, AuditLog, CloudConnection, FileRecord, PasswordReset, Quota, RefreshSession, User
+from app.db.models import AccessRevocation, AuditLog, CloudConnection, FileManifest, FileRecord, PasswordReset, Quota, RefreshSession, User
 from app.db.session import get_db
 from app.schemas import AuditOut, ChangePasswordIn, DeleteAccountIn, EmailIn, LoginIn, PlanIn, RefreshIn, RegisterIn, ResetIn, TokenOut, UserOut
 from app.services.auth import create_reset, create_tokens, revoke_sessions, send_reset_email
@@ -156,12 +156,12 @@ async def delete_account(body: DeleteAccountIn, user: User = Depends(current_use
     if not verify_password(body.password, user.password_hash):
         raise HTTPException(400, "Password is incorrect")
     remaining = await db.scalar(select(func.count()).select_from(FileRecord).where(
-        FileRecord.user_id == user.id, FileRecord.status.in_(("active", "pending", "cleanup_failed"))
+        FileRecord.user_id == user.id, FileRecord.status.in_(("active", "pending", "cleanup_pending", "cleanup_failed"))
     ))
     if remaining:
         raise HTTPException(409, "Delete your files or wait for pending upload cleanup before deleting the account")
     # Explicit child deletes keep this portable to databases without enforced FK cascades.
-    for model in (FileRecord, CloudConnection, AuditLog, Quota, RefreshSession, AccessRevocation, PasswordReset):
+    for model in (FileRecord, FileManifest, CloudConnection, AuditLog, Quota, RefreshSession, AccessRevocation, PasswordReset):
         await db.execute(delete(model).where(model.user_id == user.id))
     await db.delete(user)
     await db.commit()

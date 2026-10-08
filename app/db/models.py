@@ -53,6 +53,37 @@ class CloudConnection(Base):
     files: Mapped[list[FileRecord]] = relationship(back_populates="connection")
 
 
+class FileManifest(Base):
+    __tablename__ = "file_manifests"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=new_id)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    original_name: Mapped[str] = mapped_column(String(255))
+    size_bytes: Mapped[int] = mapped_column(BigInteger)
+    mime_type: Mapped[str] = mapped_column(String(255))
+    index_hash: Mapped[str] = mapped_column(String(64))
+    index_version: Mapped[int] = mapped_column(Integer, default=1)
+    chunk_count: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    upload_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    uploaded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    chunks: Mapped[list[FileRecord]] = relationship(back_populates="manifest")
+
+    @property
+    def provider(self) -> str:
+        return "multi"
+
+    @property
+    def connection_id(self) -> None:
+        return None
+
+    @property
+    def storage_mode(self) -> str:
+        return "striped"
+
+    __table_args__ = (Index("ix_manifest_user_hash", "user_id", "index_hash"),)
+
+
 class FileRecord(Base):
     __tablename__ = "file_records"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=new_id)
@@ -66,13 +97,20 @@ class FileRecord(Base):
     upload_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     uploaded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    manifest_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("file_manifests.id"), index=True)
+    chunk_index: Mapped[int | None] = mapped_column(Integer)
+    sha256: Mapped[str | None] = mapped_column(String(64))
     connection: Mapped[CloudConnection] = relationship(back_populates="files")
+    manifest: Mapped[FileManifest | None] = relationship(back_populates="chunks")
 
     @property
     def provider(self) -> str:
         # Callers must have the connection loaded (selectinload or same-session identity map).
         return self.connection.provider
-    __table_args__ = (Index("ix_file_user_status", "user_id", "status"),)
+    __table_args__ = (
+        Index("ix_file_user_status", "user_id", "status"),
+        UniqueConstraint("manifest_id", "chunk_index", name="uq_file_chunk_index"),
+    )
 
 
 class RefreshSession(Base):

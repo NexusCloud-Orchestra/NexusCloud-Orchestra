@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from sqlalchemy import select, text
 
-from app.api.v1.routes import auth, connections, files, quota
+from app.api.v1.routes import auth, connections, files, quota, striped
 from app.core.config import settings
 from app.core.ratelimit import limiter
 from app.core.security import parse_token
@@ -132,6 +132,7 @@ async def server_error(request: Request, exc: Exception):
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(connections.router, prefix="/api/v1")
 app.include_router(files.router, prefix="/api/v1")
+app.include_router(striped.router, prefix="/api/v1")
 app.include_router(quota.router, prefix="/api/v1")
 
 

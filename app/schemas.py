@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 
 class RegisterIn(BaseModel):
@@ -147,8 +147,63 @@ class FileOut(BaseModel):
     mime_type: str
     status: str
     uploaded_at: datetime | None
+    connection_id: UUID | None
+    provider: str
+    storage_mode: Literal["single", "striped"] = "single"
+
+
+class StripeChunkIn(BaseModel):
+    size_bytes: int = Field(gt=0, le=16 * 1024**2)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class StripedUploadIn(UploadIn):
+    chunks: list[StripeChunkIn] = Field(min_length=2, max_length=320)
+
+    @model_validator(mode="after")
+    def valid_chunks(self):
+        chunk_bytes = 16 * 1024**2
+        expected = (self.size_bytes + chunk_bytes - 1) // chunk_bytes
+        if len(self.chunks) != expected:
+            raise ValueError("Chunk count does not match file size")
+        for index, chunk in enumerate(self.chunks):
+            required = min(chunk_bytes, self.size_bytes - index * chunk_bytes)
+            if chunk.size_bytes != required:
+                raise ValueError(f"Chunk {index} has the wrong size")
+        return self
+
+
+class StripedChunkOut(BaseModel):
+    index: int
+    chunk_id: UUID
     connection_id: UUID
     provider: str
+    size_bytes: int
+    sha256: str
+
+
+class StripedUploadOut(BaseModel):
+    file_id: UUID
+    index_version: int
+    index_hash: str
+    expires_at: datetime
+    chunks: list[StripedChunkOut]
+
+
+class StripedManifestOut(BaseModel):
+    file_id: UUID
+    index_version: int
+    original_name: str
+    mime_type: str
+    size_bytes: int
+    index_hash: str
+    chunks: list[StripedChunkOut]
+
+
+class SignedChunkOut(BaseModel):
+    url: str
+    required_headers: dict[str, str] = {}
+    expires_in_seconds: int
 
 
 class AuditOut(BaseModel):

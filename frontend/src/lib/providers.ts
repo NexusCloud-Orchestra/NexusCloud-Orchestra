@@ -246,5 +246,6 @@ export const ROUTE_WEIGHTS = [
 ] as const
 
 export function providerName(id: string): string {
+  if (id === "multi") return "Multiple clouds"
   return PROVIDER_META[id as ProviderId]?.name ?? id
 }

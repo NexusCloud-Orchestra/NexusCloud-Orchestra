@@ -5,8 +5,9 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
+import jwt
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from jose import JWTError, jwt
+from jwt.exceptions import PyJWTError
 
 from app.core.config import settings
 
@@ -50,9 +51,9 @@ def issue_token(user_id: uuid.UUID, token_version: int, kind: str, ttl: timedelt
 
 def parse_token(token: str, expected_type: str) -> dict:
     try:
-        claims = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        claims = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"], options={"require": ["exp", "sub", "jti"]})
         if claims.get("typ") != expected_type or not claims.get("sub") or not claims.get("jti"):
-            raise JWTError("Invalid token type")
+            raise ValueError("Invalid token type")
         return claims
-    except JWTError as exc:
+    except (PyJWTError, ValueError) as exc:
         raise ValueError("Invalid or expired token") from exc
