@@ -1,4 +1,50 @@
 {
-  "files": [],
-  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+  "compilerOptions": {
+    "target": "ES2022",
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "module": "ESNext",
+    "types": ["vite/client"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "allowJs": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "include": [
+    "src/main.tsx",
+    "src/App.tsx",
+    "src/app/**/*",
+    "src/components/**/*",
+    "src/features/**/*",
+    "src/hooks/**/*",
+    "src/lib/**/*",
+    "src/pages/**/*",
+    "src/services/**/*",
+    "src/types/**/*",
+    "src/api/**/*",
+    "src/vite-env.d.ts"
+  ],
+  "exclude": [
+    "src/routes/**/*",
+    "src/state/**/*",
+    "src/components/layout/command-palette.tsx",
+    "src/components/layout/shell.tsx",
+    "src/hooks/use-data.ts",
+    "node_modules",
+    "dist"
+  ]
 }

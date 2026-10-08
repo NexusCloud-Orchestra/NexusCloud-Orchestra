@@ -38,7 +38,8 @@ export class ApiError extends Error {
   }
 }
 
-const BASE_URL: string = import.meta.env.VITE_API_URL ?? "http://localhost:7575"
+const BASE_URL: string =
+  import.meta.env.VITE_API_URL ?? (typeof window !== "undefined" ? "" : "http://localhost:7575")
 const TIMEOUT_MS = 30_000
 
 // ---------------------------------------------------------------------------

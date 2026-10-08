@@ -1,11 +1,33 @@
-import { defineConfig } from "vite"
-import react from "@vitejs/plugin-react"
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import {defineConfig} from 'vite';
 
-// The SPA calls the API origin directly (no dev proxy) so CORS and signed-URL
-// behavior match production. Override with VITE_API_URL when the backend runs
-// on a non-default port.
-export default defineConfig({
-  plugins: [react()],
-  server: { port: 5173 },
-  build: { target: "es2020", sourcemap: false },
-})
+export default defineConfig(() => {
+  return {
+    plugins: [react(), tailwindcss()],
+    resolve: {
+      alias: {
+        '@': path.resolve(import.meta.dirname, '.'),
+      },
+    },
+    server: {
+      proxy: {
+        '/api': {
+          target: process.env.PUBLIC_API_URL || 'http://localhost:7575',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/health': {
+          target: process.env.PUBLIC_API_URL || 'http://localhost:7575',
+          changeOrigin: true,
+          secure: false,
+        },
+      },
+      // Avoid port 24678 collision with editor/daemon
+      hmr: process.env.DISABLE_HMR === 'true' ? false : { port: 24688 },
+      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
+      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+    },
+  };
+});

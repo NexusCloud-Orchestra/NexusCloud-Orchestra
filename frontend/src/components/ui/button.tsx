@@ -1,49 +1,56 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react"
-import { Loader2 } from "lucide-react"
+import * as React from 'react';
+import { Loader2 } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
-type Variant = "primary" | "secondary" | "ghost" | "danger"
-type Size = "sm" | "md" | "lg"
-
-const VARIANT: Record<Variant, string> = {
-  primary:
-    "bg-accent text-white border-accent hover:bg-accent-deep hover:border-accent-deep active:translate-y-px",
-  secondary:
-    "bg-surface text-ink border-line-strong hover:border-ink-3 hover:bg-raise active:translate-y-px",
-  ghost: "bg-transparent text-ink-2 border-transparent hover:bg-raise hover:text-ink active:translate-y-px",
-  danger:
-    "bg-surface text-bad border-bad-line hover:border-bad hover:bg-bad-wash active:translate-y-px",
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'default' | 'primary' | 'secondary' | 'outline' | 'ghost' | 'link' | 'danger' | 'destructive';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
+  loading?: boolean;
 }
 
-const SIZE: Record<Size, string> = {
-  sm: "h-7 px-2.5 text-sm gap-1.5",
-  md: "h-8.5 px-3.5 text-base gap-2",
-  lg: "h-10 px-5 text-md gap-2",
-}
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant = 'default', size = 'default', loading = false, children, disabled, ...props }, ref) => {
+    const base =
+      'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-xs font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none';
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: Variant
-  size?: Size
-  loading?: boolean
-  children?: ReactNode
-}
+    const normalizedVariant = variant === 'primary' ? 'default' : variant;
 
-export function Button({
-  variant = "secondary",
-  size = "md",
-  loading = false,
-  className = "",
-  disabled,
-  children,
-  ...rest
-}: ButtonProps) {
-  return (
-    <button
-      className={`inline-flex select-none items-center justify-center whitespace-nowrap rounded-sm border font-medium transition-all duration-fast ease-out disabled:pointer-events-none disabled:opacity-45 ${VARIANT[variant]} ${SIZE[size]} ${className}`}
-      disabled={disabled || loading}
-      {...rest}
-    >
-      {loading ? <Loader2 size={13} className="animate-spin" aria-hidden /> : null}
-      {children}
-    </button>
-  )
-}
+    const variants = {
+      default:
+        'bg-slate-900 text-white hover:bg-slate-800 shadow-xs active:bg-slate-950',
+      secondary:
+        'bg-slate-100 text-slate-900 hover:bg-slate-200 shadow-xs',
+      outline:
+        'border border-slate-200 bg-white text-slate-900 hover:bg-slate-50 hover:text-slate-900 shadow-xs',
+      ghost:
+        'text-slate-700 hover:text-slate-900 hover:bg-slate-100',
+      link:
+        'text-blue-600 underline-offset-4 hover:underline p-0 h-auto font-medium',
+      danger:
+        'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200',
+      destructive:
+        'bg-rose-600 text-white hover:bg-rose-700 shadow-xs',
+    };
+
+    const sizes = {
+      default: 'h-9 px-4 py-2',
+      sm: 'h-8 rounded-md px-3 text-xs',
+      lg: 'h-10 rounded-md px-6 text-sm',
+      icon: 'h-8.5 w-8.5 p-0',
+    };
+
+    return (
+      <button
+        ref={ref}
+        disabled={disabled || loading}
+        className={cn(base, variants[normalizedVariant], sizes[size], className)}
+        {...props}
+      >
+        {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+        {children}
+      </button>
+    );
+  }
+);
+Button.displayName = 'Button';
