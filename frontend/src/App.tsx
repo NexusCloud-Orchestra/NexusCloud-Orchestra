@@ -10,7 +10,6 @@ import { UploadProvider } from "./state/uploads"
 import { ErrorBoundary } from "./components/layout/error-boundary"
 import { AppShell } from "./components/layout/shell"
 import { CommandPalette } from "./components/layout/command-palette"
-import { LandingPage } from "./routes/landing"
 import { LoginPage } from "./routes/login"
 import { RegisterPage } from "./routes/register"
 import { ForgotPasswordPage } from "./routes/forgot-password"
@@ -60,6 +59,17 @@ function PublicOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// The marketing landing page is the static scroll-driven page in public/landing/
+// (270-frame canvas sequence); it is served outside the SPA bundle.
+const LANDING_URL = "/landing/index.html"
+
+function LandingRedirect() {
+  useEffect(() => {
+    window.location.replace(LANDING_URL)
+  }, [])
+  return null
+}
+
 function AuthenticatedApp() {
   const [paletteOpen, setPaletteOpen] = useState(false)
 
@@ -92,12 +102,7 @@ function AuthenticatedApp() {
 const router = createBrowserRouter(
   [{
     path: "/",
-    element: (
-      <>
-        <RouteWatch />
-        <LandingPage />
-      </>
-    ),
+    element: <LandingRedirect />,
   },
   {
     path: "/login",
@@ -162,14 +167,6 @@ const router = createBrowserRouter(
     },
   },
 )
-
-/** Scroll to top on route change. */
-function RouteWatch() {
-  useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [])
-  return null
-}
 
 export function App() {
   return (

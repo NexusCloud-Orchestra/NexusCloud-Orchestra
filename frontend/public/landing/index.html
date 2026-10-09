@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NEXUS CLOUD Multi Cloud Orchestration Platform</title>
+  <meta name="description" content="NexusCloud pools the free tiers of your own cloud accounts into one intelligent virtual drive. Bring your own cloud, zero data touch." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 22 L16 6 L28 22M9 22 L16 13 L23 22' fill='none' stroke='%23f3c56f' stroke-width='3'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="is-loading">
+  <div class="loader" id="loader" aria-hidden="true">
+    <div class="loader__mark">NEXUS<span>/</span>CLOUD</div>
+    <div class="loader__bar"><i id="loaderBar"></i></div>
+    <div class="loader__meta mono"><span id="loaderText">Boarding</span><span id="loaderPct">0%</span></div>
+  </div>
+
+  <header class="nav" id="nav">
+    <a class="brand" href="#top" aria-label="NEXUS CLOUD home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 22 L16 6 L28 22" /><path d="M9 22 L16 13 L23 22" /><circle cx="16" cy="25" r="2" /></svg>
+      <span>NEXUS<b>CLOUD</b></span>
+    </a>
+    <nav class="nav__links" aria-label="Primary">
+      <a href="#providers">Providers</a>
+      <a href="#how">How it works</a>
+      <a href="#pricing">Pricing</a>
+    </nav>
+    <div class="nav__auth">
+      <a class="nav__login" data-route="login" href="/login">Log in</a>
+      <a class="btn btn--ghost" data-route="register" href="/register">Create account</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- Scroll-driven flight: 270 4K frames pinned to the viewport -->
+    <section class="flight" id="flight" aria-label="NexusCloud overview">
+      <div class="stage">
+        <canvas id="sequence" role="img" aria-label="Flight from an airplane window, through the clouds, down to Paris at night"></canvas>
+        <div class="veil"></div>
+
+        <div class="panel panel--hero" data-range="0 0.16" data-hold-start>
+          <p class="eyebrow mono"> Multi Cloud Orchestration Platform</p>
+          <h1 class="hero__title">NEXUS<br /><span>CLOUD</span></h1>
+          <p class="hero__lede">Pool the free tiers of your own cloud accounts into one intelligent virtual drive: <strong><span data-total-free>80 GB</span> of always-free storage</strong> across <span data-provider-count>7</span> providers, routed automatically.</p>
+          <div class="hero__cta">
+            <a class="btn btn--solid" data-route="register" href="/register">Start free</a>
+            <a class="btn btn--line" href="#how">How it works</a>
+          </div>
+        </div>
+
+        <div class="panel panel--left" data-range="0.19 0.37">
+          <p class="eyebrow mono">01 &middot; Bring your own cloud</p>
+          <h2>Your accounts.<br />One sky.</h2>
+          <p>Connect storage you already own. Credentials are encrypted with AES-256-GCM and never returned. NexusCloud only orchestrates.</p>
+          <ul class="chips mono" id="flightProviders" aria-label="Supported providers"></ul>
+        </div>
+
+        <div class="panel panel--right" data-range="0.41 0.59">
+          <p class="eyebrow mono">02 &middot; Smart Router</p>
+          <h2>Every upload finds<br />its best cloud.</h2>
+          <p>Each connected cloud is scored before a single byte moves. The highest score wins the file.</p>
+          <div class="weights" role="list">
+            <div class="weight" role="listitem" style="--w:.40"><span class="mono">Free capacity</span><i></i><b>0.40</b></div>
+            <div class="weight" role="listitem" style="--w:.30"><span class="mono">Egress cost</span><i></i><b>0.30</b></div>
+            <div class="weight" role="listitem" style="--w:.20"><span class="mono">Tier permanence</span><i></i><b>0.20</b></div>
+            <div class="weight" role="listitem" style="--w:.10"><span class="mono">File fit</span><i></i><b>0.10</b></div>
+          </div>
+        </div>
+
+        <div class="panel panel--left" data-range="0.62 0.8">
+          <p class="eyebrow mono">03 &middot; Zero Data Touch</p>
+          <h2>Your files never<br />pass through us.</h2>
+          <ol class="flow">
+            <li><b class="mono">01</b><div><h3>Request</h3><p>The router picks a cloud and returns a presigned upload URL, valid for 15 minutes.</p></div></li>
+            <li><b class="mono">02</b><div><h3>Upload direct</h3><p>Your browser sends the bytes straight to your bucket. No proxy.</p></div></li>
+            <li><b class="mono">03</b><div><h3>Confirm</h3><p>Quota updates atomically. Downloads use signed links valid for up to 60 minutes.</p></div></li>
+          </ol>
+        </div>
+
+        <div class="panel panel--final" data-range="0.85 1" data-hold-end>
+          <p class="eyebrow mono">Arrival</p>
+          <h2>Land every file<br />on the right cloud.</h2>
+          <p>Free for 2 clouds and 5 GB of managed storage.</p>
+          <div class="hero__cta">
+            <a class="btn btn--solid" data-route="register" href="/register">Create free account</a>
+            <a class="btn btn--line" href="#pricing">Compare plans</a>
+          </div>
+        </div>
+
+         <div class="progress" aria-hidden="true">
+          <i id="progressFill"></i>
+          <ol class="progress__marks mono">
+            <li data-at="0" style="left:0%"></li>
+            <li data-at="0.28" style="left:28%"></li>
+            <li data-at="0.5" style="left:50%"></li>
+            <li data-at="0.71" style="left:71%"></li>
+            <li data-at="0.93" style="left:93%"></li>
+          </ol>
+        </div> 
+
+        <div class="scroll-cue mono" id="scrollCue" aria-hidden="true"><span>Scroll to take off</span><i></i></div>
+      </div>
+    </section>
+
+    <section class="after">
+      <div class="after__inner" id="providers">
+        <p class="eyebrow mono">Supported providers</p>
+        <h2>Seven clouds. <span data-total-free>80 GB</span> of estimated free capacity.</h2>
+        <p class="after__note">Capacities are provider free-tier estimates, not live billing balances.</p>
+        <div class="providers" id="providerGrid"></div>
+      </div>
+
+      <div class="after__inner" id="how">
+        <p class="eyebrow mono">How it works</p>
+        <h2>A control plane, not a data plane.</h2>
+        <div class="how">
+          <article><b class="mono">Connect</b><h3>Link your buckets</h3><p>AWS S3, Azure Blob, GCS, R2, B2, Oracle and IBM COS. Each connection is verified against the provider.</p></article>
+          <article><b class="mono">Route</b><h3>Score every cloud</h3><p>Capacity, egress, permanence and fit decide where each file lands. $0-egress and permanent tiers are preferred.</p></article>
+          <article><b class="mono">Transfer</b><h3>Go direct</h3><p>Presigned URLs move bytes between your browser and your cloud. NexusCloud stores only metadata.</p></article>
+          <article><b class="mono">Track</b><h3>One quota</h3><p>A single pooled quota with a per-cloud breakdown, updated as soon as an upload is confirmed.</p></article>
+        </div>
+      </div>
+
+      <div class="after__inner" id="pricing">
+        <p class="eyebrow mono">Pricing</p>
+        <h2>Start at &#8377;0. Scale when you need to.</h2>
+        <div class="pricing" id="planGrid"></div>
+        <p class="after__note">Paid plans are shown for reference. Upgrades open once billing is live.</p>
+      </div>
+
+      <div class="after__inner closing">
+        <h2>Ready for departure?</h2>
+        <div class="hero__cta">
+          <a class="btn btn--solid" data-route="register" href="/register">Create free account</a>
+          <a class="btn btn--line" data-route="login" href="/login">Log in</a>
+        </div>
+      </div>
+
+      <footer class="footer mono">
+        <span>&copy; 2026 NEXUS CLOUD</span>
+        <span>Multi Cloud Orchestration Platform</span>
+        <span id="catalogSource">Catalog: loading</span>
+      </footer>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
