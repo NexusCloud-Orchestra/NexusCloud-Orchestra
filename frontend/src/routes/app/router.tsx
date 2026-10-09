@@ -158,7 +158,7 @@ function RouteDecision({ preview, onReplay }: { preview: NonNullable<ReturnType<
           <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-col gap-1.5">
               <p className="label-caps">Recommended</p>
-              <p className="flex items-center gap-2.5 text-2xl font-semibold tracking-tighter text-ink">
+              <p className="flex items-center gap-2.5 font-display text-2xl font-bold tracking-tight text-ink">
                 <ProviderMark provider={selected.provider} size={18} />
                 {selected.display_name}
               </p>

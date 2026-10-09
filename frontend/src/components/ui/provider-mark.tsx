@@ -10,7 +10,7 @@ export function ProviderMark({ provider, size = 14 }: { provider: ProviderId | "
   return (
     <span
       aria-hidden
-      className="inline-block shrink-0 rounded-xs border border-black/5"
+      className="inline-block shrink-0 rounded-xs border border-white/10"
       style={{ width: size, height: size, backgroundColor: meta?.marker ?? "#8E929C" }}
     />
   )

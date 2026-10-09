@@ -124,7 +124,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 
   return createPortal(
     <div className="fixed inset-0 z-[65] flex items-start justify-center px-4 pt-[12vh]" role="presentation">
-      <div className="animate-fade-in absolute inset-0 bg-ink/25" onClick={onClose} aria-hidden />
+      <div className="animate-fade-in absolute inset-0 bg-night/70 backdrop-blur-sm" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-modal="true"

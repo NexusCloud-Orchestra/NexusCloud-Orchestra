@@ -43,7 +43,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <input
       ref={ref}
       aria-invalid={invalid || undefined}
-      className={`h-8.5 w-full rounded-sm border bg-surface px-2.5 text-base text-ink transition-colors duration-fast ease-out placeholder:text-ink-3 hover:border-line-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25 disabled:cursor-not-allowed disabled:bg-raise disabled:text-ink-3 ${
+      className={`h-10 w-full rounded-sm border bg-night/60 px-3 text-base text-ink transition-colors duration-fast ease-out placeholder:text-ink-3 hover:border-line-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:bg-raise disabled:text-ink-3 ${
         invalid ? "border-bad" : "border-line"
       } ${className}`}
       {...rest}
@@ -63,7 +63,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
     <textarea
       ref={ref}
       aria-invalid={invalid || undefined}
-      className={`min-h-[76px] w-full rounded-sm border bg-surface px-2.5 py-2 font-mono text-sm text-ink transition-colors duration-fast ease-out placeholder:text-ink-3 hover:border-line-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25 ${
+      className={`min-h-[76px] w-full rounded-sm border bg-night/60 px-3 py-2 font-mono text-sm text-ink transition-colors duration-fast ease-out placeholder:text-ink-3 hover:border-line-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 ${
         invalid ? "border-bad" : "border-line"
       } ${className}`}
       {...rest}

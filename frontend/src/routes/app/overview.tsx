@@ -54,7 +54,7 @@ export function OverviewPage() {
           <>
             <Link
               to="/app/clouds?connect=1"
-              className="inline-flex h-7 items-center rounded-sm border border-line-strong bg-surface px-2.5 text-sm font-medium text-ink transition-all duration-fast ease-out hover:border-ink-3 hover:bg-raise active:translate-y-px"
+              className="inline-flex h-8 items-center rounded-full border border-line-strong bg-ink/[0.06] px-3.5 text-sm font-medium text-ink transition-all duration-fast ease-out hover:-translate-y-px hover:border-ink"
             >
               Connect cloud
             </Link>
@@ -89,25 +89,25 @@ export function OverviewPage() {
               <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
                 <div>
                   <p className="label-caps">Used</p>
-                  <p className="mt-1 text-3xl font-semibold tracking-tighter text-ink tnum">
+                  <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink tnum">
                     {formatBytes(quota.data.total_used_bytes)}
                   </p>
                 </div>
                 <div>
                   <p className="label-caps">Capacity</p>
-                  <p className="mt-1 text-3xl font-semibold tracking-tighter text-ink-3 tnum">
+                  <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink-3 tnum">
                     {formatBytes(quota.data.total_limit_bytes)}
                   </p>
                 </div>
                 <div>
                   <p className="label-caps">Reserved</p>
-                  <p className="mt-1 text-3xl font-semibold tracking-tighter text-ink-3 tnum">
+                  <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink-3 tnum">
                     {formatBytes(quota.data.total_reserved_bytes)}
                   </p>
                 </div>
                 <div className="ml-auto">
                   <p className="label-caps">Utilization</p>
-                  <p className="mt-1 text-3xl font-semibold tracking-tighter text-accent-deep tnum">
+                  <p className="mt-1 font-display text-3xl font-bold tracking-tight text-accent tnum">
                     {formatPercent(quota.data.usage_percentage)}
                   </p>
                 </div>
@@ -163,7 +163,7 @@ export function OverviewPage() {
                 action={
                   <Link
                     to="/app/clouds?connect=1"
-                    className="inline-flex h-7 items-center rounded-sm border border-accent bg-accent px-2.5 text-sm font-medium text-white transition-all duration-fast ease-out hover:border-accent-deep hover:bg-accent-deep active:translate-y-px"
+                    className="inline-flex h-7 items-center rounded-full border border-accent bg-accent px-3.5 text-sm font-semibold text-on-accent transition-all duration-fast ease-out hover:-translate-y-px hover:border-accent-deep hover:bg-accent-deep"
                   >
                     Connect cloud
                   </Link>

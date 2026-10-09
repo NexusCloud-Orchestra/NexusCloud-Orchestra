@@ -43,19 +43,19 @@ export function QuotaPage() {
               <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
                 <div>
                   <p className="label-caps">Used</p>
-                  <p className="mt-1 text-4xl font-semibold tracking-tighter text-ink tnum">
+                  <p className="mt-1 font-display text-4xl font-bold tracking-tight text-ink tnum">
                     {formatBytes(quota.data.total_used_bytes)}
                   </p>
                 </div>
                 <div>
                   <p className="label-caps">Reserved (pending uploads)</p>
-                  <p className="mt-1 text-4xl font-semibold tracking-tighter text-ink-3 tnum">
+                  <p className="mt-1 font-display text-4xl font-bold tracking-tight text-ink-3 tnum">
                     {formatBytes(quota.data.total_reserved_bytes)}
                   </p>
                 </div>
                 <div>
                   <p className="label-caps">Free</p>
-                  <p className="mt-1 text-4xl font-semibold tracking-tighter text-ok tnum">
+                  <p className="mt-1 font-display text-4xl font-bold tracking-tight text-ok tnum">
                     {formatBytes(quota.data.total_free_bytes)}
                   </p>
                 </div>
@@ -76,7 +76,7 @@ export function QuotaPage() {
 
             <aside className="flex flex-col justify-center gap-3 border-l-0 border-line pl-0 lg:border-l lg:pl-8">
               <p className="label-caps">Plan</p>
-              <p className="text-2xl font-semibold tracking-tighter text-ink">{quota.data.plan ?? "—"}</p>
+              <p className="font-display text-2xl font-bold tracking-tight text-ink">{quota.data.plan ?? "—"}</p>
               {quota.data.plan_limit_bytes ? (
                 <p className="text-base text-ink-2">
                   This plan caps usable capacity at {formatBytes(quota.data.plan_limit_bytes)} even if connected

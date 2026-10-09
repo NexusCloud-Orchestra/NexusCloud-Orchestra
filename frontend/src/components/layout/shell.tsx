@@ -14,15 +14,26 @@ const NAV = [
   { to: "/app/activity", label: "Activity", icon: Activity },
 ] as const
 
+/** Brand mark shared with the landing page: two peaks over a gold dot. */
+export function BrandGlyph({ className = "h-7 w-7" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M4 22 L16 6 L28 22" />
+      <path d="M9 22 L16 13 L23 22" />
+      <circle cx="16" cy="25" r="2" fill="#F3C56F" stroke="none" />
+    </svg>
+  )
+}
+
 export function Wordmark({ to = "/", compact = false }: { to?: string; compact?: boolean }) {
   return (
-    <Link to={to} className="group inline-flex items-center gap-2.5" aria-label="NexusCloud Orchestra home">
-      <span className="flex h-6 w-6 items-center justify-center rounded-sm border border-ink/80" aria-hidden>
-        <span className="h-2 w-2 rounded-full border border-ink/70 transition-transform duration-base ease-out group-hover:scale-110" />
-      </span>
+    <Link to={to} className="group inline-flex items-center gap-2.5 text-ink" aria-label="NEXUS CLOUD home">
+      <BrandGlyph className="h-7 w-7 transition-transform duration-base ease-out group-hover:-translate-y-0.5" />
       <span className="flex flex-col leading-none">
-        <span className="font-mono text-xs font-semibold tracking-[0.14em] text-ink">NEXUSCLOUD</span>
-        {!compact ? <span className="mt-0.5 font-mono text-2xs tracking-[0.3em] text-ink-3">ORCHESTRA</span> : null}
+        <span className="font-display text-[15px] font-bold tracking-[0.14em]">
+          NEXUS<b className="ml-[0.35em] font-bold text-accent">CLOUD</b>
+        </span>
+        {!compact ? <span className="mt-1 font-mono text-2xs tracking-[0.3em] text-ink-3">ORCHESTRA</span> : null}
       </span>
     </Link>
   )
@@ -34,8 +45,8 @@ function NavItem({ to, label, icon: Icon, end }: { to: string; label: string; ic
       to={to}
       end={end}
       className={({ isActive }) =>
-        `group relative flex items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-base transition-colors duration-fast ease-out ${
-          isActive ? "bg-raise font-medium text-ink" : "text-ink-2 hover:bg-raise/70 hover:text-ink"
+        `group relative flex items-center gap-2.5 rounded-full px-3.5 py-2 text-base transition-colors duration-fast ease-out ${
+          isActive ? "bg-accent/10 font-medium text-ink" : "text-ink-2 hover:bg-ink/[0.05] hover:text-ink"
         }`
       }
     >
@@ -43,7 +54,7 @@ function NavItem({ to, label, icon: Icon, end }: { to: string; label: string; ic
         <>
           <span
             aria-hidden
-            className={`absolute inset-y-1 left-0 w-0.5 rounded-full transition-opacity duration-fast ${
+            className={`absolute inset-y-2 left-0 w-0.5 rounded-full transition-opacity duration-fast ${
               isActive ? "bg-accent opacity-100" : "opacity-0"
             }`}
           />
@@ -61,11 +72,12 @@ function Sidebar() {
   const plan = user?.plan ?? "—"
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col border-r border-line bg-surface lg:flex">
-      <div className="flex h-14 items-center border-b border-line px-5">
+    <aside className="glass fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line lg:flex">
+      <div className="flex h-16 items-center border-b border-line px-5">
         <Wordmark to="/app" />
       </div>
-      <nav aria-label="Primary" className="flex flex-1 flex-col gap-0.5 px-3 py-4">
+      <nav aria-label="Primary" className="flex flex-1 flex-col gap-1 px-3 py-5">
+        <p className="label-caps mb-2 px-3.5">Control plane</p>
         {NAV.map((item) => (
           <NavItem key={item.to} {...item} />
         ))}
@@ -74,7 +86,7 @@ function Sidebar() {
       </nav>
       <div className="border-t border-line px-3 py-3">
         <div className="flex items-center gap-2.5 rounded-sm px-1.5 py-1">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-accent-wash font-mono text-2xs font-semibold text-accent-deep">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent-line bg-accent-wash font-mono text-2xs font-semibold text-accent">
             {user ? initialsOf(user.first_name, user.last_name) : "·"}
           </span>
           <div className="min-w-0 flex-1 leading-tight">
@@ -114,18 +126,20 @@ function Topbar({ onOpenPalette }: { onOpenPalette: () => void }) {
   const title = TITLES[location.pathname] ?? "Overview"
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b border-line bg-paper px-5 lg:px-8">
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-line bg-night/70 px-5 backdrop-blur-[14px] lg:px-8">
       <div className="flex min-w-0 items-center gap-2">
         <span className="lg:hidden">
           <Wordmark to="/app" compact />
         </span>
-        <h1 className="hidden truncate text-md font-semibold tracking-tight text-ink lg:block">{title}</h1>
+        <p className="label-caps hidden truncate lg:block">
+          NexusCloud <span className="mx-1 text-accent">/</span> <span className="text-ink-2">{title}</span>
+        </p>
       </div>
       <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={onOpenPalette}
-          className="flex h-8 items-center gap-2 rounded-sm border border-line bg-surface px-2.5 text-sm text-ink-3 transition-colors duration-fast hover:border-line-strong hover:text-ink-2"
+          className="flex h-9 items-center gap-2 rounded-full border border-line bg-ink/[0.04] px-3.5 text-sm text-ink-3 transition-colors duration-fast hover:border-accent hover:text-accent"
           aria-label="Open command palette"
         >
           <SearchGlyph />
@@ -135,7 +149,7 @@ function Topbar({ onOpenPalette }: { onOpenPalette: () => void }) {
         {user ? (
           <Link
             to="/app/settings"
-            className="hidden h-8 items-center gap-2 rounded-sm border border-transparent px-2 font-mono text-2xs text-ink-3 transition-colors duration-fast hover:border-line hover:text-ink-2 sm:flex"
+            className="hidden h-9 items-center gap-2 rounded-full border border-transparent px-3 font-mono text-2xs text-ink-3 transition-colors duration-fast hover:border-line hover:text-ink-2 sm:flex"
           >
             {user.email}
           </Link>
@@ -145,7 +159,7 @@ function Topbar({ onOpenPalette }: { onOpenPalette: () => void }) {
           onClick={() => void signOut()}
           aria-label="Sign out"
           title="Sign out"
-          className="flex h-8 w-8 items-center justify-center rounded-sm border border-transparent text-ink-3 transition-colors duration-fast hover:border-line hover:bg-surface hover:text-ink"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-transparent text-ink-3 transition-colors duration-fast hover:border-accent hover:text-accent"
         >
           <LogOut size={14} strokeWidth={1.8} />
         </button>
@@ -175,11 +189,11 @@ export function PageHeader({
   actions?: ReactNode
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 border-b border-line pb-5">
+    <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 border-b border-line pb-6">
       <div className="min-w-0">
-        <p className="label-caps">{kicker}</p>
-        <h2 className="mt-1.5 text-xl font-semibold tracking-tighter text-ink">{title}</h2>
-        {description ? <p className="mt-1 max-w-prose text-base text-ink-2">{description}</p> : null}
+        <p className="label-caps !text-accent">{kicker}</p>
+        <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">{title}</h2>
+        {description ? <p className="mt-2 max-w-prose text-md text-ink-2">{description}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
@@ -202,11 +216,11 @@ export function Breadcrumb({ trail }: { trail: string[] }) {
 
 export function AppShell({ children, onOpenPalette }: { children: ReactNode; onOpenPalette: () => void }) {
   return (
-    <div className="min-h-dvh bg-paper">
+    <div className="min-h-dvh">
       <Sidebar />
-      <div className="flex min-h-dvh flex-col lg:pl-56">
+      <div className="flex min-h-dvh flex-col lg:pl-60">
         <Topbar onOpenPalette={onOpenPalette} />
-        <main className="mx-auto w-full max-w-content flex-1 px-5 py-6 lg:px-8 lg:py-8">{children}</main>
+        <main className="mx-auto w-full max-w-content flex-1 px-5 py-7 lg:px-10 lg:py-10">{children}</main>
       </div>
     </div>
   )
