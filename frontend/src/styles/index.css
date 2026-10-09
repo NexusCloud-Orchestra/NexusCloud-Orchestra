@@ -1,23 +1,46 @@
-@import "@fontsource-variable/inter";
-@import "@fontsource/geist-mono/400.css";
-@import "@fontsource/geist-mono/500.css";
+@import "@fontsource/instrument-sans/400.css";
+@import "@fontsource/instrument-sans/500.css";
+@import "@fontsource/instrument-sans/600.css";
+@import "@fontsource/syne/600.css";
+@import "@fontsource/syne/700.css";
+@import "@fontsource/syne/800.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Theme mirrors the landing page (public/landing/styles.css): night sky, frost type, gold accent. */
 @layer base {
+  :root {
+    color-scheme: dark;
+  }
+
   html {
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    background: theme("colors.night");
   }
 
   body {
-    @apply bg-paper font-sans text-base text-ink;
+    @apply min-h-dvh font-sans text-base text-ink;
+    /* Same atmosphere as the landing page's post-flight section: gold glow over a deep-to-night fall. */
+    background:
+      radial-gradient(60% 40% at 50% 0%, rgba(243, 197, 111, 0.08), transparent 70%),
+      radial-gradient(120% 80% at 50% 120%, rgba(27, 58, 82, 0.55), transparent 60%),
+      linear-gradient(to bottom, #0c2230 0%, theme("colors.deep") 35%, theme("colors.night") 100%);
+    background-attachment: fixed;
+  }
+
+  h1,
+  h2 {
+    @apply font-display;
   }
 
   ::selection {
-    @apply bg-accent-wash text-accent-deep;
+    background: rgba(243, 197, 111, 0.3);
+    color: theme("colors.ink");
   }
 
   /* Numeric data reads best tabular. */
@@ -26,13 +49,12 @@
   }
 
   :focus-visible {
-    @apply outline-none ring-2 ring-accent/50 ring-offset-1 ring-offset-paper;
+    @apply outline-none ring-2 ring-accent/60 ring-offset-1 ring-offset-paper;
   }
 
-  /* Thin, quiet scrollbars */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #d6d4cd transparent;
+    scrollbar-color: #2e4058 transparent;
   }
   *::-webkit-scrollbar {
     width: 8px;
@@ -49,10 +71,22 @@
   textarea::placeholder {
     @apply text-ink-3;
   }
+
+  /* Native controls (select, date pickers, checkboxes) follow the dark theme. */
+  select,
+  option {
+    background-color: theme("colors.deep");
+    color: theme("colors.ink");
+  }
+  input[type="checkbox"],
+  input[type="radio"],
+  progress {
+    accent-color: theme("colors.accent");
+  }
 }
 
 @layer components {
-  /* Technical label used across the product: section kickers, table heads, metadata. */
+  /* Technical label: section kickers, table heads, metadata (landing ".mono" eyebrow). */
   .label-caps {
     @apply font-mono text-2xs font-medium uppercase tracking-kicker text-ink-3;
   }
@@ -60,14 +94,39 @@
   .hairline {
     @apply border-line;
   }
+
+  /* Frosted glass surface, as used by the landing page panels. */
+  .glass {
+    background: rgba(9, 20, 34, 0.46);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+  }
 }
 
 @layer utilities {
   .grid-paper {
-    /* Very subtle ruled background for hero/landing sections. Plain color, no gradient. */
-    background-image: linear-gradient(to right, rgba(23, 25, 29, 0.045) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(23, 25, 29, 0.045) 1px, transparent 1px);
+    background-image: linear-gradient(to right, rgba(234, 240, 247, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(234, 240, 247, 0.04) 1px, transparent 1px);
     background-size: 44px 44px;
+  }
+
+  /* Gold sheen on outlined display text, from the landing hero title. */
+  .text-sheen {
+    color: transparent;
+    -webkit-text-stroke: 1px theme("colors.ink");
+    background: linear-gradient(100deg, transparent 0%, transparent 35%, #f3c56f 50%, transparent 65%, transparent 100%)
+      0 0 / 250% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: sheen 5s ease-in-out infinite;
+  }
+  @keyframes sheen {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: -150% 0;
+    }
   }
 }
 

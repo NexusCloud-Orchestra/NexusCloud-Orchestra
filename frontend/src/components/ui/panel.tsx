@@ -6,7 +6,7 @@ import type { ReactNode } from "react"
  * whitespace, not boxes.
  */
 export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-md border border-line bg-surface ${className}`}>{children}</section>
+  return <section className={`glass rounded-md border border-line ${className}`}>{children}</section>
 }
 
 export function PanelHeader({

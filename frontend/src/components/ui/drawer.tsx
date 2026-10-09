@@ -64,7 +64,7 @@ export function Drawer({ open, onClose, title, meta, children, footer }: DrawerP
   return createPortal(
     <div className="fixed inset-0 z-50" role="presentation">
       <div
-        className="animate-fade-in absolute inset-0 bg-ink/25"
+        className="animate-fade-in absolute inset-0 bg-night/70 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden
       />
