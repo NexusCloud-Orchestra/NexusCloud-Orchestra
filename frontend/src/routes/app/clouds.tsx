@@ -3,7 +3,8 @@ import { useSearchParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import { ChevronRight, Eye, EyeOff, ShieldCheck } from "lucide-react"
 
-import { useConnections, useProviders, useQuota } from "../../hooks/use-data"
+import { useConnections, usePlans, useProviders, useQuota } from "../../hooks/use-data"
+import { useAuth } from "../../state/auth"
 import { createConnection, deleteConnection } from "../../api/connections"
 import { ApiError } from "../../api/client"
 import { useToast } from "../../state/toast"
@@ -12,13 +13,15 @@ import { formatBytes, formatRelative } from "../../lib/format"
 import { PROVIDER_IDS, PROVIDER_META } from "../../lib/providers"
 import { PageHeader } from "../../components/layout/shell"
 import { Panel, PanelHeader, Divider } from "../../components/ui/panel"
+import { CapacityBar } from "../../components/ui/progress"
 import { EmptyState, ErrorState, ListSkeleton } from "../../components/ui/states"
-import { StatusBadge } from "../../components/ui/status"
 import { Button } from "../../components/ui/button"
 import { Field, Input, TextArea, useFieldId } from "../../components/ui/field"
 import { ConfirmModal } from "../../components/ui/modal"
 import { ProviderMark } from "../../components/ui/provider-mark"
 import type { Connection, ProviderId } from "../../types/api"
+import { Meta } from "../../components/ui/meta"
+import { Th } from "../../components/ui/table"
 
 export function CloudsPage() {
   const [params, setParams] = useSearchParams()
@@ -27,50 +30,94 @@ export function CloudsPage() {
 
   const connecting = params.get("connect") === "1"
   const disconnectTarget = params.get("disconnect")
+  const count = connections.data?.length ?? 0
+  const { user } = useAuth()
+  const plans = usePlans()
+  const maxConnections = plans.data?.find((plan) => plan.name === user?.plan)?.max_connections ?? null
+  const planLine =
+    maxConnections !== null
+      ? `${count} of ${maxConnections} clouds on the ${user?.plan} plan`
+      : `${count} cloud${count === 1 ? "" : "s"}`
 
   return (
     <div className="animate-fade-rise flex flex-col gap-6">
       <PageHeader
-        kicker="Infrastructure"
         title="Clouds"
-        description="Your connected storage. Credentials are encrypted at rest and never displayed again."
+        description="Your connected buckets. Credentials are encrypted at rest and never shown again."
         actions={
           <Button
             size="sm"
             variant={connecting ? "secondary" : "primary"}
             onClick={() => setParams(connecting ? {} : { connect: "1" }, { replace: true })}
           >
-            {connecting ? "Close wizard" : "Connect cloud"}
+            {connecting ? "Close" : "Connect cloud"}
           </Button>
         }
       />
 
       {connecting ? <ConnectWizard onDone={() => setParams({}, { replace: true })} /> : null}
 
-      <Panel>
-        <PanelHeader title="Connected" meta={connections.data ? `${connections.data.length} clouds` : undefined} />
+      <section aria-label="Connected clouds">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-line pb-2">
+          <h2 className="text-md font-semibold text-ink">Connected</h2>
+          <p className="text-sm text-ink-3 tnum">{connections.data ? planLine : ""}</p>
+        </div>
         {connections.isLoading ? (
           <ListSkeleton rows={2} />
         ) : connections.isError ? (
           <ErrorState error={connections.error} onRetry={() => void connections.refetch()} />
         ) : connections.data && connections.data.length > 0 ? (
-          <ul className="divide-y divide-line">
-            {connections.data.map((connection) => (
-              <ConnectionRow
-                key={connection.id}
-                connection={connection}
-                quotaRow={quota.data?.by_connection.find((row) => row.connection_id === connection.id) ?? null}
-                onDisconnect={() => setParams({ disconnect: connection.id }, { replace: true })}
-              />
-            ))}
-          </ul>
+          <>
+            <ul className="md:hidden">
+              {connections.data.map((connection) => (
+                <ConnectionCard
+                  key={connection.id}
+                  connection={connection}
+                  quotaRow={quota.data?.by_connection.find((row) => row.connection_id === connection.id) ?? null}
+                  onDisconnect={() => setParams({ disconnect: connection.id }, { replace: true })}
+                />
+              ))}
+            </ul>
+            <table className="hidden w-full border-collapse md:table">
+              <caption className="sr-only">Connected clouds with bucket, region and capacity</caption>
+              <thead>
+                <tr className="border-b border-line">
+                  <Th>Cloud</Th>
+                  <Th>Bucket</Th>
+                  <Th hideBelow="lg">Region</Th>
+                  <Th className="w-[28%]">Capacity</Th>
+                  <Th hideBelow="lg">Connected</Th>
+                  <Th>
+                    <span className="sr-only">Actions</span>
+                  </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {connections.data.map((connection) => (
+                  <ConnectionRow
+                    key={connection.id}
+                    connection={connection}
+                    quotaRow={quota.data?.by_connection.find((row) => row.connection_id === connection.id) ?? null}
+                    onDisconnect={() => setParams({ disconnect: connection.id }, { replace: true })}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </>
         ) : (
           <EmptyState
             title="No clouds connected"
-            body="Connect your first cloud provider — uploads route to connected clouds automatically."
+            body="Connect your first provider. Uploads route to connected clouds automatically."
+            action={
+              !connecting ? (
+                <Button size="sm" variant="primary" onClick={() => setParams({ connect: "1" }, { replace: true })}>
+                  Connect cloud
+                </Button>
+              ) : undefined
+            }
           />
         )}
-      </Panel>
+      </section>
 
       <DisconnectModal
         targetId={disconnectTarget}
@@ -81,55 +128,75 @@ export function CloudsPage() {
   )
 }
 
-function ConnectionRow({
-  connection,
-  quotaRow,
-  onDisconnect,
-}: {
-  connection: Connection
-  quotaRow: { used_bytes: number; reserved_bytes: number; limit_bytes: number; free_bytes: number } | null
-  onDisconnect: () => void
-}) {
-  const meta = PROVIDER_META[connection.provider]
-  const used = quotaRow ? quotaRow.used_bytes + quotaRow.reserved_bytes : 0
-  const limit = quotaRow?.limit_bytes ?? 0
-  const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0
+type QuotaRow = { used_bytes: number; reserved_bytes: number; limit_bytes: number; free_bytes: number } | null
+
+function CloudName({ connection }: { connection: Connection }) {
   return (
-    <li className="group flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3.5 transition-colors duration-fast hover:bg-raise">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <ProviderMark provider={connection.provider} size={16} />
-        <div className="min-w-0">
-          <p className="truncate text-md font-medium text-ink">{connection.display_name}</p>
-          <p className="font-mono text-2xs uppercase tracking-kicker text-ink-3">
-            {meta?.name ?? connection.provider} · {connection.bucket_name}
-            {connection.region ? ` · ${connection.region}` : ""}
-          </p>
-        </div>
-      </div>
-      <div className="w-40 shrink-0">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="label-caps">Used</span>
-          <span className="font-mono text-sm text-ink tnum">
-            {formatBytes(used)} <span className="text-ink-3">/ {formatBytes(limit)}</span>
-          </span>
-        </div>
-        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-line">
-          <div
-            className={`h-full rounded-full ${pct >= 90 ? "bg-bad" : pct >= 75 ? "bg-warn" : "bg-accent"}`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      </div>
-      <div className="flex items-center gap-3">
-        <StatusBadge tone="ok">Connected</StatusBadge>
-        <span className="hidden font-mono text-2xs text-ink-3 md:inline">since {formatRelative(connection.created_at)}</span>
-        <button
-          type="button"
-          onClick={onDisconnect}
-          className="rounded-sm border border-line bg-surface px-2 py-1 text-sm text-ink-2 transition-colors duration-fast hover:border-bad-line hover:bg-bad-wash hover:text-bad"
-        >
-          Disconnect
-        </button>
+    <span className="flex min-w-0 items-center gap-3">
+      <ProviderMark provider={connection.provider} size={12} />
+      <span className="min-w-0">
+        <span className="block truncate text-md font-medium text-ink">{connection.display_name}</span>
+        <span className="text-sm text-ink-3">{PROVIDER_META[connection.provider]?.name ?? connection.provider}</span>
+      </span>
+    </span>
+  )
+}
+
+function Usage({ connection, quotaRow }: { connection: Connection; quotaRow: QuotaRow }) {
+  const used = quotaRow?.used_bytes ?? 0
+  const reserved = quotaRow?.reserved_bytes ?? 0
+  const limit = quotaRow?.limit_bytes ?? 0
+  return (
+    <div>
+      <CapacityBar used={used} reserved={reserved} limit={limit} label={`${connection.display_name} capacity used`} />
+      <p className="mt-1.5 font-mono text-sm text-ink-2 tnum">
+        {formatBytes(used)}
+        {reserved > 0 ? <span className="text-accent-deep"> +{formatBytes(reserved)}</span> : null}
+        <span className="text-ink-3"> / {formatBytes(limit)}</span>
+      </p>
+    </div>
+  )
+}
+
+function DisconnectButton({ connection, onDisconnect }: { connection: Connection; onDisconnect: () => void }) {
+  return (
+    <Button size="sm" variant="danger" onClick={onDisconnect} aria-label={`Disconnect ${connection.display_name}`}>
+      Disconnect
+    </Button>
+  )
+}
+
+function ConnectionRow({ connection, quotaRow, onDisconnect }: { connection: Connection; quotaRow: QuotaRow; onDisconnect: () => void }) {
+  return (
+    <tr className="row align-middle">
+      <td className="py-3.5 pl-1 pr-3">
+        <CloudName connection={connection} />
+      </td>
+      <td className="px-3 py-3.5 font-mono text-sm text-ink-2">{connection.bucket_name}</td>
+      <td className="hidden px-3 py-3.5 font-mono text-sm text-ink-2 lg:table-cell">{connection.region ?? "-"}</td>
+      <td className="px-3 py-3.5">
+        <Usage connection={connection} quotaRow={quotaRow} />
+      </td>
+      <td className="hidden px-3 py-3.5 text-sm text-ink-3 lg:table-cell">{formatRelative(connection.created_at)}</td>
+      <td className="py-3.5 pl-3 pr-1 text-right">
+        <DisconnectButton connection={connection} onDisconnect={onDisconnect} />
+      </td>
+    </tr>
+  )
+}
+
+/** Phone layout: the same facts stacked, since a five-column table does not fit. */
+function ConnectionCard({ connection, quotaRow, onDisconnect }: { connection: Connection; quotaRow: QuotaRow; onDisconnect: () => void }) {
+  return (
+    <li className="row flex flex-col gap-3 px-1 py-4">
+      <CloudName connection={connection} />
+      <Meta
+        className="text-sm text-ink-3"
+        items={[<span className="font-mono text-xs">{connection.bucket_name}</span>, connection.region, `Connected ${formatRelative(connection.created_at)}`]}
+      />
+      <Usage connection={connection} quotaRow={quotaRow} />
+      <div>
+        <DisconnectButton connection={connection} onDisconnect={onDisconnect} />
       </div>
     </li>
   )
@@ -288,7 +355,7 @@ function ConnectWizard({ onDone }: { onDone: () => void }) {
                 <span key={entry.id} className="flex items-center gap-1.5">
                   {index > 0 ? <ChevronRight size={11} className="text-ink-3" aria-hidden /> : null}
                   <span
-                    className={`font-mono text-2xs uppercase tracking-kicker ${
+                    className={`text-sm ${
                       index === stepIndex ? "text-accent-deep" : index < stepIndex ? "text-ok" : "text-ink-3"
                     }`}
                   >
@@ -315,7 +382,7 @@ function ConnectWizard({ onDone }: { onDone: () => void }) {
               <ListSkeleton rows={3} />
             </div>
           ) : providers.isError ? (
-            <div className="bg-surface sm:col-span-2 lg:col-span-3">
+            <div className="bg-surface px-4 sm:col-span-2 lg:col-span-3">
               <ErrorState error={providers.error} onRetry={() => void providers.refetch()} />
             </div>
           ) : (
@@ -337,10 +404,14 @@ function ConnectWizard({ onDone }: { onDone: () => void }) {
                     <span className="text-md font-medium text-ink">{providerMeta.name}</span>
                     <ChevronRight size={13} className="ml-auto text-ink-3 transition-transform duration-fast group-hover:translate-x-0.5" aria-hidden />
                   </span>
-                  <span className="font-mono text-2xs text-ink-3 tnum">
-                    Free tier est. {formatBytes(providerSpec?.free_bytes ?? null)} ·{" "}
-                    {providerSpec?.permanent ? "permanent" : "12-month"} · egress{" "}
-                    {providerSpec ? (1 - providerSpec.inverse_egress) * 0.12 : 0}/GB·abs
+                  <span className="text-sm text-ink-3 tnum">
+                    <Meta
+                      items={[
+                        providerSpec ? `Free tier ${formatBytes(providerSpec.free_bytes)}` : null,
+                        providerSpec ? (providerSpec.permanent ? "Permanent tier" : "Time-limited tier") : null,
+                        providerSpec ? `Egress score ${providerSpec.inverse_egress.toFixed(1)}` : null,
+                      ]}
+                    />
                   </span>
                 </button>
               )

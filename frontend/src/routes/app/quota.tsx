@@ -3,141 +3,118 @@ import { useQuota } from "../../hooks/use-data"
 import { formatBytes, formatPercent } from "../../lib/format"
 import { providerName } from "../../lib/providers"
 import { PageHeader } from "../../components/layout/shell"
-import { Panel, PanelHeader } from "../../components/ui/panel"
-import { EmptyState, ErrorState, ListSkeleton } from "../../components/ui/states"
-import { ProgressBar } from "../../components/ui/progress"
+import { EmptyState, ErrorState, ListSkeleton, StatSkeleton } from "../../components/ui/states"
+import { CapacityBar } from "../../components/ui/progress"
 import { ProviderMark } from "../../components/ui/provider-mark"
-
-function toneFor(percentage: number): "accent" | "warn" | "bad" {
-  if (percentage >= 90) return "bad"
-  if (percentage >= 75) return "warn"
-  return "accent"
-}
+import { buttonClass } from "../../components/ui/button"
+import { Stat } from "../../components/ui/stat"
+import { Th } from "../../components/ui/table"
 
 export function QuotaPage() {
   const quota = useQuota()
+  const data = quota.data
 
   return (
-    <div className="animate-fade-rise flex flex-col gap-6">
+    <div className="animate-fade-rise flex flex-col gap-8">
       <PageHeader
-        kicker="Capacity"
         title="Quota"
-        description="Free-tier estimates from your connected clouds, capped by your plan."
+        description="Free-tier estimates from your connected clouds, capped by your plan. These are not live billing balances."
       />
 
       {quota.isLoading ? (
-        <Panel>
-          <div className="px-4 py-6">
-            <ListSkeleton rows={3} />
-          </div>
-        </Panel>
-      ) : quota.isError ? (
-        <Panel>
-          <ErrorState error={quota.error} onRetry={() => void quota.refetch()} />
-        </Panel>
-      ) : quota.data ? (
         <>
-          {/* Primary numeric hierarchy */}
-          <section className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
-                <div>
-                  <p className="label-caps">Used</p>
-                  <p className="mt-1 font-display text-4xl font-bold tracking-tight text-ink tnum">
-                    {formatBytes(quota.data.total_used_bytes)}
-                  </p>
-                </div>
-                <div>
-                  <p className="label-caps">Reserved (pending uploads)</p>
-                  <p className="mt-1 font-display text-4xl font-bold tracking-tight text-ink-3 tnum">
-                    {formatBytes(quota.data.total_reserved_bytes)}
-                  </p>
-                </div>
-                <div>
-                  <p className="label-caps">Free</p>
-                  <p className="mt-1 font-display text-4xl font-bold tracking-tight text-ok tnum">
-                    {formatBytes(quota.data.total_free_bytes)}
-                  </p>
-                </div>
-              </div>
-              <div>
-                <div className="mb-1.5 flex items-baseline justify-between">
-                  <span className="label-caps">Total capacity · {formatBytes(quota.data.total_limit_bytes)}</span>
-                  <span className="font-mono text-sm text-ink-2 tnum">{formatPercent(quota.data.usage_percentage)}</span>
-                </div>
-                <ProgressBar value={quota.data.usage_percentage} tone={toneFor(quota.data.usage_percentage)} className="h-2.5" />
-              </div>
-              <p className="font-mono text-2xs uppercase tracking-kicker text-ink-3">
-                {quota.data.plan ? `plan ${quota.data.plan}` : "plan —"}
-                {quota.data.plan_limit_bytes ? ` · plan cap ${formatBytes(quota.data.plan_limit_bytes)}` : " · no plan cap"}
-                {" · estimates are provider free tiers, not live billing"}
-              </p>
-            </div>
-
-            <aside className="flex flex-col justify-center gap-3 border-l-0 border-line pl-0 lg:border-l lg:pl-8">
-              <p className="label-caps">Plan</p>
-              <p className="font-display text-2xl font-bold tracking-tight text-ink">{quota.data.plan ?? "—"}</p>
-              {quota.data.plan_limit_bytes ? (
-                <p className="text-base text-ink-2">
-                  This plan caps usable capacity at {formatBytes(quota.data.plan_limit_bytes)} even if connected
-                  clouds offer more.
-                </p>
+          <StatSkeleton />
+          <ListSkeleton rows={3} />
+        </>
+      ) : quota.isError ? (
+        <ErrorState error={quota.error} onRetry={() => void quota.refetch()} />
+      ) : data ? (
+        <>
+          <section aria-label="Totals" className="flex flex-col gap-4">
+            <dl className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-4">
+              <Stat term="Used" value={formatBytes(data.total_used_bytes)} />
+              <Stat term="Reserved by pending uploads" value={formatBytes(data.total_reserved_bytes)} tone="text-accent-deep" />
+              <Stat term="Free" value={formatBytes(data.total_free_bytes)} tone="text-ok" />
+              <Stat term="Usable limit" value={formatBytes(data.total_limit_bytes)} />
+            </dl>
+            <CapacityBar
+              used={data.total_used_bytes}
+              reserved={data.total_reserved_bytes}
+              limit={data.total_limit_bytes}
+              label={`${formatPercent(data.usage_percentage)} of usable capacity`}
+              className="h-2.5"
+            />
+            <p className="text-sm text-ink-2 tnum">
+              {data.plan_limit_bytes ? (
+                <>
+                  The <span className="capitalize">{data.plan ?? "current"}</span> plan caps storage at{" "}
+                  <span className="font-mono text-ink">{formatBytes(data.plan_limit_bytes)}</span>, even if connected clouds offer more.{" "}
+                </>
               ) : (
-                <p className="text-base text-ink-2">This plan has no byte cap.</p>
+                <>This plan has no byte cap. </>
               )}
-              <Link
-                to="/app/settings"
-                className="text-sm font-medium text-accent transition-colors duration-fast hover:text-accent-deep"
-              >
-                Manage plan in Settings →
+              <Link to="/app/settings" className="font-medium text-accent hover:text-accent-deep">
+                Change plan
               </Link>
-            </aside>
+            </p>
           </section>
 
-          {/* Per-connection breakdown */}
-          <Panel>
-            <PanelHeader title="By connection" meta={`${quota.data.by_connection.length} clouds`} />
-            {quota.data.by_connection.length > 0 ? (
-              <ul className="flex flex-col">
-                {quota.data.by_connection.map((row) => {
-                  const total = row.limit_bytes
-                  const used = row.used_bytes
-                  const reserved = row.reserved_bytes
-                  const usedPct = total > 0 ? (used / total) * 100 : 0
-                  const reservedPct = total > 0 ? (reserved / total) * 100 : 0
-                  return (
-                    <li key={row.connection_id} className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-line px-4 py-3.5 last:border-b-0">
-                      <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                        <ProviderMark provider={row.provider} size={12} />
-                        <div className="min-w-0">
-                          <p className="truncate text-base font-medium text-ink">{row.display_name}</p>
-                          <p className="font-mono text-2xs uppercase tracking-kicker text-ink-3">
-                            {providerName(row.provider)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="w-full max-w-md flex-1">
-                        <div className="flex h-2 w-full overflow-hidden rounded-full bg-line" role="img" aria-label={`${row.display_name} usage`}>
-                          <div className="h-full bg-accent" style={{ width: `${usedPct}%` }} />
-                          <div className="h-full bg-accent/35" style={{ width: `${reservedPct}%` }} />
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-baseline gap-4 font-mono text-sm tnum">
-                        <span className="text-ink">{formatBytes(used)}</span>
-                        {reserved > 0 ? <span className="text-accent-deep">+{formatBytes(reserved)}</span> : null}
-                        <span className="text-ink-3">/ {formatBytes(total)}</span>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
+          <section aria-label="By cloud">
+            <div className="flex items-baseline justify-between border-b border-line pb-2">
+              <h2 className="text-md font-semibold text-ink">By cloud</h2>
+              <p className="text-sm text-ink-3 tnum">{data.by_connection.length} connected</p>
+            </div>
+            {data.by_connection.length > 0 ? (
+              <table className="w-full border-collapse">
+                <caption className="sr-only">Used, reserved and free capacity per connected cloud</caption>
+                <thead className="sr-only sm:not-sr-only">
+                  <tr className="border-b border-line">
+                    <Th>Cloud</Th>
+                    <Th hideBelow="md" className="w-1/3">Usage</Th>
+                    <Th align="right">Used</Th>
+                    <Th align="right" hideBelow="sm">Reserved</Th>
+                    <Th align="right">Free</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.by_connection.map((row) => (
+                    <tr key={row.connection_id} className="row">
+                      <td className="px-1 py-3">
+                        <span className="flex items-center gap-2.5">
+                          <ProviderMark provider={row.provider} size={12} />
+                          <span className="min-w-0">
+                            <span className="block truncate text-base font-medium text-ink">{row.display_name}</span>
+                            <span className="text-sm text-ink-3">{providerName(row.provider)}</span>
+                          </span>
+                        </span>
+                      </td>
+                      <td className="hidden px-3 py-3 md:table-cell">
+                        <CapacityBar used={row.used_bytes} reserved={row.reserved_bytes} limit={row.limit_bytes} label={`${row.display_name} usage`} />
+                      </td>
+                      <td className="px-3 py-3 text-right font-mono text-sm text-ink tnum">{formatBytes(row.used_bytes)}</td>
+                      <td className="hidden px-3 py-3 text-right font-mono text-sm tnum text-ink-2 sm:table-cell">
+                        {row.reserved_bytes > 0 ? `+${formatBytes(row.reserved_bytes)}` : "0 B"}
+                      </td>
+                      <td className="px-1 py-3 text-right font-mono text-sm text-ink-2 tnum">
+                        {formatBytes(row.free_bytes)}
+                        <span className="text-ink-3"> of {formatBytes(row.limit_bytes)}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             ) : (
               <EmptyState
                 title="No connected clouds"
                 body="Connect a provider to see its capacity here."
+                action={
+                  <Link to="/app/clouds?connect=1" className={buttonClass("primary")}>
+                    Connect cloud
+                  </Link>
+                }
               />
             )}
-          </Panel>
+          </section>
         </>
       ) : null}
     </div>

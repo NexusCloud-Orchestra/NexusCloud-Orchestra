@@ -19,7 +19,8 @@ export default {
         "line-strong": "#2E4058",
         ink: "#EAF0F7",
         "ink-2": "#AAB3BF",
-        "ink-3": "#7D8896",
+        // Secondary text: >= 4.5:1 on night, deep and raise surfaces.
+        "ink-3": "#8C97A5",
         accent: "#F3C56F",
         "accent-deep": "#FFD68A",
         "accent-wash": "#2A2416",
@@ -57,11 +58,13 @@ export default {
         tight: "-0.01em",
         tighter: "-0.02em",
       },
+      // Radius by role (DESIGN.md): xs badges, sm inputs/nav rows, md panels/dialogs,
+      // lg the single auth card. Pills (rounded-full) are for buttons and chips only.
       borderRadius: {
         xs: "4px",
-        sm: "10px",
-        md: "16px",
-        lg: "20px",
+        sm: "8px",
+        md: "12px",
+        lg: "18px",
       },
       boxShadow: {
         pop: "0 24px 60px -20px rgba(0,0,0,0.7), 0 2px 10px -4px rgba(0,0,0,0.5)",
@@ -76,10 +79,9 @@ export default {
       transitionTimingFunction: {
         out: "cubic-bezier(0.2, 0, 0, 1)",
         inout: "cubic-bezier(0.4, 0, 0.2, 1)",
-        spring: "cubic-bezier(0.34, 1.3, 0.44, 1)",
       },
       maxWidth: {
-        content: "1160px",
+        content: "1200px",
         prose: "68ch",
       },
       keyframes: {

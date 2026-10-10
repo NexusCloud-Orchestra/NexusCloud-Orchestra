@@ -1,10 +1,11 @@
+// avoid-ai-design-ignore-file: K3 -- blur only on the overlay scrim, over live content (DESIGN.md: Elevation)
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useNavigate } from "react-router-dom"
 import { Cloud, CircuitBoard, FolderOpen, Gauge, LayoutDashboard, Activity, Settings2, UploadCloud, Link2 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "../../state/query"
-import { formatBytes, fileExtension } from "../../lib/format"
+import { formatBytes } from "../../lib/format"
 import { ProviderMark } from "../ui/provider-mark"
 import type { FileRecord } from "../../types/api"
 
@@ -75,7 +76,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       id: `file-${file.id}`,
       label: file.original_name,
       section: "Files" as const,
-      hint: `${fileExtension(file.original_name)} · ${formatBytes(file.size_bytes)}`,
+      hint: formatBytes(file.size_bytes),
       icon: FolderOpen,
       run: () => navigate(`/app/files?file=${file.id}`),
     }))
@@ -152,7 +153,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
               const Icon = command.icon
               return (
                 <div key={command.id}>
-                  {header ? <p className="label-caps px-4 pb-1 pt-2.5">{header}</p> : null}
+                  {header ? <p className="meta-label px-4 pb-1 pt-2.5">{header}</p> : null}
                   <button
                     type="button"
                     role="option"
@@ -172,19 +173,27 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                     {command.id.startsWith("file-") && files.find((f) => `file-${f.id}` === command.id) ? (
                       <ProviderMark provider={files.find((f) => `file-${f.id}` === command.id)!.provider} size={10} />
                     ) : null}
-                    {command.hint ? <span className="shrink-0 font-mono text-2xs text-ink-3 tnum">{command.hint}</span> : null}
+                    {command.hint ? <span className="shrink-0 font-mono text-xs text-ink-3 tnum">{command.hint}</span> : null}
                   </button>
                 </div>
               )
             })
           )}
         </div>
-        <div className="flex items-center justify-between border-t border-line px-4 py-2 font-mono text-2xs uppercase tracking-kicker text-ink-3">
-          <span>Navigate · Files on this device list</span>
-          <span>↑↓ move · ↵ select · esc close</span>
+        <div className="flex items-center justify-between gap-4 border-t border-line px-4 py-2 text-sm text-ink-3">
+          <span>Pages, actions and recent files</span>
+          <span className="flex items-center gap-3">
+            <span><Key>↑↓</Key> move</span>
+            <span><Key>↵</Key> select</span>
+            <span><Key>esc</Key> close</span>
+          </span>
         </div>
       </div>
     </div>,
     document.body,
   )
+}
+
+function Key({ children }: { children: string }) {
+  return <kbd className="rounded-xs border border-line-strong bg-raise px-1 font-mono text-xs text-ink-2">{children}</kbd>
 }
