@@ -2,7 +2,6 @@ import { useState } from "react"
 import type { FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
-import { AlertTriangle } from "lucide-react"
 import { useAuth } from "../../state/auth"
 import { useToast } from "../../state/toast"
 import { queryKeys } from "../../state/query"
@@ -12,110 +11,130 @@ import { formatDateTime, initialsOf } from "../../lib/format"
 import { usePlans } from "../../hooks/use-data"
 import { formatBytes } from "../../lib/format"
 import { PageHeader } from "../../components/layout/shell"
-import { Panel, PanelHeader } from "../../components/ui/panel"
 import { Button } from "../../components/ui/button"
 import { Field, Input } from "../../components/ui/field"
 import { ConfirmModal } from "../../components/ui/modal"
-import { StatusBadge } from "../../components/ui/status"
-import { PROVIDER_IDS } from "../../lib/providers"
+import { TabPanel, Tabs } from "../../components/ui/tabs"
+import { Th } from "../../components/ui/table"
+
+type Tab = "profile" | "plan" | "security" | "danger"
+const TABS: Array<{ id: Tab; label: string }> = [
+  { id: "profile", label: "Profile" },
+  { id: "plan", label: "Plan" },
+  { id: "security", label: "Security" },
+  { id: "danger", label: "Danger zone" },
+]
 
 export function SettingsPage() {
   const { user } = useAuth()
-  const plans = usePlans()
   const navigate = useNavigate()
-
-  const currentPlan = plans.data?.find((plan) => plan.name === user?.plan) ?? null
+  const [tab, setTab] = useState<Tab>("profile")
 
   return (
     <div className="animate-fade-rise flex flex-col gap-6">
-      <PageHeader kicker="Account" title="Settings" description="Profile, credentials and plan state." />
+      <PageHeader title="Settings" description="Profile, plan, credentials and account removal." />
 
-      {/* Profile */}
-      <Panel>
-        <PanelHeader title="Profile" />
-        {user ? (
-          <div className="flex flex-wrap items-center gap-x-8 gap-y-4 px-4 py-4">
-            <span className="flex h-11 w-11 items-center justify-center rounded-sm bg-accent-wash font-mono text-md font-semibold text-accent-deep">
-              {initialsOf(user.first_name, user.last_name)}
-            </span>
-            <div>
-              <p className="text-md font-medium text-ink">
-                {user.first_name} {user.last_name}
-              </p>
-              <p className="font-mono text-sm text-ink-2">{user.email}</p>
-            </div>
-            <div className="ml-auto text-right">
-              <p className="label-caps">Member since</p>
-              <p className="font-mono text-sm text-ink-2 tnum">{formatDateTime(user.created_at)}</p>
-            </div>
-          </div>
-        ) : null}
-      </Panel>
+      <div className="grid gap-8 md:grid-cols-[168px_minmax(0,1fr)]">
+        <Tabs items={TABS} value={tab} onChange={setTab} label="Settings sections" prefix="settings" side />
 
-      {/* Plan */}
-      <Panel>
-        <PanelHeader
-          title="Plan"
-          actions={<StatusBadge tone="neutral">{user?.plan ?? "—"}</StatusBadge>}
-        />
-        <div className="flex flex-col gap-4 px-4 py-4">
-          <div className="flex flex-wrap gap-x-10 gap-y-3">
-            <div>
-              <p className="label-caps">Cloud connections</p>
-              <p className="mt-0.5 font-mono text-md text-ink tnum">
-                {currentPlan?.max_connections ?? "unlimited"}
+        <div className="min-w-0 max-w-2xl">
+          <TabPanel prefix="settings" id={tab} key={tab}>
+          {tab === "profile" ? (
+            <section aria-label="Profile" className="flex flex-col gap-6">
+              {user ? (
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-sm bg-accent-wash font-mono text-md font-semibold text-accent-deep">
+                    {initialsOf(user.first_name, user.last_name)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-md font-medium text-ink">
+                      {user.first_name} {user.last_name}
+                    </p>
+                    <p className="truncate font-mono text-sm text-ink-2">{user.email}</p>
+                  </div>
+                </div>
+              ) : null}
+              {user ? (
+                <dl>
+                  <div className="row flex justify-between gap-4 py-3">
+                    <dt className="text-sm text-ink-3">Member since</dt>
+                    <dd className="font-mono text-sm text-ink-2 tnum">{formatDateTime(user.created_at)}</dd>
+                  </div>
+                </dl>
+              ) : null}
+              <p className="text-base text-ink-2">
+                Cloud connections and credentials are managed on the Clouds page.{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/app/clouds")}
+                  className="font-medium text-accent hover:text-accent-deep"
+                >
+                  Open Clouds
+                </button>
               </p>
-            </div>
-            <div>
-              <p className="label-caps">Storage cap</p>
-              <p className="mt-0.5 font-mono text-md text-ink tnum">
-                {currentPlan?.max_bytes ? formatBytes(currentPlan.max_bytes) : "unlimited"}
+            </section>
+          ) : null}
+
+          {tab === "plan" ? (
+            <section aria-label="Plan" className="flex flex-col gap-5">
+              <h2 className="text-md font-semibold text-ink">
+                <span className="capitalize">{user?.plan ?? "Current"}</span> plan
+              </h2>
+              <PlanTable currentPlan={user?.plan ?? "free"} />
+              <p className="max-w-prose text-sm text-ink-2">
+                Paid plans cannot be selected until billing is added to the backend. You can move down to Free once your usage fits its limits.
               </p>
-            </div>
-            <div>
-              <p className="label-caps">Seats</p>
-              <p className="mt-0.5 font-mono text-md text-ink tnum">{currentPlan?.seats ?? "—"}</p>
-            </div>
-          </div>
-          <div className="rounded-sm border border-warn-line bg-warn-wash px-3 py-2.5 text-base text-warn">
-            <p className="flex items-start gap-2">
-              <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden />
-              <span>
-                Paid upgrades are unavailable until billing is integrated into the backend. Downgrade to Free is
-                possible once usage fits its limits.
-              </span>
-            </p>
-          </div>
-          <PlanActions currentPlan={user?.plan ?? "free"} />
+              {user?.plan && user.plan !== "free" ? <PlanActions /> : null}
+            </section>
+          ) : null}
+
+          {tab === "security" ? <PasswordPanel /> : null}
+          {tab === "danger" ? <AccountDeletion /> : null}
+          </TabPanel>
         </div>
-      </Panel>
-
-      {/* Security */}
-      <PasswordPanel />
-
-      {/* Connected clouds link */}
-      <Panel>
-        <PanelHeader title="Connected clouds" />
-        <div className="flex items-center justify-between px-4 py-4">
-          <p className="text-base text-ink-2">
-            Manage cloud connections, credentials and disconnects from the Clouds page.
-          </p>
-          <Button size="sm" variant="secondary" onClick={() => navigate("/app/clouds")}>
-            Open Clouds
-          </Button>
-        </div>
-      </Panel>
-
-      <AccountDeletion />
-
-      <p className="font-mono text-2xs text-ink-3">
-        provider catalog · {PROVIDER_IDS.join(" / ")}
-      </p>
+      </div>
     </div>
   )
 }
 
-function PlanActions({ currentPlan }: { currentPlan: string }) {
+function PlanTable({ currentPlan }: { currentPlan: string }) {
+  const plans = usePlans()
+  if (plans.isLoading) return <p className="text-sm text-ink-3">Loading plans…</p>
+  if (plans.isError || !plans.data) return <p className="text-sm text-bad">Could not load plan limits.</p>
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[420px] border-collapse">
+        <caption className="sr-only">Limits for each plan</caption>
+        <thead>
+          <tr className="border-b border-line">
+            <Th>Plan</Th>
+            <Th align="right">Clouds</Th>
+            <Th align="right">Storage cap</Th>
+            <Th align="right">Seats</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {plans.data.map((plan) => {
+            const current = plan.name === currentPlan
+            return (
+              <tr key={plan.name} className="row" aria-current={current ? "true" : undefined}>
+                <th scope="row" className={`px-1 py-3 text-left text-base capitalize ${current ? "font-semibold text-ink" : "font-normal text-ink-2"}`}>
+                  {plan.name}
+                  {current ? <span className="ml-2 text-sm font-normal text-accent-deep normal-case">Current</span> : null}
+                </th>
+                <td className="px-3 py-3 text-right font-mono text-sm text-ink tnum">{plan.max_connections ?? "Unlimited"}</td>
+                <td className="px-3 py-3 text-right font-mono text-sm text-ink tnum">{plan.max_bytes ? formatBytes(plan.max_bytes) : "Unlimited"}</td>
+                <td className="px-1 py-3 text-right font-mono text-sm text-ink tnum">{plan.seats}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function PlanActions() {
   const toast = useToast()
   const queryClient = useQueryClient()
   const [busyPlan, setBusyPlan] = useState<string | null>(null)
@@ -135,21 +154,10 @@ function PlanActions({ currentPlan }: { currentPlan: string }) {
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <Button
-        size="sm"
-        variant={currentPlan === "free" ? "primary" : "secondary"}
-        disabled={currentPlan === "free"}
-        loading={busyPlan === "free"}
-        onClick={() => void switchPlan("free")}
-      >
-        {currentPlan === "free" ? "Current plan" : "Downgrade to Free"}
+    <div>
+      <Button size="sm" variant="secondary" loading={busyPlan === "free"} onClick={() => void switchPlan("free")}>
+        Downgrade to Free
       </Button>
-      {(["starter", "pro", "team"] as const).map((plan) => (
-        <Button key={plan} size="sm" variant="secondary" disabled>
-          {plan} — requires billing
-        </Button>
-      ))}
     </div>
   )
 }
@@ -186,10 +194,13 @@ function PasswordPanel() {
   }
 
   return (
-    <Panel>
-      <PanelHeader title="Security" meta="changing the password signs out every session" />
-      <form onSubmit={onSubmit} className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-end sm:gap-3" noValidate>
-        <div className="flex-1">
+    <section aria-label="Security" className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-md font-semibold text-ink">Password</h2>
+        <p className="mt-1 text-sm text-ink-3">Changing the password signs out every session.</p>
+      </div>
+      <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+        <div>
           <Field label="Current password" htmlFor="pw-current">
             <Input
               id="pw-current"
@@ -202,7 +213,7 @@ function PasswordPanel() {
             />
           </Field>
         </div>
-        <div className="flex-1">
+        <div>
           <Field label="New password" htmlFor="pw-next" hint="At least 8 characters" error={error}>
             <Input
               id="pw-next"
@@ -216,11 +227,13 @@ function PasswordPanel() {
             />
           </Field>
         </div>
-        <Button type="submit" variant="secondary" loading={busy} disabled={!current || !next}>
-          Update password
-        </Button>
+        <div>
+          <Button type="submit" variant="secondary" loading={busy} disabled={!current || !next}>
+            Update password
+          </Button>
+        </div>
       </form>
-    </Panel>
+    </section>
   )
 }
 
@@ -257,9 +270,9 @@ function AccountDeletion() {
   }
 
   return (
-    <Panel className="border-bad-line">
-      <PanelHeader title="Danger zone" />
-      <div className="flex flex-col gap-3 px-4 py-4">
+    <section aria-label="Danger zone" className="flex flex-col gap-3">
+      <h2 className="text-md font-semibold text-bad">Delete account</h2>
+      <div className="flex flex-col gap-3">
         <p className="max-w-prose text-base text-ink-2">
           Deleting the account erases the profile, connections, encrypted credentials, file metadata, sessions and
           audit history. Files must be deleted first — deletion is blocked while files remain tracked. Objects
@@ -284,22 +297,19 @@ function AccountDeletion() {
         loading={busy}
         onConfirm={() => void confirm()}
         body={<p>This cannot be undone. Enter the account password to confirm.</p>}
-      />
-      {open ? (
-        <div className="border-t border-line px-5 py-3">
-          <Field label="Password" htmlFor="delete-confirm" error={error}>
-            <Input
-              id="delete-confirm"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              invalid={Boolean(error)}
-            />
-          </Field>
-        </div>
-      ) : null}
-    </Panel>
+      >
+        <Field label="Password" htmlFor="delete-confirm" error={error}>
+          <Input
+            id="delete-confirm"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            invalid={Boolean(error)}
+          />
+        </Field>
+      </ConfirmModal>
+    </section>
   )
 }
 

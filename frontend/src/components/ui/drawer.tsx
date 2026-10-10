@@ -1,3 +1,4 @@
+// avoid-ai-design-ignore-file: K3 -- blur only on the overlay scrim, over live content (DESIGN.md: Elevation)
 import { useCallback, useEffect, useRef } from "react"
 import type { ReactNode } from "react"
 import { createPortal } from "react-dom"
@@ -79,7 +80,7 @@ export function Drawer({ open, onClose, title, meta, children, footer }: DrawerP
         <header className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
           <div className="min-w-0">
             <h2 className="truncate text-md font-semibold tracking-tight text-ink">{title}</h2>
-            {meta ? <div className="mt-0.5 font-mono text-2xs uppercase tracking-kicker text-ink-3">{meta}</div> : null}
+            {meta ? <div className="mt-0.5 font-mono text-xs text-ink-3 tnum">{meta}</div> : null}
           </div>
           <button
             type="button"

@@ -11,7 +11,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Theme mirrors the landing page (public/landing/styles.css): night sky, frost type, gold accent. */
+/* Tokens mirror the landing page (public/landing/styles.css): night, frost type, one gold light. */
 @layer base {
   :root {
     color-scheme: dark;
@@ -23,18 +23,12 @@
     background: theme("colors.night");
   }
 
+  /* The cockpit is flat night. The landing page owns the atmosphere. */
   body {
-    @apply min-h-dvh font-sans text-base text-ink;
-    /* Same atmosphere as the landing page's post-flight section: gold glow over a deep-to-night fall. */
-    background:
-      radial-gradient(60% 40% at 50% 0%, rgba(243, 197, 111, 0.08), transparent 70%),
-      radial-gradient(120% 80% at 50% 120%, rgba(27, 58, 82, 0.55), transparent 60%),
-      linear-gradient(to bottom, #0c2230 0%, theme("colors.deep") 35%, theme("colors.night") 100%);
-    background-attachment: fixed;
+    @apply min-h-dvh bg-night font-sans text-base text-ink;
   }
 
-  h1,
-  h2 {
+  h1 {
     @apply font-display;
   }
 
@@ -43,13 +37,8 @@
     color: theme("colors.ink");
   }
 
-  /* Numeric data reads best tabular. */
-  .tnum {
-    font-variant-numeric: tabular-nums;
-  }
-
   :focus-visible {
-    @apply outline-none ring-2 ring-accent/60 ring-offset-1 ring-offset-paper;
+    @apply outline-none ring-2 ring-accent/60 ring-offset-1 ring-offset-night;
   }
 
   * {
@@ -72,7 +61,6 @@
     @apply text-ink-3;
   }
 
-  /* Native controls (select, date pickers, checkboxes) follow the dark theme. */
   select,
   option {
     background-color: theme("colors.deep");
@@ -86,47 +74,24 @@
 }
 
 @layer components {
-  /* Technical label: section kickers, table heads, metadata (landing ".mono" eyebrow). */
-  .label-caps {
-    @apply font-mono text-2xs font-medium uppercase tracking-kicker text-ink-3;
+  /* Numeric data reads best tabular. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
   }
 
-  .hairline {
-    @apply border-line;
+  /* Field/stat label: sentence case, body face. Mono is reserved for data. */
+  .meta-label {
+    @apply text-sm font-medium text-ink-3;
   }
 
-  /* Frosted glass surface, as used by the landing page panels. */
-  .glass {
-    background: rgba(9, 20, 34, 0.46);
-    -webkit-backdrop-filter: blur(14px);
-    backdrop-filter: blur(14px);
-  }
-}
-
-@layer utilities {
-  .grid-paper {
-    background-image: linear-gradient(to right, rgba(234, 240, 247, 0.04) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(234, 240, 247, 0.04) 1px, transparent 1px);
-    background-size: 44px 44px;
+  /* Solid surface. Blur is reserved for layers over moving content (rail, scrims). */
+  .surface {
+    background: theme("colors.deep");
   }
 
-  /* Gold sheen on outlined display text, from the landing hero title. */
-  .text-sheen {
-    color: transparent;
-    -webkit-text-stroke: 1px theme("colors.ink");
-    background: linear-gradient(100deg, transparent 0%, transparent 35%, #f3c56f 50%, transparent 65%, transparent 100%)
-      0 0 / 250% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    animation: sheen 5s ease-in-out infinite;
-  }
-  @keyframes sheen {
-    from {
-      background-position: 100% 0;
-    }
-    to {
-      background-position: -150% 0;
-    }
+  /* A row in a ruled list: hairline below, hover tint, no card. */
+  .row {
+    @apply border-b border-line transition-colors duration-fast ease-out last:border-b-0 hover:bg-raise/60;
   }
 }
 

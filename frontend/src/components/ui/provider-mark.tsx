@@ -20,8 +20,8 @@ export function ProviderLabel({ provider, id }: { provider: ProviderId; id?: str
   return (
     <span className="inline-flex min-w-0 items-center gap-2">
       <ProviderMark provider={provider} />
-      <span className="truncate font-mono text-xs font-medium text-ink">{providerName(provider)}</span>
-      {id ? <span className="hidden font-mono text-2xs text-ink-3 sm:inline">{id}</span> : null}
+      <span className="truncate text-sm font-medium text-ink">{providerName(provider)}</span>
+      {id ? <span className="hidden font-mono text-xs text-ink-3 sm:inline">{id}</span> : null}
     </span>
   )
 }

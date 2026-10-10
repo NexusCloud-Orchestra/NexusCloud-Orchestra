@@ -11,7 +11,7 @@ export function ListSkeleton({ rows = 4 }: { rows?: number }) {
   return (
     <div role="status" aria-label="Loading" className="divide-y divide-line">
       {Array.from({ length: rows }, (_, index) => (
-        <div key={index} className="flex items-center gap-4 px-4 py-3.5">
+        <div key={index} className="flex items-center gap-4 px-4 py-3">
           <Skeleton className="h-4 w-4 rounded-xs" />
           <Skeleton className="h-3.5 w-1/3 max-w-52" />
           <div className="ml-auto flex items-center gap-6">
@@ -26,26 +26,17 @@ export function ListSkeleton({ rows = 4 }: { rows?: number }) {
 
 export function StatSkeleton() {
   return (
-    <div role="status" aria-label="Loading" className="flex flex-col gap-2.5">
-      <Skeleton className="h-2.5 w-20" />
-      <Skeleton className="h-9 w-40" />
-      <Skeleton className="h-2 w-56" />
+    <div role="status" aria-label="Loading" className="flex flex-col gap-3">
+      <Skeleton className="h-3 w-3/4 max-w-md" />
+      <Skeleton className="h-8 w-full" />
     </div>
   )
 }
 
-export function EmptyState({
-  title,
-  body,
-  action,
-}: {
-  title: string
-  body: string
-  action?: ReactNode
-}) {
+/** Left-aligned, compact. Says what is missing and what to do, nothing more. */
+export function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 px-6 py-14 text-center">
-      <div className="mb-1 h-px w-10 bg-line-strong" aria-hidden />
+    <div className="flex flex-col items-start gap-1 py-8">
       <p className="text-md font-medium text-ink">{title}</p>
       <p className="max-w-prose text-base text-ink-2">{body}</p>
       {action ? <div className="mt-3">{action}</div> : null}
@@ -64,9 +55,8 @@ export function ErrorState({
 }) {
   const message = error instanceof Error ? error.message : "Something went wrong."
   return (
-    <div role="alert" className="flex flex-col items-center justify-center gap-2 px-6 py-14 text-center">
-      <p className="label-caps">Error</p>
-      <p className="text-md font-medium text-ink">{title}</p>
+    <div role="alert" className="flex flex-col items-start gap-1 py-8">
+      <p className="text-md font-medium text-bad">{title}</p>
       <p className="max-w-prose text-base text-ink-2">{message}</p>
       {onRetry ? (
         <Button size="sm" variant="secondary" className="mt-3" onClick={onRetry}>

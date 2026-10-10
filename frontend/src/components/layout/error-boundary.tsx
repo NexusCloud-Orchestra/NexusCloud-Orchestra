@@ -21,7 +21,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     if (!this.state.error) return this.props.children
     return (
       <div role="alert" className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-paper px-6 text-center">
-        <p className="label-caps">Something went wrong</p>
+        <p className="meta-label">Something went wrong</p>
         <p className="max-w-prose text-md text-ink-2">
           This view failed to render. The rest of the application is unaffected.
         </p>

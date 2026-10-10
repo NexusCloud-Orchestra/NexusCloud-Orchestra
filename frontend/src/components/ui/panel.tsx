@@ -1,12 +1,11 @@
 import type { ReactNode } from "react"
 
 /**
- * A bordered surface group — used only where a resource or state is genuinely
- * isolated, per the design rules. Most structure comes from hairlines and
- * whitespace, not boxes.
+ * A ruled group. One level only: a Panel never contains another Panel.
+ * Most structure comes from hairlines and spacing, not boxes.
  */
 export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`glass rounded-md border border-line ${className}`}>{children}</section>
+  return <section className={`surface rounded-md border border-line ${className}`}>{children}</section>
 }
 
 export function PanelHeader({
@@ -19,13 +18,41 @@ export function PanelHeader({
   actions?: ReactNode
 }) {
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-line px-4 py-3">
+    <header className="flex min-h-11 items-center justify-between gap-4 border-b border-line px-4 py-2">
       <div className="flex min-w-0 items-baseline gap-3">
-        <h2 className="label-caps !text-ink-2">{title}</h2>
-        {meta ? <div className="truncate font-mono text-2xs text-ink-3 tnum">{meta}</div> : null}
+        <h2 className="text-base font-semibold text-ink">{title}</h2>
+        {meta ? <div className="truncate text-sm text-ink-3 tnum">{meta}</div> : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
     </header>
+  )
+}
+
+/** Unboxed section: a title over a hairline, for content that should sit on the page itself. */
+export function Section({
+  title,
+  meta,
+  actions,
+  children,
+  className = "",
+}: {
+  title: ReactNode
+  meta?: ReactNode
+  actions?: ReactNode
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <section className={className}>
+      <header className="flex items-baseline justify-between gap-4 border-b border-line pb-2">
+        <div className="flex min-w-0 items-baseline gap-3">
+          <h2 className="text-md font-semibold text-ink">{title}</h2>
+          {meta ? <div className="truncate text-sm text-ink-3 tnum">{meta}</div> : null}
+        </div>
+        {actions ? <div className="flex shrink-0 items-center gap-3 text-sm">{actions}</div> : null}
+      </header>
+      {children}
+    </section>
   )
 }
 

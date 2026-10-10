@@ -13,17 +13,20 @@ import { useUploads } from "../../state/uploads"
 import { formatBytes, formatDateTime, fileExtension, formatRelative } from "../../lib/format"
 import { providerName } from "../../lib/providers"
 import { sha256, verifyStripeIndex } from "../../lib/striping"
-import { PageHeader, Breadcrumb } from "../../components/layout/shell"
-import { Panel, PanelHeader } from "../../components/ui/panel"
+import { PageHeader } from "../../components/layout/shell"
 import { EmptyState, ErrorState, ListSkeleton } from "../../components/ui/states"
 import { StatusBadge } from "../../components/ui/status"
 import { Drawer } from "../../components/ui/drawer"
 import { ConfirmModal } from "../../components/ui/modal"
 import { Button } from "../../components/ui/button"
+import { CapacityBar } from "../../components/ui/progress"
 import { Input } from "../../components/ui/field"
 import { Menu } from "../../components/ui/menu"
 import { ProviderMark } from "../../components/ui/provider-mark"
+import type { ReactNode } from "react"
 import type { FileRecord } from "../../types/api"
+import { Meta } from "../../components/ui/meta"
+import { SortableTh, Th } from "../../components/ui/table"
 
 type SortKey = "name" | "size" | "modified"
 const MAX_BUFFERED_DOWNLOAD_BYTES = 512 * 1024 ** 2
@@ -41,13 +44,16 @@ interface SaveFileWindow extends Window {
 }
 
 export function FilesPage() {
-  const [files] = useSearchParams()
-  const openFileId = files.get("file")
+  const [params, setParams] = useSearchParams()
+  const openFileId = params.get("file")
+  const openDrawer = (id: string) => setParams({ file: id }, { replace: true })
+  const closeDrawer = () => setParams({}, { replace: true })
   const queryClient = useQueryClient()
   const toast = useToast()
   const filesQuery = useFiles()
   const connections = useConnections()
-  const { activeCount } = useUploads()
+  const queue = useUploads()
+  const { activeCount } = queue
 
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "modified", dir: "desc" })
   const [filter, setFilter] = useState("")
@@ -75,6 +81,12 @@ export function FilesPage() {
         providerName(file.provider).toLowerCase().includes(needle),
     )
   }, [sorted, filter])
+
+  function toggleSort(key: SortKey) {
+    setSort((current) =>
+      current.key === key ? { key, dir: current.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" ? "asc" : "desc" },
+    )
+  }
 
   const openFile = openFileId ? sorted.find((file) => file.id === openFileId) ?? null : null
 
@@ -160,115 +172,135 @@ export function FilesPage() {
   }
 
   return (
-    <div className="animate-fade-rise flex flex-col gap-6">
-      <PageHeader
-        kicker="Storage"
-        title="Files"
-        description="Everything routed to your connected clouds. Files are never proxied through NexusCloud."
-        actions={
-          <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new CustomEvent("nc:open-upload"))}>
-            Upload file
-          </Button>
-        }
-      />
-
-      <UploadZone />
-
-      {activeCount > 0 ? <UploadQueue /> : null}
-
-      <Panel>
-        <PanelHeader
-          title={
-            <Breadcrumb trail={["NEXUSCLOUD", "FILES"]} />
-          }
-          meta={filesQuery.data ? `${filesQuery.data.length} total` : undefined}
+    <DropTarget>
+      <div className="animate-fade-rise flex flex-col gap-6">
+        <PageHeader
+          title="Files"
+          description="Everything routed to your connected clouds. Files never pass through NexusCloud."
           actions={
-            <div className="flex items-center gap-2">
-              <Input
-                aria-label="Filter files"
-                placeholder="Filter by name or provider…"
-                value={filter}
-                onChange={(event) => setFilter(event.target.value)}
-                className="h-7 w-44 !text-sm"
-              />
-              <SortMenu sort={sort} onSort={(key, dir) => setSort({ key, dir })} />
-            </div>
+            <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new CustomEvent("nc:open-upload"))}>
+              Upload file
+            </Button>
           }
         />
-        {filesQuery.isLoading ? (
-          <ListSkeleton rows={5} />
-        ) : filesQuery.isError ? (
-          <ErrorState error={filesQuery.error} onRetry={() => void filesQuery.refetch()} />
-        ) : visible.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] border-collapse">
-              <thead>
-                <tr className="border-b border-line">
-                  <th scope="col" className="label-caps px-4 py-2 text-left font-medium">Name</th>
-                  <th scope="col" className="label-caps px-4 py-2 text-left font-medium">Cloud</th>
-                  <th scope="col" className="label-caps px-4 py-2 text-right font-medium">Size</th>
-                  <th scope="col" className="label-caps hidden px-4 py-2 text-right font-medium sm:table-cell">Modified</th>
-                  <th scope="col" className="w-8 px-4 py-2" aria-label="Actions" />
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((file) => (
-                  <FileRow
-                    key={file.id}
-                    file={file}
-                    onOpen={() => window.history.replaceState(null, "", `/app/files?file=${file.id}`)}
-                    onDelete={() => setDeleteTarget(file)}
-                    onDownload={() => void download(file)}
-                  />
-                ))}
-              </tbody>
-            </table>
+
+        <UploadInput />
+
+        {activeCount > 0 || queue.items.length > 0 ? <UploadQueue /> : null}
+
+        <section aria-label="File list">
+          <div className="flex flex-wrap items-center gap-3 border-b border-line pb-3">
+            <Input
+              aria-label="Filter files"
+              placeholder="Filter by name or cloud"
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+              className="h-9 w-full sm:w-72"
+            />
+            <div className="sm:hidden">
+              <SortMenu sort={sort} onSort={(key, dir) => setSort({ key, dir })} />
+            </div>
+            <p className="ml-auto text-sm text-ink-3 tnum">
+              {filesQuery.data ? `${visible.length} of ${filesQuery.data.length} files` : ""}
+            </p>
           </div>
-        ) : filter ? (
-          <EmptyState title="No matches" body={`No files match “${filter}”. Clear the filter to see everything.`} />
-        ) : (
-          <EmptyState
-            title="No files yet"
-            body="Drop files above or select files to upload — the router places each one on the right cloud."
-          />
-        )}
-      </Panel>
+          {filesQuery.isLoading ? (
+            <ListSkeleton rows={5} />
+          ) : filesQuery.isError ? (
+            <ErrorState error={filesQuery.error} onRetry={() => void filesQuery.refetch()} />
+          ) : visible.length > 0 ? (
+            <>
+              {/* Phone: stacked rows. Table from sm up. */}
+              <ul className="sm:hidden">
+                {visible.map((file) => (
+                  <li key={file.id} className="row flex items-center gap-3 px-1 py-3">
+                    <ProviderMark provider={file.provider} size={10} />
+                    <button
+                      type="button"
+                      onClick={() => openDrawer(file.id)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <span className="block truncate text-base text-ink">{file.original_name}</span>
+                      <span className="text-sm text-ink-3">
+                        {providerName(file.provider)} <span className="font-mono tnum">{formatBytes(file.size_bytes)}</span>
+                      </span>
+                    </button>
+                    <RowActions file={file} onDelete={() => setDeleteTarget(file)} onDownload={() => void download(file)} always />
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden overflow-x-auto sm:block">
+                <table className="w-full min-w-[560px] border-collapse">
+                  <caption className="sr-only">Files across connected clouds</caption>
+                  <thead>
+                    <tr className="border-b border-line">
+                      <SortableTh label="Name" active={sort.key === "name"} dir={sort.dir} onSort={() => toggleSort("name")} />
+                      <Th>Cloud</Th>
+                      <SortableTh label="Size" align="right" active={sort.key === "size"} dir={sort.dir} onSort={() => toggleSort("size")} />
+                      <SortableTh label="Uploaded" align="right" active={sort.key === "modified"} dir={sort.dir} onSort={() => toggleSort("modified")} />
+                      <th scope="col" className="w-20 px-1 py-2"><span className="sr-only">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visible.map((file) => (
+                      <FileRow
+                        key={file.id}
+                        file={file}
+                        onOpen={() => openDrawer(file.id)}
+                        onDelete={() => setDeleteTarget(file)}
+                        onDownload={() => void download(file)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : filter ? (
+            <EmptyState title="No matches" body={`No files match "${filter}". Clear the filter to see everything.`} />
+          ) : (
+            <EmptyState
+              title="No files yet"
+              body="Drop files anywhere on this page, or use Upload file. The router places each one on the best cloud."
+            />
+          )}
+        </section>
 
-      <Drawer
-        open={Boolean(openFile)}
-        onClose={() => window.history.replaceState(null, "", "/app/files")}
-        title={openFile?.original_name ?? ""}
-        meta={openFile ? `${fileExtension(openFile.original_name)} · ${formatBytes(openFile.size_bytes)}` : undefined}
-      >
-        {openFile ? (
-          <FileDetail
-            file={openFile}
-            connection={connections.data?.find((entry) => entry.id === openFile.connection_id) ?? null}
-            onDownload={() => void download(openFile)}
-            onDelete={() => {
-              setDeleteTarget(openFile)
-            }}
-          />
-        ) : null}
-      </Drawer>
+        <Drawer
+          open={Boolean(openFile)}
+          onClose={closeDrawer}
+          title={openFile?.original_name ?? ""}
+          meta={openFile ? <Meta items={[fileExtension(openFile.original_name), formatBytes(openFile.size_bytes)]} /> : undefined}
+        >
+          {openFile ? (
+            <FileDetail
+              file={openFile}
+              connection={connections.data?.find((entry) => entry.id === openFile.connection_id) ?? null}
+              onDownload={() => void download(openFile)}
+              onDelete={() => {
+                setDeleteTarget(openFile)
+              }}
+            />
+          ) : null}
+        </Drawer>
 
-      <ConfirmModal
-        open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
-        title="Delete file"
-        confirmLabel={deleting ? "Deleting…" : "Delete file"}
-        tone="danger"
-        loading={deleting}
-        onConfirm={() => void confirmDelete()}
-        body={
-          <p>
-            <span className="font-medium text-ink">{deleteTarget?.original_name}</span> will be deleted from{" "}
-            {deleteTarget ? providerName(deleteTarget.provider) : "the cloud"} and removed from the control plane. This
-            cannot be undone.
-          </p>
-        }
-      />
-    </div>
+        <ConfirmModal
+          open={Boolean(deleteTarget)}
+          onClose={() => setDeleteTarget(null)}
+          title="Delete file"
+          confirmLabel={deleting ? "Deleting…" : "Delete file"}
+          tone="danger"
+          loading={deleting}
+          onConfirm={() => void confirmDelete()}
+          body={
+            <p>
+              <span className="font-medium text-ink">{deleteTarget?.original_name}</span> will be deleted from{" "}
+              {deleteTarget ? providerName(deleteTarget.provider) : "the cloud"} and removed from the control plane. This
+              cannot be undone.
+            </p>
+          }
+        />
+      </div>
+    </DropTarget>
   )
 }
 
@@ -284,45 +316,61 @@ function FileRow({
   onDownload: () => void
 }) {
   return (
-    <tr className="group border-b border-line transition-colors duration-fast last:border-b-0 hover:bg-raise">
-      <td className="px-4 py-2.5">
+    <tr className="row group">
+      <td className="px-1 py-2.5">
         <button type="button" onClick={onOpen} className="flex items-center gap-2.5 text-left">
-          <span className="flex h-6 w-9 shrink-0 items-center justify-center rounded-xs border border-line bg-raise font-mono text-2xs font-medium text-ink-2">
-            {fileExtension(file.original_name)}
-          </span>
-          <span className="max-w-[280px] truncate text-base text-ink">{file.original_name}</span>
+          <span className="w-9 shrink-0 font-mono text-xs text-ink-3">{fileExtension(file.original_name)}</span>
+          <span className="max-w-[320px] truncate text-base text-ink hover:text-accent">{file.original_name}</span>
         </button>
       </td>
-      <td className="px-4 py-2.5">
+      <td className="px-3 py-2.5">
         <ProviderLabelCell provider={file.provider} />
       </td>
-      <td className="px-4 py-2.5 text-right font-mono text-sm text-ink tnum">{formatBytes(file.size_bytes)}</td>
-      <td className="hidden px-4 py-2.5 text-right font-mono text-sm text-ink-3 tnum sm:table-cell">
-        {formatRelative(file.uploaded_at)}
-      </td>
-      <td className="px-4 py-2.5">
-        <div className="flex items-center justify-end gap-0.5 opacity-0 transition-opacity duration-fast group-hover:opacity-100 focus-within:opacity-100">
-          <button
-            type="button"
-            onClick={onDownload}
-            aria-label={`Download ${file.original_name}`}
-            title="Download"
-            className="rounded-xs p-1.5 text-ink-3 transition-colors duration-fast hover:bg-surface hover:text-ink"
-          >
-            <Download size={13} />
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            aria-label={`Delete ${file.original_name}`}
-            title="Delete"
-            className="rounded-xs p-1.5 text-ink-3 transition-colors duration-fast hover:bg-bad-wash hover:text-bad"
-          >
-            <Trash2 size={13} />
-          </button>
-        </div>
+      <td className="px-3 py-2.5 text-right font-mono text-sm text-ink tnum">{formatBytes(file.size_bytes)}</td>
+      <td className="px-3 py-2.5 text-right text-sm text-ink-3 tnum">{formatRelative(file.uploaded_at)}</td>
+      <td className="px-1 py-2.5">
+        <RowActions file={file} onDelete={onDelete} onDownload={onDownload} />
       </td>
     </tr>
+  )
+}
+
+function RowActions({
+  file,
+  onDelete,
+  onDownload,
+  always = false,
+}: {
+  file: FileRecord
+  onDelete: () => void
+  onDownload: () => void
+  always?: boolean
+}) {
+  return (
+    <div
+      className={`flex items-center justify-end gap-0.5 transition-opacity duration-fast focus-within:opacity-100 ${
+        always ? "" : "opacity-0 group-hover:opacity-100"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={onDownload}
+        aria-label={`Download ${file.original_name}`}
+        title="Download"
+        className="rounded-xs p-2 text-ink-3 transition-colors duration-fast hover:bg-raise hover:text-ink"
+      >
+        <Download size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={onDelete}
+        aria-label={`Delete ${file.original_name}`}
+        title="Delete"
+        className="rounded-xs p-2 text-ink-3 transition-colors duration-fast hover:bg-bad-wash hover:text-bad"
+      >
+        <Trash2 size={14} />
+      </button>
+    </div>
   )
 }
 
@@ -330,25 +378,25 @@ function ProviderLabelCell({ provider }: { provider: FileRecord["provider"] }) {
   return (
     <span className="inline-flex items-center gap-1.5">
       <ProviderMark provider={provider} size={10} />
-      <span className="font-mono text-xs text-ink-2">{providerName(provider)}</span>
+      <span className="text-sm text-ink-2">{providerName(provider)}</span>
     </span>
   )
 }
 
 function SortMenu({ sort, onSort }: { sort: { key: SortKey; dir: "asc" | "desc" }; onSort: (key: SortKey, dir: "asc" | "desc") => void }) {
   const items = [
-    { label: "Modified · newest", key: "modified" as SortKey, dir: "desc" as const },
-    { label: "Modified · oldest", key: "modified" as SortKey, dir: "asc" as const },
-    { label: "Name · A to Z", key: "name" as SortKey, dir: "asc" as const },
-    { label: "Name · Z to A", key: "name" as SortKey, dir: "desc" as const },
-    { label: "Size · largest", key: "size" as SortKey, dir: "desc" as const },
-    { label: "Size · smallest", key: "size" as SortKey, dir: "asc" as const },
+    { label: "Newest first", key: "modified" as SortKey, dir: "desc" as const },
+    { label: "Oldest first", key: "modified" as SortKey, dir: "asc" as const },
+    { label: "Name, A to Z", key: "name" as SortKey, dir: "asc" as const },
+    { label: "Name, Z to A", key: "name" as SortKey, dir: "desc" as const },
+    { label: "Largest first", key: "size" as SortKey, dir: "desc" as const },
+    { label: "Smallest first", key: "size" as SortKey, dir: "asc" as const },
   ]
   return (
     <Menu
       label="Sort files"
       trigger={
-        <span className="inline-flex h-7 items-center gap-1.5 rounded-sm border border-line bg-surface px-2.5 text-sm text-ink-2 transition-colors duration-fast hover:border-line-strong hover:text-ink">
+        <span className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-line px-3 text-sm text-ink-2 transition-colors duration-fast hover:border-line-strong hover:text-ink">
           Sort
         </span>
       }
@@ -377,26 +425,27 @@ function FileDetail({
     ["Type", file.mime_type],
     ["Cloud", providerName(file.provider)],
     ["Status", file.status],
-    ["Connection", connection ? `${connection.display_name} · ${connection.bucket_name}` : "Striped across clouds"],
+    ["Connection", connection ? `${connection.display_name} (${connection.bucket_name})` : "Striped across clouds"],
     ["Region", connection?.region ?? "—"],
     ["Uploaded", formatDateTime(file.uploaded_at)],
     ["File ID", file.id],
   ]
   return (
     <div className="flex flex-col gap-5 px-5 py-5">
-      <div className="flex items-center justify-between gap-3 rounded-md border border-line bg-raise px-4 py-3.5">
+      <div className="flex items-center justify-between gap-3 border-b border-line pb-4">
         <div className="min-w-0">
           <p className="truncate text-md font-medium text-ink">{file.original_name}</p>
-          <p className="font-mono text-2xs uppercase tracking-kicker text-ink-3">
-            {fileExtension(file.original_name)} · {formatBytes(file.size_bytes)}
-          </p>
+          <Meta
+            className="font-mono text-xs text-ink-3 tnum"
+            items={[fileExtension(file.original_name), formatBytes(file.size_bytes)]}
+          />
         </div>
         <HardDrive className="shrink-0 text-ink-3" size={16} aria-hidden />
       </div>
       <dl className="flex flex-col">
         {rows.map(([term, value]) => (
           <div key={term} className="flex items-baseline justify-between gap-6 border-b border-line py-2 last:border-b-0">
-            <dt className="label-caps">{term}</dt>
+            <dt className="meta-label">{term}</dt>
             <dd className="max-w-[60%] truncate text-right font-mono text-sm text-ink" title={value}>
               {value}
             </dd>
@@ -423,10 +472,44 @@ function FileDetail({
   )
 }
 
-function UploadZone() {
+/** Whole-page drop target: dropping anywhere on /app/files enqueues the files. */
+function DropTarget({ children }: { children: ReactNode }) {
+  const { enqueue } = useUploads()
+  const [dragOver, setDragOver] = useState(false)
+  return (
+    <div
+      onDragOver={(event) => {
+        if (!event.dataTransfer.types.includes("Files")) return
+        event.preventDefault()
+        setDragOver(true)
+      }}
+      onDragLeave={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget as Node)) return
+        setDragOver(false)
+      }}
+      onDrop={(event) => {
+        event.preventDefault()
+        setDragOver(false)
+        enqueue(Array.from(event.dataTransfer.files))
+      }}
+      className={`relative -m-3 rounded-md p-3 outline-dashed outline-1 transition-colors duration-fast ${
+        dragOver ? "bg-accent-wash/40 outline-accent" : "outline-transparent"
+      }`}
+    >
+      {dragOver ? (
+        <p role="status" className="pointer-events-none absolute inset-x-0 top-24 z-10 text-center font-display text-xl font-bold text-accent">
+          Release to upload
+        </p>
+      ) : null}
+      {children}
+    </div>
+  )
+}
+
+/** Hidden file input, opened by the "Upload file" button and the nc:open-upload event (command palette). */
+function UploadInput() {
   const { enqueue } = useUploads()
   const inputRef = useRef<HTMLInputElement>(null)
-  const [dragOver, setDragOver] = useState(false)
 
   useEffect(() => {
     const open = () => inputRef.current?.click()
@@ -435,107 +518,70 @@ function UploadZone() {
   }, [])
 
   return (
-    <div
-      onDragOver={(event) => {
-        event.preventDefault()
-        setDragOver(true)
+    <input
+      ref={inputRef}
+      type="file"
+      multiple
+      className="sr-only"
+      aria-label="Select files to upload"
+      tabIndex={-1}
+      onChange={(event) => {
+        enqueue(Array.from(event.target.files ?? []))
+        event.target.value = ""
       }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(event) => {
-        event.preventDefault()
-        setDragOver(false)
-        enqueue(Array.from(event.dataTransfer.files))
-      }}
-      className={`flex items-center justify-between gap-4 rounded-md border border-dashed px-5 py-4 transition-colors duration-fast ${
-        dragOver ? "border-accent bg-accent-wash" : "border-line-strong bg-surface"
-      }`}
-    >
-      <div className="flex items-center gap-3.5">
-        <span
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border transition-colors duration-fast ${
-            dragOver ? "border-accent-line bg-surface text-accent" : "border-line bg-raise text-ink-3"
-          }`}
-          aria-hidden
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M8 11V3.5M8 3.5L5 6.5M8 3.5L11 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M2.5 12.5h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </span>
-        <div>
-          <p className="text-md font-medium text-ink">{dragOver ? "Release to upload" : "Drop files to upload"}</p>
-          <p className="text-sm text-ink-2">Files go directly to your clouds. Files over 16 MiB stripe when two providers are connected.</p>
-        </div>
-      </div>
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        className="sr-only"
-        aria-label="Select files to upload"
-        onChange={(event) => {
-          enqueue(Array.from(event.target.files ?? []))
-          event.target.value = ""
-        }}
-      />
-      <Button variant="secondary" size="md" onClick={() => inputRef.current?.click()}>
-        Select files
-      </Button>
-    </div>
+    />
   )
 }
 
 function UploadQueue() {
   const { items, abort, clearFinished } = useUploads()
   return (
-    <Panel>
-      <PanelHeader
-        title="Upload queue"
-        actions={
-          <Button variant="ghost" size="sm" onClick={clearFinished}>
-            <X size={11} aria-hidden />
-            Clear finished
-          </Button>
-        }
-      />
-      <ul className="divide-y divide-line">
+    <section aria-label="Upload queue" className="border-l-2 border-accent-line pl-4">
+      <header className="flex items-baseline justify-between gap-4 pb-1">
+        <h2 className="text-md font-semibold text-ink">Uploads</h2>
+        <Button variant="ghost" size="sm" onClick={clearFinished}>
+          <X size={11} aria-hidden />
+          Clear finished
+        </Button>
+      </header>
+      <ul>
         {items.map((item) => (
-          <li key={item.id} className="flex items-center gap-4 px-4 py-3">
+          <li key={item.id} className="row flex items-center gap-4 py-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-3">
                 <p className="truncate text-base text-ink">{item.name}</p>
                 <p className="shrink-0 font-mono text-sm text-ink-3 tnum">{formatBytes(item.size)}</p>
               </div>
-              <div className="mt-1.5 flex items-center gap-3">
-                {item.status === "uploading" && item.progress !== null ? (
-                  <div className="h-1.5 w-full max-w-64 overflow-hidden rounded-full bg-line">
-                    <div className="h-full rounded-full bg-accent transition-[width] duration-base ease-out" style={{ width: `${item.progress}%` }} />
-                  </div>
-                ) : item.status === "uploading" ? (
-                  <IndeterminateBar />
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                {item.status === "uploading" ? (
+                  item.progress !== null ? (
+                    <div className="w-full max-w-64">
+                      <CapacityBar used={item.progress} limit={100} label={`${item.name} upload progress`} />
+                    </div>
+                  ) : (
+                    <IndeterminateBar />
+                  )
                 ) : null}
                 <QueueStatus item={item} />
+                <span className="text-sm text-ink-3">
+                  {item.destination ? `to ${providerName(item.destination.provider)}` : "routing"}
+                </span>
               </div>
               {item.error ? <p className="mt-1 text-sm text-bad">{item.error}</p> : null}
             </div>
-            <div className="flex shrink-0 flex-col items-end gap-1">
-              <p className="font-mono text-2xs uppercase tracking-kicker text-ink-3">
-                {item.destination ? providerName(item.destination.provider) : "routing…"}
-              </p>
-              {item.status === "uploading" || item.status === "queued" || item.status === "requesting" ? (
-                <button
-                  type="button"
-                  onClick={() => abort(item.id)}
-                  className="text-sm text-ink-3 transition-colors duration-fast hover:text-bad"
-                >
-                  Cancel
-                </button>
-              ) : null}
-            </div>
+            {item.status === "uploading" || item.status === "queued" || item.status === "requesting" ? (
+              <button
+                type="button"
+                onClick={() => abort(item.id)}
+                className="shrink-0 rounded-sm px-2 py-1 text-sm text-ink-2 transition-colors duration-fast hover:text-bad"
+              >
+                Cancel
+              </button>
+            ) : null}
           </li>
         ))}
       </ul>
-    </Panel>
+    </section>
   )
 }
 
@@ -555,7 +601,7 @@ function QueueStatus({ item }: { item: ReturnType<typeof useUploads>["items"][nu
 
 function IndeterminateBar() {
   return (
-    <div className="h-1.5 w-full max-w-64 overflow-hidden rounded-full bg-line">
+    <div role="progressbar" aria-label="Uploading" className="h-1.5 w-full max-w-64 overflow-hidden rounded-full bg-line">
       <div className="animate-indeterminate h-full w-1/3 rounded-full bg-accent" />
     </div>
   )
