@@ -1,15 +1,16 @@
 import { useState } from "react"
 import type { FormEvent } from "react"
-import { Link, useNavigate, useSearchParams } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { AuthLayout } from "./auth-layout"
-import { Field, Input } from "../components/ui/field"
+import { Field } from "../components/ui/field"
+import { PasswordInput } from "../components/ui/password-input"
 import { Button } from "../components/ui/button"
 import { resetPassword } from "../api/auth"
 import { ApiError } from "../api/client"
+import { AuthNotice } from "./auth-notice"
 
 export function ResetPasswordPage() {
   const [params] = useSearchParams()
-  const navigate = useNavigate()
   const token = params.get("token") ?? ""
   const email = params.get("email") ?? ""
   const [newPassword, setNewPassword] = useState("")
@@ -19,6 +20,7 @@ export function ResetPasswordPage() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
+    if (busy) return
     setError(null)
     if (newPassword.length < 8) {
       setError("Use at least 8 characters")
@@ -29,7 +31,7 @@ export function ResetPasswordPage() {
       await resetPassword({ email, token, new_password: newPassword })
       setDone(true)
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : "Could not reach the API.")
+      setError(caught instanceof ApiError ? caught.message : "We couldn’t connect. Please try again in a moment.")
     } finally {
       setBusy(false)
     }
@@ -37,14 +39,13 @@ export function ResetPasswordPage() {
 
   if (!token || !email) {
     return (
-      <AuthLayout title="Reset password" description="This link is missing its reset token.">
-        <p className="text-base text-ink-2">
-          Request a new link from{" "}
-          <Link to="/forgot-password" className="font-medium text-accent hover:text-accent-deep">
-            reset password
+      <AuthLayout title="Let’s try a fresh link." description="This password reset link is incomplete.">
+        <AuthNotice kind="invalid" title="Request a new reset link">
+          <p>Enter your account email again and we’ll help you get back into your workspace.</p>
+          <Link to="/forgot-password" className="auth-state-action">
+            Get a new link
           </Link>
-          .
-        </p>
+        </AuthNotice>
       </AuthLayout>
     )
   }
@@ -52,35 +53,37 @@ export function ResetPasswordPage() {
   return (
     <AuthLayout title="Set a new password" description={`Resetting the password for ${email}.`}>
       {done ? (
-        <div className="rounded-md border border-ok-line bg-ok-wash px-4 py-3.5 text-base text-ink-2">
-          <p className="font-medium text-ok">Password updated</p>
-          <p className="mt-1">All sessions were signed out.</p>
-          <Button variant="primary" size="sm" className="mt-3" onClick={() => navigate("/login")}>
-            Sign in
-          </Button>
-        </div>
+        <AuthNotice kind="success" title="You’re ready to go.">
+          <p>Your password has been updated and your previous sessions have been signed out.</p>
+          <Link to="/login" className="auth-state-action">Back to sign in</Link>
+        </AuthNotice>
       ) : (
-        <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+        <form onSubmit={onSubmit} className="auth-form flex flex-col gap-5" aria-busy={busy}>
           <Field
             label="New password"
             htmlFor="reset-password"
-            hint="At least 8 characters, up to 72 UTF-8 bytes"
+            hint="Use at least 8 characters."
             error={error}
           >
-            <Input
+            <PasswordInput
               id="reset-password"
-              type="password"
               autoComplete="new-password"
               required
+              disabled={busy}
               minLength={8}
+              placeholder="Create a new password"
               value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
+              onChange={(event) => {
+                setNewPassword(event.target.value)
+                setError(null)
+              }}
               invalid={Boolean(error)}
+              aria-describedby="reset-password-feedback"
             />
           </Field>
-          <div className="flex justify-end">
+          <div className="auth-submit-row">
             <Button type="submit" variant="primary" loading={busy} disabled={!newPassword}>
-              Update password
+              {busy ? "Updating your password…" : "Update password"}
             </Button>
           </div>
         </form>

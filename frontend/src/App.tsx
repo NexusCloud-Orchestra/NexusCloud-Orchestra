@@ -21,6 +21,7 @@ import { RouterPage } from "./routes/app/router"
 import { QuotaPage } from "./routes/app/quota"
 import { ActivityPage } from "./routes/app/activity"
 import { SettingsPage } from "./routes/app/settings"
+import { LegalPage } from "./routes/legal"
 
 const queryClient = createQueryClient()
 
@@ -135,6 +136,14 @@ const router = createBrowserRouter(
         <ResetPasswordPage />
       </PublicOnly>
     ),
+  },
+  {
+    path: "/terms",
+    element: <LegalPage kind="terms" />,
+  },
+  {
+    path: "/privacy",
+    element: <LegalPage kind="privacy" />,
   },
   {
     path: "/app",

@@ -20,7 +20,7 @@ export function BrandGlyph({ className = "h-7 w-7" }: { className?: string }) {
     <svg viewBox="0 0 32 32" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
       <path d="M4 22 L16 6 L28 22" />
       <path d="M9 22 L16 13 L23 22" />
-      <circle cx="16" cy="25" r="2" fill="#F3C56F" stroke="none" />
+      <circle cx="16" cy="25" r="2" className="fill-gold" stroke="none" />
     </svg>
   )
 }
@@ -30,8 +30,8 @@ export function Wordmark({ to = "/", compact = false }: { to?: string; compact?:
     <Link to={to} className="group inline-flex items-center gap-2.5 text-ink" aria-label="NEXUS CLOUD home">
       <BrandGlyph className="h-7 w-7 transition-transform duration-base ease-out group-hover:-translate-y-0.5" />
       <span className="flex flex-col leading-none">
-        <span className="font-display text-[15px] font-bold tracking-[0.14em]">
-          NEXUS<b className="ml-[0.35em] font-bold text-accent">CLOUD</b>
+        <span className="brand-wordmark">
+          NEXUS<b className="ml-[0.15em] text-accent">CLOUD</b>
         </span>
         {!compact ? <span className="mt-1 font-mono text-2xs tracking-[0.3em] text-ink-3">ORCHESTRA</span> : null}
       </span>
@@ -45,8 +45,8 @@ function NavItem({ to, label, icon: Icon, end }: { to: string; label: string; ic
       to={to}
       end={end}
       className={({ isActive }) =>
-        `group relative flex items-center gap-2.5 rounded-full px-3.5 py-2 text-base transition-colors duration-fast ease-out ${
-          isActive ? "bg-accent/10 font-medium text-ink" : "text-ink-2 hover:bg-ink/[0.05] hover:text-ink"
+        `group relative flex items-center gap-2.5 rounded-sm px-3.5 py-2.5 text-base transition-colors duration-base ease-out ${
+          isActive ? "bg-brand font-medium text-white" : "text-ink-2 hover:bg-ink/[0.05] hover:text-ink"
         }`
       }
     >
@@ -58,7 +58,7 @@ function NavItem({ to, label, icon: Icon, end }: { to: string; label: string; ic
               isActive ? "bg-accent opacity-100" : "opacity-0"
             }`}
           />
-          <Icon size={14} strokeWidth={1.8} className={isActive ? "text-accent" : "text-ink-3 group-hover:text-ink-2"} />
+          <Icon size={16} strokeWidth={1.8} className={isActive ? "text-gold" : "text-ink-3 group-hover:text-ink-2"} />
           {label}
         </>
       )}
@@ -72,7 +72,7 @@ function Sidebar() {
   const plan = user?.plan ?? "—"
 
   return (
-    <aside className="glass fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line lg:flex">
+    <aside className="app-sidebar fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line lg:flex">
       <div className="flex h-16 items-center border-b border-line px-5">
         <Wordmark to="/app" />
       </div>
@@ -126,7 +126,7 @@ function Topbar({ onOpenPalette }: { onOpenPalette: () => void }) {
   const title = TITLES[location.pathname] ?? "Overview"
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-line bg-night/70 px-5 backdrop-blur-[14px] lg:px-8">
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-line bg-surface/95 px-4 backdrop-blur-sm lg:px-8">
       <div className="flex min-w-0 items-center gap-2">
         <span className="lg:hidden">
           <Wordmark to="/app" compact />
@@ -189,10 +189,10 @@ export function PageHeader({
   actions?: ReactNode
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 border-b border-line pb-6">
+    <div className="app-page-header flex flex-wrap items-end justify-between gap-x-8 gap-y-4 border-b border-line pb-6">
       <div className="min-w-0">
         <p className="label-caps !text-accent">{kicker}</p>
-        <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">{title}</h2>
+        <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{title}</h1>
         {description ? <p className="mt-2 max-w-prose text-md text-ink-2">{description}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
@@ -217,10 +217,15 @@ export function Breadcrumb({ trail }: { trail: string[] }) {
 export function AppShell({ children, onOpenPalette }: { children: ReactNode; onOpenPalette: () => void }) {
   return (
     <div className="min-h-dvh">
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <Sidebar />
       <div className="flex min-h-dvh flex-col lg:pl-60">
         <Topbar onOpenPalette={onOpenPalette} />
-        <main className="mx-auto w-full max-w-content flex-1 px-5 py-7 lg:px-10 lg:py-10">{children}</main>
+        <nav className="mobile-navigation" aria-label="Primary">
+          {NAV.map((item) => <NavItem key={item.to} {...item} />)}
+          <NavItem to="/app/settings" label="Settings" icon={Settings2} />
+        </nav>
+        <main id="main-content" className="mx-auto w-full min-w-0 max-w-content flex-1 px-4 py-7 sm:px-6 lg:px-10 lg:py-10">{children}</main>
       </div>
     </div>
   )

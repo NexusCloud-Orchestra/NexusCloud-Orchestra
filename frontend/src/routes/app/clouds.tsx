@@ -32,7 +32,7 @@ export function CloudsPage() {
     <div className="animate-fade-rise flex flex-col gap-6">
       <PageHeader
         kicker="Infrastructure"
-        title="Clouds"
+        title="Connected clouds"
         description="Your connected storage. Credentials are encrypted at rest and never displayed again."
         actions={
           <Button

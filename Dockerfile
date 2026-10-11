@@ -6,12 +6,10 @@ COPY --from=ghcr.io/astral-sh/uv:0.12.21 /uv /uvx /usr/local/bin/
 WORKDIR /srv/nexuscloud
 
 COPY pyproject.toml uv.lock README.md LICENSE ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --no-install-project --no-editable
+RUN uv sync --locked --no-dev --no-install-project --no-editable
 
 COPY app ./app
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --no-editable
+RUN uv sync --locked --no-dev --no-editable
 
 FROM python:3.12-slim
 

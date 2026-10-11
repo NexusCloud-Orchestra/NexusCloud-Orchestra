@@ -48,8 +48,8 @@ export function OverviewPage() {
     <div className="animate-fade-rise flex flex-col gap-8">
       <PageHeader
         kicker="Overview"
-        title={`Storage plane${user ? ` — ${user.first_name} ${user.last_name}` : ""}`}
-        description="Live state of your connected clouds, files and capacity."
+        title={user ? `Your workspace, ${user.first_name}.` : "Your workspace."}
+        description="Your clouds, files, and available capacity. Together in one place."
         actions={
           <>
             <Link

@@ -21,7 +21,7 @@ export function QuotaPage() {
     <div className="animate-fade-rise flex flex-col gap-6">
       <PageHeader
         kicker="Capacity"
-        title="Quota"
+        title="Storage capacity"
         description="Free-tier estimates from your connected clouds, capped by your plan."
       />
 

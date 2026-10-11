@@ -6,6 +6,8 @@ import { Field, Input } from "../components/ui/field"
 import { Button } from "../components/ui/button"
 import { useAuth } from "../state/auth"
 import { ApiError } from "../api/client"
+import { PasswordInput } from "../components/ui/password-input"
+import { ArrowRight } from "lucide-react"
 
 interface FieldErrors {
   first_name?: string
@@ -24,10 +26,13 @@ export function RegisterPage() {
 
   function update(key: keyof typeof values, value: string) {
     setValues((current) => ({ ...current, [key]: value }))
+    setFieldErrors((current) => ({ ...current, [key]: undefined }))
+    setError(null)
   }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
+    if (busy) return
     setFieldErrors({})
     setError(null)
     if (values.password.length < 8) {
@@ -53,7 +58,7 @@ export function RegisterPage() {
           setError(caught.message)
         }
       } else {
-        setError("Could not reach the API. Check that the backend is running.")
+        setError("We couldn’t connect. Please try again in a moment.")
       }
     } finally {
       setBusy(false)
@@ -62,27 +67,30 @@ export function RegisterPage() {
 
   return (
     <AuthLayout
-      title="Create account"
-      description="Connect the cloud storage you already own and manage it from one control plane."
+      title="Create your account."
+      description="Create your account. Bring every cloud into one workspace."
       footer={
         <>
-          Already registered?{" "}
+          Already have an account?{" "}
           <Link to="/login" className="font-medium text-accent transition-colors duration-fast hover:text-accent-deep">
             Sign in
           </Link>
         </>
       }
     >
-      <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+      <form onSubmit={onSubmit} className="auth-form flex flex-col gap-5" aria-busy={busy}>
         <div className="grid grid-cols-2 gap-3">
           <Field label="First name" htmlFor="register-first" error={fieldErrors.first_name}>
             <Input
               id="register-first"
               autoComplete="given-name"
               required
+              disabled={busy}
+              placeholder="First name"
               value={values.first_name}
               onChange={(event) => update("first_name", event.target.value)}
               invalid={Boolean(fieldErrors.first_name)}
+              aria-describedby={fieldErrors.first_name ? "register-first-feedback" : undefined}
             />
           </Field>
           <Field label="Last name" htmlFor="register-last" error={fieldErrors.last_name}>
@@ -90,38 +98,46 @@ export function RegisterPage() {
               id="register-last"
               autoComplete="family-name"
               required
+              disabled={busy}
+              placeholder="Last name"
               value={values.last_name}
               onChange={(event) => update("last_name", event.target.value)}
               invalid={Boolean(fieldErrors.last_name)}
+              aria-describedby={fieldErrors.last_name ? "register-last-feedback" : undefined}
             />
           </Field>
         </div>
-        <Field label="Email" htmlFor="register-email" error={fieldErrors.email}>
+        <Field label="Email address" htmlFor="register-email" error={fieldErrors.email}>
           <Input
             id="register-email"
             type="email"
             autoComplete="email"
             required
+            disabled={busy}
+            placeholder="you@example.com"
             value={values.email}
             onChange={(event) => update("email", event.target.value)}
             invalid={Boolean(fieldErrors.email)}
+            aria-describedby={fieldErrors.email ? "register-email-feedback" : undefined}
           />
         </Field>
         <Field
           label="Password"
           htmlFor="register-password"
-          hint="At least 8 characters, up to 72 UTF-8 bytes"
+          hint="Use at least 8 characters."
           error={fieldErrors.password}
         >
-          <Input
+          <PasswordInput
             id="register-password"
-            type="password"
             autoComplete="new-password"
             required
+            disabled={busy}
             minLength={8}
+            placeholder="Create a password"
             value={values.password}
             onChange={(event) => update("password", event.target.value)}
             invalid={Boolean(fieldErrors.password)}
+            aria-describedby="register-password-feedback"
           />
         </Field>
         {error ? (
@@ -129,9 +145,9 @@ export function RegisterPage() {
             {error}
           </p>
         ) : null}
-        <div className="flex justify-end">
+        <div className="auth-submit-row">
           <Button type="submit" variant="primary" loading={busy} disabled={!values.email || !values.password}>
-            Create account
+            {busy ? "Creating your workspace…" : <>Create account <ArrowRight size={17} /></>}
           </Button>
         </div>
       </form>

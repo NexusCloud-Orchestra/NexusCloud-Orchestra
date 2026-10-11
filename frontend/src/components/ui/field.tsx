@@ -21,11 +21,11 @@ export function Field({
       </label>
       {children}
       {error ? (
-        <p className="text-sm text-bad" role="alert">
+        <p id={htmlFor ? `${htmlFor}-feedback` : undefined} className="text-sm text-bad" role="alert">
           {error}
         </p>
       ) : hint ? (
-        <p className="text-sm text-ink-3">{hint}</p>
+        <p id={htmlFor ? `${htmlFor}-feedback` : undefined} className="text-sm text-ink-3">{hint}</p>
       ) : null}
     </div>
   )
@@ -43,7 +43,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <input
       ref={ref}
       aria-invalid={invalid || undefined}
-      className={`h-10 w-full rounded-sm border bg-night/60 px-3 text-base text-ink transition-colors duration-fast ease-out placeholder:text-ink-3 hover:border-line-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:bg-raise disabled:text-ink-3 ${
+      className={`h-11 w-full rounded-sm border bg-surface px-3 text-base text-ink transition-colors duration-base ease-out placeholder:text-ink-3 hover:border-line-strong focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 disabled:cursor-not-allowed disabled:bg-raise disabled:text-ink-3 ${
         invalid ? "border-bad" : "border-line"
       } ${className}`}
       {...rest}
