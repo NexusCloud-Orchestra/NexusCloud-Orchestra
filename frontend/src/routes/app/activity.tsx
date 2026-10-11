@@ -38,9 +38,9 @@ export function ActivityPage() {
   return (
     <div className="animate-fade-rise flex flex-col gap-6">
       <PageHeader
-        kicker="Ledger"
+        kicker="Workspace history"
         title="Activity"
-        description="Backend audit trail: file operations, cloud lifecycle and account events. Newest first, capped at 100 entries."
+        description="File operations, cloud connections, and account events. Your latest 100 events, newest first."
       />
 
       {audit.isLoading ? (

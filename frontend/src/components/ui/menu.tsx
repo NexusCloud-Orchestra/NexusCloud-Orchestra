@@ -18,8 +18,20 @@ export function Menu({ trigger, items, label }: { trigger: ReactNode; items: Men
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
     }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false)
+      const root = rootRef.current
+      const menuItems = [...(root?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not([disabled])') ?? [])]
+      const index = menuItems.indexOf(document.activeElement as HTMLButtonElement)
+      if (event.key === "Escape" || event.key === "Tab") {
+        setOpen(false)
+        if (event.key === "Escape") root?.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')?.focus()
+      } else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+        event.preventDefault()
+        const next = event.key === "Home" ? 0 : event.key === "End" ? menuItems.length - 1
+          : (index + (event.key === "ArrowDown" ? 1 : -1) + menuItems.length) % menuItems.length
+        menuItems[next]?.focus()
+      }
     }
+    rootRef.current?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus()
     document.addEventListener("pointerdown", onPointerDown)
     document.addEventListener("keydown", onKeyDown)
     return () => {
@@ -54,8 +66,9 @@ export function Menu({ trigger, items, label }: { trigger: ReactNode; items: Men
               onClick={() => {
                 setOpen(false)
                 item.onSelect()
+                rootRef.current?.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')?.focus()
               }}
-              className={`block w-full px-3 py-1.5 text-left text-base transition-colors duration-fast hover:bg-raise disabled:cursor-not-allowed disabled:text-ink-3 ${
+              className={`block min-h-10 w-full px-3 py-2 text-left text-base transition-colors duration-base hover:bg-raise disabled:cursor-not-allowed disabled:text-ink-3 ${
                 item.tone === "danger" ? "text-bad hover:bg-bad-wash" : "text-ink"
               }`}
             >

@@ -110,15 +110,15 @@ function ConnectionRow({
         <div className="flex items-baseline justify-between gap-2">
           <span className="label-caps">Used</span>
           <span className="font-mono text-sm text-ink tnum">
-            {formatBytes(used)} <span className="text-ink-3">/ {formatBytes(limit)}</span>
+            {quotaRow ? <>{formatBytes(used)} <span className="text-ink-3">/ {formatBytes(limit)}</span></> : "Unavailable"}
           </span>
         </div>
-        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-line">
+        {quotaRow ? <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-line">
           <div
             className={`h-full rounded-full ${pct >= 90 ? "bg-bad" : pct >= 75 ? "bg-warn" : "bg-accent"}`}
             style={{ width: `${pct}%` }}
           />
-        </div>
+        </div> : null}
       </div>
       <div className="flex items-center gap-3">
         <StatusBadge tone="ok">Connected</StatusBadge>

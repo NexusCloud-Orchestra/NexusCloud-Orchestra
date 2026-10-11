@@ -6,7 +6,6 @@ import { Field, Input } from "../components/ui/field"
 import { Button } from "../components/ui/button"
 import { useAuth } from "../state/auth"
 import { ApiError } from "../api/client"
-import { ArrowRight } from "lucide-react"
 import { PasswordInput } from "../components/ui/password-input"
 
 export function LoginPage() {
@@ -41,8 +40,8 @@ export function LoginPage() {
 
   return (
     <AuthLayout
-      title="Welcome back."
-      description="Sign in to bring your clouds back together."
+      title="Sign in"
+      description="Welcome back to your cloud workspace."
       footer={
         <>
           New to NexusCloud?{" "}
@@ -99,7 +98,7 @@ export function LoginPage() {
         ) : null}
         <div className="auth-submit-row">
           <Button type="submit" variant="primary" loading={busy} disabled={!email || !password}>
-            {busy ? "Signing you in…" : <>Sign in to your workspace <ArrowRight size={17} /></>}
+            {busy ? "Signing in…" : "Sign in"}
           </Button>
         </div>
       </form>

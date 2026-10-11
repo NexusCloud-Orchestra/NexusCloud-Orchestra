@@ -164,7 +164,7 @@ export function FilesPage() {
       <PageHeader
         kicker="Storage"
         title="Files"
-        description="Everything routed to your connected clouds. Files are never proxied through NexusCloud."
+        description="Browse and manage files in your connected cloud storage."
         actions={
           <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new CustomEvent("nc:open-upload"))}>
             Upload file
@@ -186,10 +186,10 @@ export function FilesPage() {
             <div className="flex items-center gap-2">
               <Input
                 aria-label="Filter files"
-                placeholder="Filter by name or provider…"
+                placeholder="Search files or providers…"
                 value={filter}
                 onChange={(event) => setFilter(event.target.value)}
-                className="h-7 w-44 !text-sm"
+                className="h-10 w-44 !text-sm sm:w-56"
               />
               <SortMenu sort={sort} onSort={(key, dir) => setSort({ key, dir })} />
             </div>

@@ -7,7 +7,6 @@ import { Button } from "../components/ui/button"
 import { useAuth } from "../state/auth"
 import { ApiError } from "../api/client"
 import { PasswordInput } from "../components/ui/password-input"
-import { ArrowRight } from "lucide-react"
 
 interface FieldErrors {
   first_name?: string
@@ -67,8 +66,8 @@ export function RegisterPage() {
 
   return (
     <AuthLayout
-      title="Create your account."
-      description="Create your account. Bring every cloud into one workspace."
+      title="Create account"
+      description="One account. All your cloud storage."
       footer={
         <>
           Already have an account?{" "}
@@ -147,7 +146,7 @@ export function RegisterPage() {
         ) : null}
         <div className="auth-submit-row">
           <Button type="submit" variant="primary" loading={busy} disabled={!values.email || !values.password}>
-            {busy ? "Creating your workspace…" : <>Create account <ArrowRight size={17} /></>}
+            {busy ? "Creating account…" : "Create account"}
           </Button>
         </div>
       </form>

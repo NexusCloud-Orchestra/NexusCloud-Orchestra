@@ -1,78 +1,30 @@
 :root {
-  color-scheme: light;
-  --night: #fffdf8;
-  --deep: #faf6ed;
-  --frost: #142b4a;
-  --mist: #344256;
-  --dim: #68768a;
-  --gold: #87621c;
-  --gold-soft: #fff8e7;
-  --line: #e8e0d1;
-  --glass: #ffffff;
-  --brand: #142b4a;
-  --brand-strong: #0b1b32;
-  --royal-gold: #c49a3a;
-  --display: "Black Ops One", sans-serif;
+  --night: #060c16;
+  --deep: #0b1828;
+  --frost: #eaf0f7;
+  --mist: rgba(234, 240, 247, 0.72);
+  --dim: rgba(234, 240, 247, 0.5);
+  --gold: #f3c56f;
+  --gold-soft: rgba(243, 197, 111, 0.14);
+  --line: rgba(234, 240, 247, 0.16);
+  --glass: rgba(9, 20, 34, 0.46);
+  --display: "Syne", "Avenir Next", "Futura", sans-serif;
   --body: "Instrument Sans", "Segoe UI", "Helvetica Neue", sans-serif;
   --mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-@font-face {
-  font-family: "Black Ops One";
-  src: url("/fonts/BlackOpsOne-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
 html { background: var(--night); scroll-behavior: smooth; }
 body { margin: 0; color: var(--frost); font-family: var(--body); background: var(--night); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-body.is-loading { overflow: auto; }
+body.is-loading { overflow: hidden; }
 a { color: inherit; text-decoration: none; }
 :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
 .mono { font-family: var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
-/* Light control surfaces over the existing atmospheric flight sequence. */
-.nav .brand { font-weight: 400; letter-spacing: -.025em; }
-.nav .brand b { font-weight: 400; margin-left: .15em; }
-.nav .brand svg circle { fill: var(--royal-gold); }
-.btn { border-radius: 8px !important; }
-.stage .panel {
-  padding: 28px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgba(255, 253, 248, .96);
-  box-shadow: 0 12px 48px rgba(11, 27, 50, .14);
-}
-.stage .panel h2, .stage .panel p, .stage .hero__title { text-shadow: none; }
-.stage .hero__title { font-size: clamp(44px, 6vw, 84px); font-weight: 400; line-height: 1.04; }
-.stage .hero__title span { color: var(--gold); -webkit-text-stroke: 0; background: none; }
-.stage .panel h2 { font-size: clamp(28px, 3vw, 44px); font-weight: 400; line-height: 1.12; }
-.stage .panel h3 { font-family: var(--body); }
-.stage .eyebrow { color: var(--gold); }
-.stage .weights { background: var(--glass); }
-.stage .scroll-cue, .stage .progress { color: #fff8e7; }
-.after { background: var(--night) !important; }
-.after h2 { font-family: var(--body); font-weight: 600; letter-spacing: -.04em; }
-.after h3 { font-family: var(--body); }
-.providers > *, .pricing > *, .how > * { background: var(--glass); border-color: var(--line); box-shadow: 0 3px 16px rgba(20,43,74,.035); }
-.loader { display: none !important; }
-@media (max-width: 700px) {
-  .nav { padding: 14px 16px; gap: 8px; }
-  .nav__auth { gap: 10px; font-size: 12px; }
-  .nav .brand { font-size: 13px; gap: 6px; }
-  .nav .brand svg { width: 22px; height: 22px; }
-  .nav .btn { padding: 10px 12px; font-size: 12px; }
-  .stage .panel { padding: 22px; max-width: calc(100vw - 40px); }
-  .stage .hero__title { font-size: 44px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
-}
 
 /* Loader */
 .loader {
   position: fixed; inset: 0; z-index: 50; display: grid; place-content: center; gap: 22px;
-  background: var(--night);
+  background: radial-gradient(120% 80% at 50% 110%, #1b3a52 0%, var(--night) 60%);
   transition: opacity 0.9s ease, visibility 0.9s ease;
 }
 .loader.is-done { opacity: 0; visibility: hidden; }
@@ -87,10 +39,10 @@ a { color: inherit; text-decoration: none; }
 .nav {
   position: fixed; inset: 0 0 auto 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 24px;
   padding: 20px clamp(20px, 4vw, 56px);
-  background: rgba(255, 253, 248, 0.96);
+  background: linear-gradient(to bottom, rgba(6, 12, 22, 0.6), rgba(6, 12, 22, 0));
   transition: background 0.4s ease, backdrop-filter 0.4s ease, padding 0.4s ease;
 }
-.nav.is-solid { background: rgba(255, 253, 248, 0.98); backdrop-filter: blur(8px); padding-block: 14px; border-bottom: 1px solid var(--line); }
+.nav.is-solid { background: rgba(6, 12, 22, 0.72); backdrop-filter: blur(14px); padding-block: 14px; border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; gap: 10px; font: 700 15px/1 var(--display); letter-spacing: 0.14em; }
 .brand b { color: var(--gold); font-weight: 700; margin-left: 0.35em; }
 .brand svg { width: 28px; height: 28px; fill: none; stroke: var(--frost); stroke-width: 1.8; }
@@ -111,8 +63,8 @@ a { color: inherit; text-decoration: none; }
   transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
 }
 .btn:hover { transform: translateY(-2px); }
-.btn--solid { background: var(--brand); color: white; }
-.btn--solid:hover { background: var(--brand-strong); }
+.btn--solid { background: var(--gold); color: #1b1406; }
+.btn--solid:hover { background: #ffd68a; }
 .btn--line { border-color: var(--line); background: rgba(234, 240, 247, 0.06); backdrop-filter: blur(8px); }
 .btn--line:hover { border-color: var(--frost); }
 .btn--ghost { border-color: var(--line); font-size: 13px; padding: 11px 18px; min-height: 40px; backdrop-filter: blur(8px); }
@@ -141,7 +93,7 @@ a { color: inherit; text-decoration: none; }
   color: transparent; -webkit-text-stroke: 1.5px var(--frost);
   background: linear-gradient(100deg, transparent 0%, transparent 35%, var(--gold) 50%, transparent 65%, transparent 100%) 0 0 / 250% 100%;
   -webkit-background-clip: text; background-clip: text;
-  animation: none;
+  animation: sheen 5s ease-in-out infinite;
 }
 @keyframes sheen { from { background-position: 100% 0; } to { background-position: -150% 0; } }
 .hero__lede { max-width: 500px; margin-bottom: 28px !important; }

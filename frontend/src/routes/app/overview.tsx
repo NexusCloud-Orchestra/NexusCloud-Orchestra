@@ -78,8 +78,8 @@ export function OverviewPage() {
       ) : null}
 
       {/* Storage: the primary visualization. Large numeric hierarchy + capacity bar. */}
-      <section className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div>
+      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="rounded-md border border-line bg-surface p-5 shadow-glow">
           {quota.isLoading ? (
             <StatSkeleton />
           ) : quota.isError ? (
@@ -126,7 +126,7 @@ export function OverviewPage() {
         </div>
 
         {/* Providers: compact distribution, not cards. */}
-        <div>
+        <div className="rounded-md border border-line bg-raise p-5">
           <p className="label-caps mb-3">Connected clouds</p>
           {connections.isLoading ? (
             <ListSkeleton rows={2} />
@@ -148,8 +148,8 @@ export function OverviewPage() {
                       </p>
                     </div>
                     <div className="w-24 shrink-0">
-                      <ProgressBar value={pct} tone={pct >= 90 ? "warn" : "accent"} className="h-1" />
-                      <p className="mt-1 text-right font-mono text-2xs text-ink-3 tnum">{formatBytes(used)}</p>
+                      {row ? <ProgressBar value={pct} tone={pct >= 90 ? "warn" : "accent"} className="h-1" /> : null}
+                      <p className="mt-1 text-right font-mono text-2xs text-ink-3 tnum">{row ? formatBytes(used) : "Usage unavailable"}</p>
                     </div>
                   </li>
                 )
@@ -163,7 +163,7 @@ export function OverviewPage() {
                 action={
                   <Link
                     to="/app/clouds?connect=1"
-                    className="inline-flex h-7 items-center rounded-full border border-accent bg-accent px-3.5 text-sm font-semibold text-on-accent transition-all duration-fast ease-out hover:-translate-y-px hover:border-accent-deep hover:bg-accent-deep"
+                    className="inline-flex min-h-10 items-center rounded-sm border border-brand bg-brand px-4 text-sm font-semibold text-white transition-colors duration-base hover:bg-deep"
                   >
                     Connect cloud
                   </Link>

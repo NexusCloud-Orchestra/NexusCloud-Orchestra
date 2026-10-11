@@ -32,7 +32,7 @@ export function RouterPage() {
       <PageHeader
         kicker="Placement"
         title="Smart Router"
-        description="Read-only decision preview. The same placement code runs when an upload is requested."
+        description="Preview where your next file will go, based on available capacity and the current routing policy."
       />
 
       <Panel>

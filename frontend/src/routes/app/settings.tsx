@@ -28,7 +28,7 @@ export function SettingsPage() {
 
   return (
     <div className="animate-fade-rise flex flex-col gap-6">
-      <PageHeader kicker="Account" title="Settings" description="Profile, credentials and plan state." />
+      <PageHeader kicker="Account" title="Settings" description="Manage your profile, password, and current plan." />
 
       {/* Profile */}
       <Panel>
@@ -302,4 +302,3 @@ function AccountDeletion() {
     </Panel>
   )
 }
-
