@@ -37,6 +37,17 @@
 
 ---
 
+## ⚡ At a Glance (Above the Fold)
+
+| Pillar | Principle | Details |
+|---|---|---|
+| **01 · What It Is** | **BYOC Multi-Cloud Storage Mesh** | An open orchestration control plane unifying your AWS S3, Google Cloud Storage, Azure Blob, Cloudflare R2, Backblaze B2, Oracle OCI, and IBM Cloud buckets into a single storage pool. NexusCloud **never stores or proxies your bytes** (Zero Data Touch); all transfers use direct client-to-cloud presigned URLs. |
+| **02 · Who It Is For** | **Engineers, DevOps & Data Teams** | Developers, infrastructure leads, and organizations who own cloud credentials and want to pool existing buckets, unify multi-cloud quotas, slash egress fees, and eliminate proprietary vendor lock-in with a single API (`/api/v1/files/upload`). |
+| **03 · Why It Matters** | **Zero Lock-In & Zero-Egress Economics** | Unlocks **70+ GB of permanently free cloud storage** sitting idle across providers. An automated 4-factor deterministic placement engine routes uploads to optimal zero-egress providers (e.g. Cloudflare R2, Backblaze B2) to prevent provider quota blowouts while preserving 100% data sovereignty. |
+| **04 · What To Do Next** | **Connect Bucket → Route First File** | 1. **Connect a Cloud**: Link your first S3, GCS, R2, or B2 bucket in under 60 seconds with AES-256-GCM encrypted credentials.<br/>2. **Orchestrate Storage**: Run a placement route preview (`POST /api/v1/files/route-preview`) or upload a file directly into the unified mesh. |
+
+---
+
 ## 🌩️ What is NexusCloud?
 
 **NexusCloud** is a **Bring-Your-Own-Cloud (BYOC)** multi-cloud storage orchestration platform. Connect your existing cloud accounts — AWS S3, Google Cloud Storage, Azure Blob, Cloudflare R2, Backblaze B2, Oracle Cloud, IBM Cloud — and interact with all of them through a **single unified API and dashboard**.

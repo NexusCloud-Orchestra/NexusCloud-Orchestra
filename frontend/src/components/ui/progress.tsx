@@ -1,33 +1,55 @@
-export function ProgressBar({
-  value,
-  indeterminate = false,
-  tone = "accent",
-  className = "",
-}: {
-  /** 0–100. */
-  value?: number
-  indeterminate?: boolean
-  tone?: "accent" | "warn" | "bad" | "ok"
+import { cn } from "../../lib/utils"
+
+interface ProgressProps {
+  value: number
+  max?: number
   className?: string
-}) {
-  const toneClass = tone === "accent" ? "bg-accent" : tone === "warn" ? "bg-warn" : tone === "bad" ? "bg-bad" : "bg-ok"
-  const clamped = Math.max(0, Math.min(100, value ?? 0))
+  variant?: "brand" | "ok" | "warn" | "bad" | "gold"
+}
+
+const fillVariants: Record<string, string> = {
+  brand: "from-brand to-brand-2",
+  ok:    "from-ok/80 to-ok",
+  warn:  "from-warn/80 to-warn",
+  bad:   "from-bad/80 to-bad",
+  gold:  "from-gold/80 to-gold",
+}
+
+export function Progress({ value, max = 100, className, variant = "brand" }: ProgressProps) {
+  const pct = Math.min(100, Math.max(0, (value / max) * 100))
   return (
     <div
       role="progressbar"
-      aria-valuenow={indeterminate ? undefined : Math.round(clamped)}
+      aria-valuenow={value}
       aria-valuemin={0}
-      aria-valuemax={100}
-      className={`relative h-1.5 w-full overflow-hidden rounded-full bg-line ${className}`}
+      aria-valuemax={max}
+      className={cn("nc-progress-track", className)}
     >
-      {indeterminate ? (
-        <div className={`animate-indeterminate absolute inset-y-0 left-0 w-1/3 rounded-full ${toneClass}`} />
-      ) : (
-        <div
-          className={`animate-bar-grow h-full origin-left rounded-full ${toneClass}`}
-          style={{ width: `${clamped}%` }}
-        />
-      )}
+      <div
+        className={cn("nc-progress-fill bg-gradient-to-r", fillVariants[variant])}
+        style={{ width: `${pct}%` }}
+      />
     </div>
   )
+}
+
+export function ProgressBar({
+  value,
+  tone = "brand",
+  className,
+}: {
+  value: number
+  tone?: "brand" | "ok" | "warn" | "bad" | "gold" | "neutral" | "accent"
+  className?: string
+}) {
+  const variantMap: Record<string, "brand" | "ok" | "warn" | "bad" | "gold"> = {
+    brand: "brand",
+    ok: "ok",
+    warn: "warn",
+    bad: "bad",
+    gold: "gold",
+    neutral: "brand",
+    accent: "brand",
+  }
+  return <Progress value={value} variant={variantMap[tone] ?? "brand"} className={className} />
 }

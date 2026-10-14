@@ -56,7 +56,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`animate-slide-up pointer-events-auto flex items-center gap-2.5 rounded-md border bg-surface px-3.5 py-2.5 shadow-toast ${TONE_STYLES[toast.tone]}`}
+            className={`animate-slide-up pointer-events-auto flex items-center gap-2.5 rounded-lg border bg-surface px-3.5 py-2.5 shadow-toast ${TONE_STYLES[toast.tone]}`}
           >
             <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${TONE_DOT[toast.tone]}`} aria-hidden />
             <p className="flex-1 text-sm text-ink">{toast.message}</p>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import type { ReactNode } from "react"
+import { MENU_EXIT_MS, usePresence } from "../../hooks/use-presence"
 
 export interface MenuItem {
   label: string
@@ -11,6 +12,7 @@ export interface MenuItem {
 export function Menu({ trigger, items, label }: { trigger: ReactNode; items: MenuItem[]; label: string }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
+  const { mounted, closing } = usePresence(open, MENU_EXIT_MS)
 
   useEffect(() => {
     if (!open) return
@@ -52,10 +54,10 @@ export function Menu({ trigger, items, label }: { trigger: ReactNode; items: Men
       >
         {trigger}
       </button>
-      {open ? (
+      {mounted ? (
         <div
           role="menu"
-          className="animate-scale-in absolute right-0 top-full z-40 mt-1 min-w-40 rounded-md border border-line bg-surface py-1 shadow-pop"
+          className={`absolute right-0 top-full z-40 mt-1.5 min-w-44 max-w-[calc(100vw-24px)] rounded-xl border border-line bg-surface py-1.5 shadow-pop ${closing ? "nc-menu-exit" : "nc-menu-enter"}`}
         >
           {items.map((item) => (
             <button
@@ -68,7 +70,7 @@ export function Menu({ trigger, items, label }: { trigger: ReactNode; items: Men
                 item.onSelect()
                 rootRef.current?.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')?.focus()
               }}
-              className={`block min-h-10 w-full px-3 py-2 text-left text-base transition-colors duration-base hover:bg-raise disabled:cursor-not-allowed disabled:text-ink-3 ${
+              className={`block min-h-10 w-full px-3.5 py-2 text-left text-base transition-colors duration-base hover:bg-raise disabled:cursor-not-allowed disabled:text-ink-3 ${
                 item.tone === "danger" ? "text-bad hover:bg-bad-wash" : "text-ink"
               }`}
             >

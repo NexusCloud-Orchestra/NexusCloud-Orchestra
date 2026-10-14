@@ -1,77 +1,91 @@
-import { forwardRef, useId } from "react"
-import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react"
+import { cn } from "../../lib/utils"
+import { useState } from "react"
 
-export function Field({
-  label,
-  hint,
-  error,
-  htmlFor,
-  children,
-}: {
+export interface FieldProps {
   label: string
+  htmlFor?: string
   hint?: string
   error?: string | null
-  htmlFor?: string
-  children: ReactNode
-}) {
+  id?: string
+  required?: boolean
+  children: React.ReactNode
+}
+
+export function Field({ label, htmlFor, hint, error, id, required, children }: FieldProps) {
+  const inputId = htmlFor ?? id ?? label.toLowerCase().replace(/\s+/g, "-")
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={htmlFor} className="text-sm font-medium text-ink">
+      <label htmlFor={inputId} className="text-xs font-medium text-ink-2">
         {label}
+        {required && <span className="ml-1 text-brand">*</span>}
       </label>
       {children}
-      {error ? (
-        <p id={htmlFor ? `${htmlFor}-feedback` : undefined} className="text-sm text-bad" role="alert">
-          {error}
-        </p>
-      ) : hint ? (
-        <p id={htmlFor ? `${htmlFor}-feedback` : undefined} className="text-sm text-ink-3">{hint}</p>
-      ) : null}
+      {error ? <p className="text-xs text-bad">{error}</p> : hint ? <p className="text-xs text-ink-3">{hint}</p> : null}
     </div>
   )
 }
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   invalid?: boolean
 }
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { className = "", invalid = false, ...rest },
-  ref,
-) {
+export function Input({
+  className,
+  invalid,
+  ...props
+}: InputProps) {
   return (
     <input
-      ref={ref}
-      aria-invalid={invalid || undefined}
-      className={`h-11 w-full rounded-sm border bg-surface px-3 text-base text-ink transition-colors duration-base ease-out placeholder:text-ink-3 hover:border-line-strong focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 disabled:cursor-not-allowed disabled:bg-raise disabled:text-ink-3 ${
-        invalid ? "border-bad" : "border-line"
-      } ${className}`}
-      {...rest}
+      className={cn("nc-input", invalid && "border-bad focus:border-bad focus:ring-bad/20", className)}
+      {...props}
     />
   )
-})
+}
 
-interface TextAreaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   invalid?: boolean
 }
 
-export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function TextArea(
-  { className = "", invalid = false, ...rest },
-  ref,
-) {
+export function Textarea({
+  className,
+  invalid,
+  ...props
+}: TextareaProps) {
   return (
     <textarea
-      ref={ref}
-      aria-invalid={invalid || undefined}
-      className={`min-h-[76px] w-full rounded-sm border bg-night/60 px-3 py-2 font-mono text-sm text-ink transition-colors duration-fast ease-out placeholder:text-ink-3 hover:border-line-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 ${
-        invalid ? "border-bad" : "border-line"
-      } ${className}`}
-      {...rest}
+      className={cn(
+        "w-full rounded-sm border border-line bg-raise px-3 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:border-brand/50 focus:outline-none focus:ring-2 focus:ring-brand/20 transition-colors duration-fast resize-none",
+        invalid && "border-bad focus:border-bad focus:ring-bad/20",
+        className
+      )}
+      {...props}
     />
   )
-})
-
-/** Hook giving a field a stable id for label wiring. */
-export function useFieldId(): string {
-  return useId()
 }
+
+export const TextArea = Textarea
+
+let nextFieldId = 0
+export function useFieldId(prefix = "field") {
+  const [id] = useState(() => `${prefix}-${++nextFieldId}`)
+  return id
+}
+
+export function Select({
+  className,
+  children,
+  ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      className={cn(
+        "w-full h-9 rounded-sm border border-line bg-raise px-3 text-sm text-ink focus:border-brand/50 focus:outline-none transition-colors duration-fast",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </select>
+  )
+}
+

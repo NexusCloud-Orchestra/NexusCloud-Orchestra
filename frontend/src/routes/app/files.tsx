@@ -1,10 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom"
-import { Download, HardDrive, Link2, Trash2, X } from "lucide-react"
+import {
+  Download,
+  Link2,
+  Trash2,
+  X,
+  Upload,
+  Search,
+  ArrowUpDown,
+  FileText,
+  Cloud,
+} from "lucide-react"
 import { useFiles, useConnections } from "../../hooks/use-data"
 import { useQueryClient } from "@tanstack/react-query"
 import {
-  deleteFile, deleteStripedFile, getStripedManifest, requestDownload, stripedChunkDownloadUrl,
+  deleteFile,
+  deleteStripedFile,
+  getStripedManifest,
+  requestDownload,
+  stripedChunkDownloadUrl,
 } from "../../api/files"
 import { ApiError } from "../../api/client"
 import { useToast } from "../../state/toast"
@@ -12,17 +26,15 @@ import { queryKeys } from "../../state/query"
 import { useUploads } from "../../state/uploads"
 import { formatBytes, formatDateTime, fileExtension, formatRelative } from "../../lib/format"
 import { providerName } from "../../lib/providers"
-import { sha256, verifyStripeIndex } from "../../lib/striping"
+import { verifyStripeIndex } from "../../lib/striping"
 import { PageHeader, Breadcrumb } from "../../components/layout/shell"
-import { Panel, PanelHeader } from "../../components/ui/panel"
-import { EmptyState, ErrorState, ListSkeleton } from "../../components/ui/states"
+import { ErrorState, ListSkeleton } from "../../components/ui/states"
 import { StatusBadge } from "../../components/ui/status"
 import { Drawer } from "../../components/ui/drawer"
 import { ConfirmModal } from "../../components/ui/modal"
-import { Button } from "../../components/ui/button"
-import { Input } from "../../components/ui/field"
 import { Menu } from "../../components/ui/menu"
 import { ProviderMark } from "../../components/ui/provider-mark"
+import { Button } from "../../components/ui/button"
 import type { FileRecord } from "../../types/api"
 
 type SortKey = "name" | "size" | "modified"
@@ -41,8 +53,8 @@ interface SaveFileWindow extends Window {
 }
 
 export function FilesPage() {
-  const [files] = useSearchParams()
-  const openFileId = files.get("file")
+  const [params, setParams] = useSearchParams()
+  const openFileId = params.get("file")
   const queryClient = useQueryClient()
   const toast = useToast()
   const filesQuery = useFiles()
@@ -51,8 +63,12 @@ export function FilesPage() {
 
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "modified", dir: "desc" })
   const [filter, setFilter] = useState("")
+  const [providerFilter, setProviderFilter] = useState<string>("all")
   const [deleteTarget, setDeleteTarget] = useState<FileRecord | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [showDropzone, setShowDropzone] = useState(false)
+
+  const hasConnections = (connections.data?.length ?? 0) > 0
 
   const sorted = useMemo(() => {
     const list = [...(filesQuery.data ?? [])]
@@ -67,14 +83,18 @@ export function FilesPage() {
   }, [filesQuery.data, sort])
 
   const visible = useMemo(() => {
+    let list = sorted
+    if (providerFilter !== "all") {
+      list = list.filter((f) => f.provider === providerFilter)
+    }
     const needle = filter.trim().toLowerCase()
-    if (!needle) return sorted
-    return sorted.filter(
+    if (!needle) return list
+    return list.filter(
       (file) =>
         file.original_name.toLowerCase().includes(needle) ||
         providerName(file.provider).toLowerCase().includes(needle),
     )
-  }, [sorted, filter])
+  }, [sorted, filter, providerFilter])
 
   const openFile = openFileId ? sorted.find((file) => file.id === openFileId) ?? null : null
 
@@ -86,7 +106,6 @@ export function FilesPage() {
         if (!picker && file.size_bytes > MAX_BUFFERED_DOWNLOAD_BYTES) {
           throw new Error("This browser cannot stream large downloads; use a browser with Save As support")
         }
-        // File picker permission is tied to the click; open it before awaiting the API.
         const handle = picker ? await picker.call(window, { suggestedName: file.original_name }) : null
         const manifest = await getStripedManifest(file.id)
         const ordered = [...manifest.chunks].sort((a, b) => a.index - b.index)
@@ -101,25 +120,26 @@ export function FilesPage() {
         try {
           for (const chunk of ordered) {
             const signed = await stripedChunkDownloadUrl(file.id, chunk.index)
-            const response = await fetch(signed.url, { credentials: "omit" })
-            if (!response.ok) throw new Error(`Cloud download failed for chunk ${chunk.index + 1}`)
-            const bytes = await response.arrayBuffer()
-            if (bytes.byteLength !== chunk.size_bytes || await sha256(bytes) !== chunk.sha256) {
-              throw new Error(`Chunk ${chunk.index + 1} failed integrity validation`)
+            const response = await fetch(signed.url, { headers: signed.required_headers })
+            if (!response.ok) throw new Error(`Could not fetch piece ${chunk.index + 1}`)
+            const buffer = await response.arrayBuffer()
+            if (writer) {
+              await writer.write(buffer)
+            } else {
+              pieces.push(buffer)
             }
-            if (writer) await writer.write(bytes)
-            else pieces.push(bytes)
           }
-          if (writer) await writer.close()
-        } catch (error) {
+          if (writer) {
+            await writer.close()
+            toast.notify(`Saved ${file.original_name}`, "success")
+            return
+          }
+          const blob = new Blob(pieces, { type: file.mime_type || "application/octet-stream" })
+          url = URL.createObjectURL(blob)
+        } catch (caught) {
           if (writer) await writer.abort().catch(() => undefined)
-          throw error
+          throw caught
         }
-        if (writer) {
-          toast.notify(`Download saved for ${file.original_name}`, "success")
-          return
-        }
-        url = URL.createObjectURL(new Blob(pieces, { type: manifest.mime_type }))
       } else {
         const ticket = await requestDownload(file.id)
         url = ticket.download_url
@@ -160,63 +180,122 @@ export function FilesPage() {
   }
 
   return (
-    <div className="animate-fade-rise flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pb-8">
       <PageHeader
-        kicker="Storage"
+        kicker="Virtual Storage"
         title="Files"
-        description="Browse and manage files in your connected cloud storage."
+        description="Unified multi-cloud file browser. Direct-to-bucket uploads and downloads."
         actions={
-          <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new CustomEvent("nc:open-upload"))}>
-            Upload file
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={showDropzone ? "secondary" : "gold"}
+              size="md"
+              onClick={() => {
+                if (!hasConnections) {
+                  toast.notify("Connect a cloud provider before uploading files", "neutral")
+                  return
+                }
+                setShowDropzone((v) => !v)
+              }}
+              className="shadow-sm font-bold"
+            >
+              <Upload size={14} className="mr-1.5" />
+              <span>{showDropzone ? "Close Upload Dropzone" : "Upload File to Mesh"}</span>
+            </Button>
+          </div>
         }
       />
 
-      <UploadZone />
+      {/* Collapsible Dropzone */}
+      {showDropzone && (
+        <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+          <UploadZone onClose={() => setShowDropzone(false)} />
+        </div>
+      )}
 
+      {/* Active Upload Queue */}
       {activeCount > 0 ? <UploadQueue /> : null}
 
-      <Panel>
-        <PanelHeader
-          title={
+      {/* Main Files Table Card */}
+      <div className="rounded-xl border border-[#E8E0D1] bg-white shadow-xs overflow-hidden">
+        {/* Toolbar: Breadcrumb + Filter + Search + Sort */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E8E0D1] px-5 py-3 bg-[#FAF6ED]/40">
+          <div className="flex items-center gap-3">
             <Breadcrumb trail={["NEXUSCLOUD", "FILES"]} />
-          }
-          meta={filesQuery.data ? `${filesQuery.data.length} total` : undefined}
-          actions={
-            <div className="flex items-center gap-2">
-              <Input
-                aria-label="Filter files"
-                placeholder="Search files or providers…"
+            {filesQuery.data && (
+              <span className="rounded-md border border-[#E8E0D1] bg-white px-2 py-0.5 font-mono text-[11px] font-bold text-[#142B4A]">
+                {filesQuery.data.length} {filesQuery.data.length === 1 ? "file" : "files"}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Search */}
+            <div className="relative">
+              <Search
+                size={13}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#68768A]"
+                aria-hidden
+              />
+              <input
+                type="search"
+                aria-label="Search files"
+                placeholder="Search files…"
                 value={filter}
                 onChange={(event) => setFilter(event.target.value)}
-                className="h-10 w-44 !text-sm sm:w-56"
+                className="h-8 pl-8 pr-3 w-40 sm:w-52 rounded-lg border border-[#E8E0D1] bg-white text-xs text-[#142B4A] placeholder-[#68768A] focus:border-[#C49A3A] focus:outline-none transition-colors"
               />
-              <SortMenu sort={sort} onSort={(key, dir) => setSort({ key, dir })} />
             </div>
-          }
-        />
+
+            {/* Provider Filter */}
+            <select
+              aria-label="Filter by cloud provider"
+              value={providerFilter}
+              onChange={(e) => setProviderFilter(e.target.value)}
+              className="h-8 px-2.5 rounded-lg border border-[#E8E0D1] bg-white text-xs text-[#142B4A] focus:border-[#C49A3A] focus:outline-none transition-colors cursor-pointer"
+            >
+              <option value="all">All Clouds</option>
+              <option value="aws">AWS S3</option>
+              <option value="gcp">Google Cloud</option>
+              <option value="azure">Azure Blob</option>
+              <option value="r2">Cloudflare R2</option>
+              <option value="b2">Backblaze B2</option>
+              <option value="oracle">Oracle Cloud</option>
+              <option value="ibm">IBM Cloud</option>
+              <option value="multi">Multi-Cloud Striped</option>
+            </select>
+
+            {/* Sort Menu */}
+            <SortMenu sort={sort} onSort={(key, dir) => setSort({ key, dir })} />
+          </div>
+        </div>
+
+        {/* Content Body */}
         {filesQuery.isLoading ? (
-          <ListSkeleton rows={5} />
+          <ListSkeleton rows={4} />
         ) : filesQuery.isError ? (
-          <ErrorState error={filesQuery.error} onRetry={() => void filesQuery.refetch()} />
+          <div className="p-8">
+            <ErrorState error={filesQuery.error} onRetry={() => void filesQuery.refetch()} />
+          </div>
         ) : visible.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] border-collapse">
-              <thead>
-                <tr className="border-b border-line">
-                  <th scope="col" className="label-caps px-4 py-2 text-left font-medium">Name</th>
-                  <th scope="col" className="label-caps px-4 py-2 text-left font-medium">Cloud</th>
-                  <th scope="col" className="label-caps px-4 py-2 text-right font-medium">Size</th>
-                  <th scope="col" className="label-caps hidden px-4 py-2 text-right font-medium sm:table-cell">Modified</th>
-                  <th scope="col" className="w-8 px-4 py-2" aria-label="Actions" />
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-[#E8E0D1] bg-[#FAF6ED]/60 font-mono text-2xs uppercase tracking-wider text-[#68768A]">
+                <tr>
+                  <th className="px-5 py-2.5 font-semibold">Name</th>
+                  <th className="px-4 py-2.5 font-semibold">Cloud Destination</th>
+                  <th className="px-4 py-2.5 font-semibold">Storage Mode</th>
+                  <th className="px-4 py-2.5 font-semibold">Size</th>
+                  <th className="px-4 py-2.5 font-semibold hidden sm:table-cell">Uploaded</th>
+                  <th className="px-5 py-2.5 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-[#E8E0D1]/60">
                 {visible.map((file) => (
                   <FileRow
                     key={file.id}
                     file={file}
-                    onOpen={() => window.history.replaceState(null, "", `/app/files?file=${file.id}`)}
+                    onOpen={() => setParams({ file: file.id }, { replace: true })}
                     onDelete={() => setDeleteTarget(file)}
                     onDownload={() => void download(file)}
                   />
@@ -224,19 +303,68 @@ export function FilesPage() {
               </tbody>
             </table>
           </div>
-        ) : filter ? (
-          <EmptyState title="No matches" body={`No files match “${filter}”. Clear the filter to see everything.`} />
+        ) : !hasConnections ? (
+          <div className="p-8 text-center max-w-md mx-auto">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#E8E0D1] bg-[#FAF6ED] text-[#C49A3A] mx-auto mb-3">
+              <Cloud size={19} />
+            </div>
+            <p className="text-sm font-bold text-[#142B4A]">No cloud storage connected</p>
+            <p className="mt-1 text-xs text-[#68768A] leading-relaxed">
+              Files are stored directly in your own cloud buckets. Connect a provider to begin uploading.
+            </p>
+            <Button
+              variant="primary"
+              size="sm"
+              className="mt-4"
+              onClick={() => (window.location.href = "/app/clouds?connect=1")}
+            >
+              Connect Cloud Provider
+            </Button>
+          </div>
+        ) : filter || providerFilter !== "all" ? (
+          <div className="p-8 text-center">
+            <p className="text-xs font-semibold text-[#142B4A]">No matching files</p>
+            <p className="mt-1 text-xs text-[#68768A]">
+              No files match your current filters. Clear the search or filter to see all files.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => {
+                setFilter("")
+                setProviderFilter("all")
+              }}
+            >
+              Reset Filters
+            </Button>
+          </div>
         ) : (
-          <EmptyState
-            title="No files yet"
-            body="Drop files above or select files to upload — the router places each one on the right cloud."
-          />
+          <div className="p-8 text-center max-w-md mx-auto">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#E8E0D1] bg-[#FAF6ED] text-[#68768A] mx-auto mb-3">
+              <FileText size={19} />
+            </div>
+            <p className="text-sm font-bold text-[#142B4A]">Your storage is empty</p>
+            <p className="mt-1 text-xs text-[#68768A] leading-relaxed">
+              Upload files to test multi-cloud placement. Files over 16 MiB are automatically striped across providers.
+            </p>
+            <Button
+              variant="primary"
+              size="sm"
+              className="mt-4"
+              onClick={() => setShowDropzone(true)}
+            >
+              <Upload size={13} />
+              <span>Upload your first file</span>
+            </Button>
+          </div>
         )}
-      </Panel>
+      </div>
 
+      {/* File Detail Drawer */}
       <Drawer
         open={Boolean(openFile)}
-        onClose={() => window.history.replaceState(null, "", "/app/files")}
+        onClose={() => setParams({}, { replace: true })}
         title={openFile?.original_name ?? ""}
         meta={openFile ? `${fileExtension(openFile.original_name)} · ${formatBytes(openFile.size_bytes)}` : undefined}
       >
@@ -245,13 +373,12 @@ export function FilesPage() {
             file={openFile}
             connection={connections.data?.find((entry) => entry.id === openFile.connection_id) ?? null}
             onDownload={() => void download(openFile)}
-            onDelete={() => {
-              setDeleteTarget(openFile)
-            }}
+            onDelete={() => setDeleteTarget(openFile)}
           />
         ) : null}
       </Drawer>
 
+      {/* Delete Confirmation Modal */}
       <ConfirmModal
         open={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}
@@ -261,10 +388,10 @@ export function FilesPage() {
         loading={deleting}
         onConfirm={() => void confirmDelete()}
         body={
-          <p>
-            <span className="font-medium text-ink">{deleteTarget?.original_name}</span> will be deleted from{" "}
-            {deleteTarget ? providerName(deleteTarget.provider) : "the cloud"} and removed from the control plane. This
-            cannot be undone.
+          <p className="text-sm text-[#344256]">
+            <span className="font-bold text-[#142B4A]">{deleteTarget?.original_name}</span> will be permanently deleted from{" "}
+            {deleteTarget ? providerName(deleteTarget.provider) : "the cloud"} and removed from the NexusCloud index.
+            This action cannot be undone.
           </p>
         }
       />
@@ -283,42 +410,80 @@ function FileRow({
   onDelete: () => void
   onDownload: () => void
 }) {
+  const ext = fileExtension(file.original_name)
+  const isImage = ["jpg", "jpeg", "png", "webp", "gif", "svg"].includes(ext)
+  const isDoc = ["pdf", "doc", "docx", "txt", "md"].includes(ext)
+  const isArchive = ["zip", "tar", "gz", "7z"].includes(ext)
+
   return (
-    <tr className="group border-b border-line transition-colors duration-fast last:border-b-0 hover:bg-raise">
-      <td className="px-4 py-2.5">
-        <button type="button" onClick={onOpen} className="flex items-center gap-2.5 text-left">
-          <span className="flex h-6 w-9 shrink-0 items-center justify-center rounded-xs border border-line bg-raise font-mono text-2xs font-medium text-ink-2">
-            {fileExtension(file.original_name)}
+    <tr className="hover:bg-[#FAF6ED]/60 transition-colors group">
+      <td className="px-5 py-3.5">
+        <button
+          type="button"
+          onClick={onOpen}
+          title={file.original_name}
+          className="flex items-center gap-3 text-left max-w-sm sm:max-w-md"
+        >
+          <span
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border font-mono text-[10px] font-bold uppercase shadow-2xs ${
+              isImage
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                : isDoc
+                ? "bg-rose-50 text-rose-700 border-rose-200"
+                : isArchive
+                ? "bg-amber-50 text-amber-800 border-amber-200"
+                : "bg-slate-50 text-regal-navy border-slate-200"
+            }`}
+          >
+            {ext || "FILE"}
           </span>
-          <span className="max-w-[280px] truncate text-base text-ink">{file.original_name}</span>
+          <span className="truncate text-xs font-bold text-regal-navy group-hover:text-royal-gold transition-colors tracking-tight">
+            {file.original_name}
+          </span>
         </button>
       </td>
-      <td className="px-4 py-2.5">
-        <ProviderLabelCell provider={file.provider} />
+      <td className="px-4 py-3.5">
+        <div className="flex items-center gap-1.5">
+          <ProviderMark provider={file.provider} size={15} />
+          <span className="font-mono text-2xs text-slate-text font-medium">
+            {providerName(file.provider)}
+          </span>
+        </div>
       </td>
-      <td className="px-4 py-2.5 text-right font-mono text-sm text-ink tnum">{formatBytes(file.size_bytes)}</td>
-      <td className="hidden px-4 py-2.5 text-right font-mono text-sm text-ink-3 tnum sm:table-cell">
-        {formatRelative(file.uploaded_at)}
+      <td className="px-4 py-3.5">
+        <span
+          className={`inline-block rounded-xs px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${
+            file.storage_mode === "striped"
+              ? "bg-royal-gold/15 text-royal-gold border border-royal-gold/30"
+              : "bg-corn-silk text-slate-text border border-line"
+          }`}
+        >
+          {file.storage_mode === "striped" ? "Striped Mesh" : "Single Bucket"}
+        </span>
       </td>
-      <td className="px-4 py-2.5">
-        <div className="flex items-center justify-end gap-0.5 opacity-0 transition-opacity duration-fast group-hover:opacity-100 focus-within:opacity-100">
+      <td className="px-4 py-3.5 font-mono text-xs text-regal-navy font-semibold tnum">
+        {formatBytes(file.size_bytes)}
+      </td>
+      <td className="px-4 py-3.5 font-mono text-2xs text-muted-slate hidden sm:table-cell">
+        {file.uploaded_at ? formatRelative(file.uploaded_at) : "pending"}
+      </td>
+      <td className="px-5 py-3.5 text-right">
+        <div className="flex items-center justify-end gap-1.5">
           <button
             type="button"
+            title={`Download ${file.original_name}`}
             onClick={onDownload}
-            aria-label={`Download ${file.original_name}`}
-            title="Download"
-            className="rounded-xs p-1.5 text-ink-3 transition-colors duration-fast hover:bg-surface hover:text-ink"
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-line bg-white text-muted-slate hover:text-regal-navy hover:border-royal-gold transition-colors shadow-2xs"
           >
             <Download size={13} />
           </button>
           <button
             type="button"
+            title="Delete file"
             onClick={onDelete}
-            aria-label={`Delete ${file.original_name}`}
-            title="Delete"
-            className="rounded-xs p-1.5 text-ink-3 transition-colors duration-fast hover:bg-bad-wash hover:text-bad"
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-[#E8E0D1] bg-white text-[#C43D4B] hover:bg-[#C43D4B]/10 hover:border-[#C43D4B]/40 transition-colors"
           >
-            <Trash2 size={13} />
+            <Trash2 size={12} />
           </button>
         </div>
       </td>
@@ -326,16 +491,13 @@ function FileRow({
   )
 }
 
-function ProviderLabelCell({ provider }: { provider: FileRecord["provider"] }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <ProviderMark provider={provider} size={10} />
-      <span className="font-mono text-xs text-ink-2">{providerName(provider)}</span>
-    </span>
-  )
-}
-
-function SortMenu({ sort, onSort }: { sort: { key: SortKey; dir: "asc" | "desc" }; onSort: (key: SortKey, dir: "asc" | "desc") => void }) {
+function SortMenu({
+  sort,
+  onSort,
+}: {
+  sort: { key: SortKey; dir: "asc" | "desc" }
+  onSort: (key: SortKey, dir: "asc" | "desc") => void
+}) {
   const items = [
     { label: "Modified · newest", key: "modified" as SortKey, dir: "desc" as const },
     { label: "Modified · oldest", key: "modified" as SortKey, dir: "asc" as const },
@@ -348,8 +510,9 @@ function SortMenu({ sort, onSort }: { sort: { key: SortKey; dir: "asc" | "desc" 
     <Menu
       label="Sort files"
       trigger={
-        <span className="inline-flex h-7 items-center gap-1.5 rounded-sm border border-line bg-surface px-2.5 text-sm text-ink-2 transition-colors duration-fast hover:border-line-strong hover:text-ink">
-          Sort
+        <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E8E0D1] bg-white px-2.5 text-xs font-medium text-[#344256] hover:border-[#C49A3A] hover:text-[#142B4A] transition-colors cursor-pointer">
+          <ArrowUpDown size={12} />
+          <span>Sort</span>
         </span>
       }
       items={items.map((item) => ({
@@ -374,65 +537,68 @@ function FileDetail({
   const rows: Array<[string, string]> = [
     ["Name", file.original_name],
     ["Size", formatBytes(file.size_bytes)],
-    ["Type", file.mime_type],
-    ["Cloud", providerName(file.provider)],
+    ["MIME Type", file.mime_type || "application/octet-stream"],
+    ["Cloud Destination", providerName(file.provider)],
+    ["Storage Mode", file.storage_mode === "striped" ? "Multi-cloud striped chunk mesh" : "Single cloud container"],
     ["Status", file.status],
-    ["Connection", connection ? `${connection.display_name} · ${connection.bucket_name}` : "Striped across clouds"],
-    ["Region", connection?.region ?? "—"],
-    ["Uploaded", formatDateTime(file.uploaded_at)],
-    ["File ID", file.id],
+    ["Bucket / Container", connection ? `${connection.display_name} (${connection.bucket_name})` : "Multi-bucket index"],
+    ["Region", connection?.region ?? "global"],
+    ["Uploaded Timestamp", formatDateTime(file.uploaded_at)],
+    ["Control Plane ID", file.id],
   ]
+
   return (
     <div className="flex flex-col gap-5 px-5 py-5">
-      <div className="flex items-center justify-between gap-3 rounded-md border border-line bg-raise px-4 py-3.5">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E8E0D1] bg-[#FAF6ED] px-4 py-3.5">
         <div className="min-w-0">
-          <p className="truncate text-md font-medium text-ink">{file.original_name}</p>
-          <p className="font-mono text-2xs uppercase tracking-kicker text-ink-3">
+          <p className="truncate text-sm font-bold text-[#142B4A]">{file.original_name}</p>
+          <p className="font-mono text-2xs uppercase tracking-wider text-[#68768A] mt-0.5">
             {fileExtension(file.original_name)} · {formatBytes(file.size_bytes)}
           </p>
         </div>
-        <HardDrive className="shrink-0 text-ink-3" size={16} aria-hidden />
+        <ProviderMark provider={file.provider} size={20} />
       </div>
-      <dl className="flex flex-col">
+
+      <dl className="flex flex-col divide-y divide-[#E8E0D1]/60">
         {rows.map(([term, value]) => (
-          <div key={term} className="flex items-baseline justify-between gap-6 border-b border-line py-2 last:border-b-0">
-            <dt className="label-caps">{term}</dt>
-            <dd className="max-w-[60%] truncate text-right font-mono text-sm text-ink" title={value}>
+          <div key={term} className="flex items-baseline justify-between gap-4 py-2">
+            <dt className="text-2xs font-bold uppercase tracking-wider text-[#68768A]">{term}</dt>
+            <dd className="max-w-[65%] truncate text-right font-mono text-xs font-medium text-[#142B4A]" title={value}>
               {value}
             </dd>
           </div>
         ))}
       </dl>
-      <p className="flex items-start gap-2 text-sm text-ink-3">
-        <Link2 size={13} className="mt-0.5 shrink-0" aria-hidden />
-        {file.storage_mode === "striped"
-          ? "Downloads reassemble browser-fetched chunks after SHA-256 verification. Every cloud must permit browser GET through CORS."
-          : `Downloads use a signed URL from ${providerName(file.provider)} that expires in 60 minutes. NexusCloud never stores file content.`}
-      </p>
-      <div className="flex gap-2">
-        <Button size="sm" variant="secondary" onClick={onDownload}>
-          <Download size={12} aria-hidden />
-          Download
+
+      <div className="rounded-lg border border-[#E8E0D1] bg-[#FAF6ED]/50 p-3 text-xs text-[#68768A] leading-relaxed">
+        <p className="flex items-start gap-1.5">
+          <Link2 size={13} className="mt-0.5 shrink-0 text-[#C49A3A]" />
+          <span>
+            {file.storage_mode === "striped"
+              ? "Downloads reassemble chunks in-browser after SHA-256 verification. Presigned URLs expire in 60 minutes."
+              : `Downloads use a direct presigned URL from ${providerName(file.provider)}. File bytes bypass NexusCloud servers.`}
+          </span>
+        </p>
+      </div>
+
+      <div className="flex gap-2 pt-2">
+        <Button variant="primary" size="sm" className="flex-1" onClick={onDownload}>
+          <Download size={13} />
+          <span>Download</span>
         </Button>
-        <Button size="sm" variant="danger" onClick={onDelete}>
-          <Trash2 size={12} aria-hidden />
-          Delete
+        <Button variant="destructive" size="sm" onClick={onDelete}>
+          <Trash2 size={13} />
+          <span>Delete</span>
         </Button>
       </div>
     </div>
   )
 }
 
-function UploadZone() {
+function UploadZone({ onClose }: { onClose?: () => void }) {
   const { enqueue } = useUploads()
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
-
-  useEffect(() => {
-    const open = () => inputRef.current?.click()
-    window.addEventListener("nc:open-upload", open)
-    return () => window.removeEventListener("nc:open-upload", open)
-  }, [])
 
   return (
     <div
@@ -445,88 +611,109 @@ function UploadZone() {
         event.preventDefault()
         setDragOver(false)
         enqueue(Array.from(event.dataTransfer.files))
+        if (onClose) onClose()
       }}
-      className={`flex items-center justify-between gap-4 rounded-md border border-dashed px-5 py-4 transition-colors duration-fast ${
-        dragOver ? "border-accent bg-accent-wash" : "border-line-strong bg-surface"
+      className={`relative flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl border-2 border-dashed p-5 transition-all ${
+        dragOver ? "border-[#C49A3A] bg-[#FFF8E7]/50" : "border-[#E8E0D1] bg-[#FAF6ED]/40 hover:bg-[#FAF6ED]"
       }`}
     >
       <div className="flex items-center gap-3.5">
         <span
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border transition-colors duration-fast ${
-            dragOver ? "border-accent-line bg-surface text-accent" : "border-line bg-raise text-ink-3"
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors ${
+            dragOver ? "border-[#C49A3A] bg-[#FFF8E7] text-[#C49A3A]" : "border-[#E8E0D1] bg-white text-[#68768A]"
           }`}
           aria-hidden
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M8 11V3.5M8 3.5L5 6.5M8 3.5L11 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M2.5 12.5h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
+          <Upload size={18} />
         </span>
         <div>
-          <p className="text-md font-medium text-ink">{dragOver ? "Release to upload" : "Drop files to upload"}</p>
-          <p className="text-sm text-ink-2">Files go directly to your clouds. Files over 16 MiB stripe when two providers are connected.</p>
+          <p className="text-xs font-bold text-[#142B4A]">
+            {dragOver ? "Release to upload immediately" : "Drag and drop files here, or browse"}
+          </p>
+          <p className="text-2xs text-[#68768A] mt-0.5">
+            Files up to 5 GiB. Multi-cloud striping triggers automatically above 16 MiB.
+          </p>
         </div>
       </div>
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        className="sr-only"
-        aria-label="Select files to upload"
-        onChange={(event) => {
-          enqueue(Array.from(event.target.files ?? []))
-          event.target.value = ""
-        }}
-      />
-      <Button variant="secondary" size="md" onClick={() => inputRef.current?.click()}>
-        Select files
-      </Button>
+
+      <div className="flex items-center gap-2 shrink-0">
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          className="sr-only"
+          aria-label="Select files to upload"
+          onChange={(event) => {
+            enqueue(Array.from(event.target.files ?? []))
+            event.target.value = ""
+            if (onClose) onClose()
+          }}
+        />
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => inputRef.current?.click()}
+        >
+          Select Files
+        </Button>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close upload dropzone"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E8E0D1] bg-white text-[#68768A] hover:text-[#142B4A]"
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
     </div>
   )
 }
 
 function UploadQueue() {
   const { items, abort, clearFinished } = useUploads()
+
   return (
-    <Panel>
-      <PanelHeader
-        title="Upload queue"
-        actions={
-          <Button variant="ghost" size="sm" onClick={clearFinished}>
-            <X size={11} aria-hidden />
-            Clear finished
-          </Button>
-        }
-      />
-      <ul className="divide-y divide-line">
+    <div className="rounded-xl border border-[#E8E0D1] bg-white shadow-xs overflow-hidden">
+      <div className="flex items-center justify-between border-b border-[#E8E0D1] px-5 py-3 bg-[#FAF6ED]/40">
+        <span className="text-xs font-bold text-[#142B4A]">Upload Queue ({items.length})</span>
+        <button
+          type="button"
+          className="flex items-center gap-1 text-2xs font-semibold text-[#68768A] hover:text-[#142B4A]"
+          onClick={clearFinished}
+        >
+          <X size={11} aria-hidden />
+          <span>Clear finished</span>
+        </button>
+      </div>
+      <ul className="divide-y divide-[#E8E0D1]/60">
         {items.map((item) => (
-          <li key={item.id} className="flex items-center gap-4 px-4 py-3">
+          <li key={item.id} className="flex items-center gap-4 px-5 py-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-3">
-                <p className="truncate text-base text-ink">{item.name}</p>
-                <p className="shrink-0 font-mono text-sm text-ink-3 tnum">{formatBytes(item.size)}</p>
+                <p className="truncate text-xs font-semibold text-[#142B4A]">{item.name}</p>
+                <p className="shrink-0 font-mono text-2xs text-[#68768A] tnum">{formatBytes(item.size)}</p>
               </div>
               <div className="mt-1.5 flex items-center gap-3">
                 {item.status === "uploading" && item.progress !== null ? (
-                  <div className="h-1.5 w-full max-w-64 overflow-hidden rounded-full bg-line">
-                    <div className="h-full rounded-full bg-accent transition-[width] duration-base ease-out" style={{ width: `${item.progress}%` }} />
+                  <div className="h-1.5 w-full max-w-48 rounded-full bg-[#FAF6ED] overflow-hidden">
+                    <div className="h-full rounded-full bg-[#C49A3A] transition-all" style={{ width: `${item.progress}%` }} />
                   </div>
-                ) : item.status === "uploading" ? (
-                  <IndeterminateBar />
                 ) : null}
                 <QueueStatus item={item} />
               </div>
-              {item.error ? <p className="mt-1 text-sm text-bad">{item.error}</p> : null}
+              {item.error ? <p className="mt-1 text-2xs text-[#C43D4B]">{item.error}</p> : null}
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1">
-              <p className="font-mono text-2xs uppercase tracking-kicker text-ink-3">
+              <p className="font-mono text-2xs uppercase tracking-wider text-[#68768A]">
                 {item.destination ? providerName(item.destination.provider) : "routing…"}
               </p>
               {item.status === "uploading" || item.status === "queued" || item.status === "requesting" ? (
                 <button
                   type="button"
                   onClick={() => abort(item.id)}
-                  className="text-sm text-ink-3 transition-colors duration-fast hover:text-bad"
+                  className="text-2xs font-semibold text-[#C43D4B] hover:underline"
                 >
                   Cancel
                 </button>
@@ -535,14 +722,14 @@ function UploadQueue() {
           </li>
         ))}
       </ul>
-    </Panel>
+    </div>
   )
 }
 
 function QueueStatus({ item }: { item: ReturnType<typeof useUploads>["items"][number] }) {
   const labels: Record<string, string> = {
     queued: "Queued",
-    requesting: "Requesting slot…",
+    requesting: "Requesting URL…",
     uploading: item.progress !== null ? `Uploading ${item.progress}%` : "Uploading…",
     confirming: "Confirming…",
     done: "Completed",
@@ -551,12 +738,4 @@ function QueueStatus({ item }: { item: ReturnType<typeof useUploads>["items"][nu
   }
   const tone = item.status === "done" ? "ok" : item.status === "failed" ? "bad" : item.status === "cancelled" ? "neutral" : "busy"
   return <StatusBadge tone={tone}>{labels[item.status] ?? item.status}</StatusBadge>
-}
-
-function IndeterminateBar() {
-  return (
-    <div className="h-1.5 w-full max-w-64 overflow-hidden rounded-full bg-line">
-      <div className="animate-indeterminate h-full w-1/3 rounded-full bg-accent" />
-    </div>
-  )
 }

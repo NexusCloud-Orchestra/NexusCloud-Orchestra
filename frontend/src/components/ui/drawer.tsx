@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react"
 import type { ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { X } from "lucide-react"
+import { DIALOG_EXIT_MS, usePresence } from "../../hooks/use-presence"
 
 interface DrawerProps {
   open: boolean
@@ -16,6 +17,7 @@ interface DrawerProps {
 export function Drawer({ open, onClose, title, meta, children, footer }: DrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const previouslyFocused = useRef<HTMLElement | null>(null)
+  const { mounted, closing } = usePresence(open, DIALOG_EXIT_MS)
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -59,12 +61,12 @@ export function Drawer({ open, onClose, title, meta, children, footer }: DrawerP
     }
   }, [open, handleKeyDown])
 
-  if (!open) return null
+  if (!mounted) return null
 
   return createPortal(
     <div className="fixed inset-0 z-50" role="presentation">
       <div
-        className="animate-fade-in absolute inset-0 bg-deep/40 backdrop-blur-sm"
+        className={`absolute inset-0 bg-brand-ink/35 ${closing ? "nc-backdrop-exit" : "nc-backdrop-enter"}`}
         onClick={onClose}
         aria-hidden
       />
@@ -74,7 +76,7 @@ export function Drawer({ open, onClose, title, meta, children, footer }: DrawerP
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className="animate-slide-in-right absolute inset-y-0 right-0 flex w-full max-w-md flex-col border-l border-line bg-surface shadow-pop outline-none"
+        className={`absolute inset-y-0 right-0 flex w-full max-w-md flex-col border-l border-line bg-surface shadow-pop outline-none ${closing ? "nc-drawer-exit" : "nc-drawer-enter"}`}
       >
         <header className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
           <div className="min-w-0">

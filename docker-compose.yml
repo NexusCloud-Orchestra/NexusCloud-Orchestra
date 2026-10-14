@@ -44,7 +44,7 @@ services:
       - api
   worker:
     build: .
-    command: ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "-B", "--loglevel=info"]
+    command: ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "-B", "--loglevel=info", "-s", "/tmp/celerybeat-schedule"]
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://nexuscloud:${POSTGRES_PASSWORD}@postgres:5432/nexuscloud

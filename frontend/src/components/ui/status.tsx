@@ -1,52 +1,47 @@
-import { AlertTriangle, Check, CircleSlash, Loader2 } from "lucide-react"
+import { cn } from "../../lib/utils"
 
-export type StatusTone = "ok" | "warn" | "bad" | "neutral" | "busy"
-
-const TONE_CHIP: Record<StatusTone, string> = {
-  ok: "border-ok-line bg-ok-wash text-ok",
-  warn: "border-warn-line bg-warn-wash text-warn",
-  bad: "border-bad-line bg-bad-wash text-bad",
-  neutral: "border-line bg-raise text-ink-2",
-  busy: "border-accent-line bg-accent-wash text-accent-deep",
+/* Badge with explicit status + label (for files list, clouds etc) */
+const statusStyles: Record<string, string> = {
+  ok:      "bg-ok/10 text-ok border-ok/25",
+  warn:    "bg-warn/10 text-warn border-warn/25",
+  bad:     "bg-bad/10 text-bad border-bad/25",
+  neutral: "bg-raise text-ink-2 border-line",
+  brand:   "bg-brand/10 text-brand border-brand/25",
 }
 
-const TONE_ICON: Record<StatusTone, string> = {
-  ok: "bg-ok",
-  warn: "bg-warn",
-  bad: "bg-bad",
+const dotStyles: Record<string, string> = {
+  ok:      "bg-ok",
+  warn:    "bg-warn",
+  bad:     "bg-bad",
   neutral: "bg-ink-3",
-  busy: "bg-accent",
+  brand:   "bg-brand",
 }
 
-const ICONS: Record<StatusTone, { icon: typeof Check; label: string }> = {
-  ok: { icon: Check, label: "OK" },
-  warn: { icon: AlertTriangle, label: "Warning" },
-  bad: { icon: AlertTriangle, label: "Error" },
-  neutral: { icon: CircleSlash, label: "Inactive" },
-  busy: { icon: Loader2, label: "In progress" },
-}
-
-/**
- * Connection and operation status must never rely on color alone:
- * dot + icon + text.
- */
 export function StatusBadge({
+  status,
+  label,
   tone,
   children,
-  icon = true,
+  className,
 }: {
-  tone: StatusTone
-  children: string
-  icon?: boolean
+  status?: keyof typeof statusStyles
+  label?: string
+  tone?: string
+  children?: React.ReactNode
+  className?: string
 }) {
-  const { icon: Icon, label } = ICONS[tone]
+  const resolvedStatus = status ?? tone ?? "neutral"
+  const styles = statusStyles[resolvedStatus] ?? statusStyles.neutral
+  const dot = dotStyles[resolvedStatus] ?? dotStyles.neutral
+  const text = label ?? children
+
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-xs border px-1.5 py-0.5 text-2xs font-medium uppercase tracking-kicker ${TONE_CHIP[tone]}`}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${TONE_ICON[tone]}`} aria-hidden />
-      {icon ? <Icon size={10} strokeWidth={2.4} aria-label={label} className={tone === "busy" ? "animate-spin" : ""} /> : null}
-      {children}
+    <span className={cn("badge border", styles, className)}>
+      <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", dot)} />
+      {text}
     </span>
   )
 }
+
+/* Legacy alias */
+export { StatusBadge as StatusPill }

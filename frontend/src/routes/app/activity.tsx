@@ -1,111 +1,288 @@
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
+import {
+  Activity,
+  Cloud,
+  Download,
+  Key,
+  LogIn,
+  LogOut,
+  RefreshCw,
+  Search,
+  Shield,
+  Trash2,
+  Upload,
+} from "lucide-react"
+
 import { useAuditLogs } from "../../hooks/use-data"
-import { formatTime } from "../../lib/format"
+import { formatDateTime, formatRelative } from "../../lib/format"
 import { PageHeader } from "../../components/layout/shell"
 import { Panel, PanelHeader } from "../../components/ui/panel"
-import { EmptyState, ErrorState } from "../../components/ui/states"
+import { ErrorState, ListSkeleton } from "../../components/ui/states"
+import { Button } from "../../components/ui/button"
+import { Input } from "../../components/ui/field"
 
-const EVENT_LABELS: Record<string, { label: string; group: "files" | "clouds" | "account" }> = {
-  UPLOAD: { label: "Upload completed", group: "files" },
-  UPLOAD_REQUEST: { label: "Upload slot requested", group: "files" },
-  UPLOAD_CANCEL: { label: "Upload cancelled", group: "files" },
-  DOWNLOAD: { label: "Download issued", group: "files" },
-  DELETE: { label: "File deleted", group: "files" },
-  CONNECT: { label: "Cloud connected", group: "clouds" },
-  DISCONNECT: { label: "Cloud disconnected", group: "clouds" },
-  LOGIN: { label: "Signed in", group: "account" },
-  LOGOUT: { label: "Signed out", group: "account" },
-  REGISTER: { label: "Account created", group: "account" },
-  PASSWORD_CHANGE: { label: "Password changed", group: "account" },
-  PASSWORD_RESET: { label: "Password reset", group: "account" },
-  PLAN_CHANGE: { label: "Plan changed", group: "account" },
+interface ActionMeta {
+  label: string
+  group: "files" | "clouds" | "account"
+  tone: "ok" | "neutral" | "warn" | "danger"
+  icon: typeof Activity
+}
+
+const EVENT_METAS: Record<string, ActionMeta> = {
+  UPLOAD: { label: "File Upload Completed", group: "files", tone: "ok", icon: Upload },
+  UPLOAD_REQUEST: { label: "Upload Slot Reserved", group: "files", tone: "neutral", icon: Upload },
+  UPLOAD_CANCEL: { label: "Upload Cancelled", group: "files", tone: "warn", icon: Upload },
+  DOWNLOAD: { label: "Download URL Issued", group: "files", tone: "neutral", icon: Download },
+  DELETE: { label: "File Deleted", group: "files", tone: "danger", icon: Trash2 },
+  CONNECT: { label: "Cloud Provider Connected", group: "clouds", tone: "ok", icon: Cloud },
+  DISCONNECT: { label: "Cloud Provider Disconnected", group: "clouds", tone: "warn", icon: Cloud },
+  LOGIN: { label: "User Signed In", group: "account", tone: "neutral", icon: LogIn },
+  LOGOUT: { label: "User Signed Out", group: "account", tone: "neutral", icon: LogOut },
+  REGISTER: { label: "Account Registered", group: "account", tone: "ok", icon: Shield },
+  PASSWORD_CHANGE: { label: "Password Changed", group: "account", tone: "warn", icon: Key },
+  PASSWORD_RESET: { label: "Password Reset Requested", group: "account", tone: "warn", icon: Key },
+  PLAN_CHANGE: { label: "Subscription Plan Updated", group: "account", tone: "neutral", icon: Activity },
 }
 
 export function ActivityPage() {
   const audit = useAuditLogs()
+  const [filter, setFilter] = useState<"all" | "files" | "clouds" | "account">("all")
+  const [search, setSearch] = useState("")
 
-  const groups = useMemo<Array<[string, NonNullable<typeof audit.data>]>>(() => {
-    const byDay = new Map<string, NonNullable<typeof audit.data>>()
-    for (const event of audit.data ?? []) {
-      const day = formatDateDay(event.created_at)
-      const bucket = byDay.get(day) ?? []
-      bucket.push(event)
-      byDay.set(day, bucket)
-    }
-    return [...byDay.entries()]
-  }, [audit.data]) // eslint-disable-line react-hooks/exhaustive-deps -- audit.data is the only input used
+  const filteredData = useMemo(() => {
+    if (!audit.data) return []
+    return audit.data.filter((e) => {
+      const meta = EVENT_METAS[e.action] ?? { group: "account" }
+      const matchesGroup = filter === "all" || meta.group === filter
+      if (!matchesGroup) return false
+
+      if (!search.trim()) return true
+      const q = search.toLowerCase()
+      return (
+        e.action.toLowerCase().includes(q) ||
+        (e.resource_id && e.resource_id.toLowerCase().includes(q)) ||
+        (e.ip_address && e.ip_address.toLowerCase().includes(q)) ||
+        (meta && 'label' in meta && meta.label.toLowerCase().includes(q))
+      )
+    })
+  }, [audit.data, filter, search])
+
+  const totalCount = audit.data?.length ?? 0
+  const fileEventsCount = audit.data?.filter((e) => (EVENT_METAS[e.action]?.group ?? "account") === "files").length ?? 0
+  const cloudEventsCount = audit.data?.filter((e) => (EVENT_METAS[e.action]?.group ?? "account") === "clouds").length ?? 0
+  const securityEventsCount = audit.data?.filter((e) => (EVENT_METAS[e.action]?.group ?? "account") === "account").length ?? 0
 
   return (
     <div className="animate-fade-rise flex flex-col gap-6">
       <PageHeader
-        kicker="Workspace history"
-        title="Activity"
-        description="File operations, cloud connections, and account events. Your latest 100 events, newest first."
+        kicker="Audit Trail"
+        title="Activity Log"
+        description="Immutable audit ledger recording file transactions, cloud connections, and security events. Up to 100 recent events."
+        actions={
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void audit.refetch()}
+            loading={audit.isFetching}
+          >
+            <RefreshCw size={12} className="mr-1.5" />
+            Refresh
+          </Button>
+        }
       />
 
-      {audit.isLoading ? (
-        <Panel>
-          <div className="px-4 py-6">
-            <div className="flex flex-col gap-3" role="status" aria-label="Loading activity">
-              {Array.from({ length: 5 }, (_, index) => (
-                <div key={index} className="h-10 animate-pulse-soft rounded-sm bg-line" />
-              ))}
-            </div>
+      {/* KPI Stats Strip */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="nc-card p-4">
+          <p className="font-mono text-2xs uppercase tracking-wider text-muted-slate font-semibold">Total Logged</p>
+          <p className="mt-1 font-display text-2xl font-bold text-regal-navy tnum">{totalCount}</p>
         </div>
-        </Panel>
-      ) : audit.isError ? (
-        <Panel>
-          <ErrorState error={audit.error} onRetry={() => void audit.refetch()} />
-        </Panel>
-      ) : groups.length === 0 ? (
-        <Panel>
-          <EmptyState
-            title="No activity yet"
-            body="Operations will appear here as they occur — uploads, downloads, cloud connections and account changes."
-          />
-        </Panel>
-      ) : (
-        groups.map(([day, events]) => (
-          <section key={day} className="grid grid-cols-[80px_1fr] gap-0 sm:grid-cols-[120px_1fr]">
-            <div className="pt-1">
-              <p className="label-caps sticky top-16">{day}</p>
+        <div className="nc-card p-4">
+          <p className="font-mono text-2xs uppercase tracking-wider text-muted-slate font-semibold">File Operations</p>
+          <p className="mt-1 font-display text-2xl font-bold text-regal-navy tnum">{fileEventsCount}</p>
+        </div>
+        <div className="nc-card p-4">
+          <p className="font-mono text-2xs uppercase tracking-wider text-muted-slate font-semibold">Cloud Mesh Events</p>
+          <p className="mt-1 font-display text-2xl font-bold text-regal-navy tnum">{cloudEventsCount}</p>
+        </div>
+        <div className="nc-card p-4">
+          <p className="font-mono text-2xs uppercase tracking-wider text-muted-slate font-semibold">Security &amp; Auth</p>
+          <p className="mt-1 font-display text-2xl font-bold text-regal-navy tnum">{securityEventsCount}</p>
+        </div>
+      </div>
+
+      {/* Filters and Search Bar */}
+      <Panel>
+        <div className="p-3.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border bg-ivory/40">
+          {/* Category Filter Chips with Live Badge Counts */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[
+              { id: "all", label: "All Events", count: totalCount },
+              { id: "files", label: "File Mesh", count: fileEventsCount },
+              { id: "clouds", label: "Cloud Mesh", count: cloudEventsCount },
+              { id: "account", label: "Security & Auth", count: securityEventsCount },
+            ].map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setFilter(cat.id as typeof filter)}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                  filter === cat.id
+                    ? "bg-regal-navy text-white shadow-xs"
+                    : "border border-border bg-white text-muted-slate hover:bg-raise hover:text-ink"
+                }`}
+              >
+                <span>{cat.label}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.2 font-mono text-[10px] font-bold ${
+                    filter === cat.id ? "bg-white/20 text-white" : "bg-corn-silk text-regal-navy"
+                  }`}
+                >
+                  {cat.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Search Box & Clear */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-slate" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Filter by action or IP…"
+                className="pl-8.5 h-8.5 text-xs"
+              />
             </div>
-            <Panel>
-              <PanelHeader title={`${events.length} events`} />
-              <ol className="px-4 py-3">
-                {events.map((event, index) => {
-                  const meta = EVENT_LABELS[event.action] ?? { label: event.action, group: "account" as const }
+            {search ? (
+              <Button variant="ghost" size="sm" onClick={() => setSearch("")} className="text-2xs font-mono h-8.5 px-2">
+                Clear
+              </Button>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Audit Log Table */}
+        <PanelHeader
+          title="Audit Ledger"
+          meta={`${filteredData.length} event${filteredData.length === 1 ? "" : "s"} shown`}
+        />
+
+        {audit.isLoading ? (
+          <div className="p-5">
+            <ListSkeleton rows={4} />
+          </div>
+        ) : audit.isError ? (
+          <ErrorState error={audit.error} onRetry={() => void audit.refetch()} />
+        ) : filteredData.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-border bg-ivory/60 font-mono text-2xs uppercase tracking-wider text-muted-slate">
+                <tr>
+                  <th className="py-2.5 pl-5 pr-3">Event</th>
+                  <th className="py-2.5 px-3">Resource Target</th>
+                  <th className="py-2.5 px-3">Network IP</th>
+                  <th className="py-2.5 px-3">Client Agent</th>
+                  <th className="py-2.5 px-3 text-right pr-5">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border font-sans">
+                {filteredData.map((event) => {
+                  const meta = EVENT_METAS[event.action] ?? {
+                    label: event.action,
+                    group: "account" as const,
+                    tone: "neutral" as const,
+                    icon: Activity,
+                  }
+                  const Icon = meta.icon
+
                   return (
-                    <li key={event.id} className="relative flex gap-3.5 pb-4 last:pb-0">
-                      {index < events.length - 1 ? (
-                        <span className="absolute left-[3.5px] top-3.5 h-full w-px bg-line" aria-hidden />
-                      ) : null}
-                      <span className="relative mt-1 h-2 w-2 shrink-0 rounded-full border border-line-strong bg-surface" aria-hidden />
-                      <div className="min-w-0 flex-1 border-b border-line/60 pb-3.5 last:border-b-0">
-                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
-                          <p className="text-base font-medium text-ink">{meta.label}</p>
-                          <p className="font-mono text-2xs text-ink-3 tnum">{formatTime(event.created_at)}</p>
+                    <tr key={event.id} className="transition-colors hover:bg-raise">
+                      <td className="py-3 pl-5 pr-3">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
+                              meta.tone === "ok"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : meta.tone === "danger"
+                                  ? "bg-danger/10 text-danger border border-danger/20"
+                                  : meta.tone === "warn"
+                                    ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                    : "bg-surface text-regal-navy border border-border"
+                            }`}
+                          >
+                            <Icon size={14} />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-regal-navy text-xs sm:text-sm">{meta.label}</p>
+                            <p className="font-mono text-2xs text-muted-slate uppercase">{event.action}</p>
+                          </div>
                         </div>
-                        <p className="mt-0.5 font-mono text-2xs text-ink-3">
-                          {event.action}
-                          {event.resource_id ? ` · ${event.resource_id.slice(0, 8)}` : ""}
-                          {event.ip_address ? ` · ${event.ip_address}` : ""}
-                        </p>
-                      </div>
-                    </li>
+                      </td>
+
+                      <td className="py-3 px-3 font-mono text-xs text-slate-text">
+                        {event.resource_id ? (
+                          <span className="rounded bg-ivory border border-border px-1.5 py-0.5 text-2xs">
+                            {event.resource_id.slice(0, 12)}…
+                          </span>
+                        ) : (
+                          <span className="text-muted-slate">—</span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-3 font-mono text-xs text-slate-text">
+                        {event.ip_address || "—"}
+                      </td>
+
+                      <td className="py-3 px-3 text-2xs text-muted-slate max-w-[200px] truncate" title={event.user_agent ?? ""}>
+                        {cleanUserAgent(event.user_agent)}
+                      </td>
+
+                      <td className="py-3 px-3 pr-5 text-right font-mono text-xs text-slate-text">
+                        <div>{formatDateTime(event.created_at)}</div>
+                        <div className="text-2xs text-muted-slate font-sans">{formatRelative(event.created_at)}</div>
+                      </td>
+                    </tr>
                   )
                 })}
-              </ol>
-            </Panel>
-          </section>
-        ))
-      )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-8 text-center flex flex-col items-center">
+            <div className="h-10 w-10 rounded-xl bg-ivory text-muted-slate flex items-center justify-center mb-2">
+              <Activity size={20} />
+            </div>
+            <p className="font-semibold text-regal-navy text-sm">No events match criteria</p>
+            <p className="text-xs text-muted-slate mt-0.5 mb-3">
+              {search ? `No activity found matching "${search}"` : "No activity recorded in this category yet."}
+            </p>
+            {(search || filter !== "all") && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearch("")
+                  setFilter("all")
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </div>
+        )}
+      </Panel>
     </div>
   )
 }
 
-function formatDateDay(iso: string): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return "—"
-  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(date)
+function cleanUserAgent(ua: string | null): string {
+  if (!ua) return "—"
+  if (ua.includes("Chrome")) return "Chrome Browser"
+  if (ua.includes("Firefox")) return "Firefox Browser"
+  if (ua.includes("Safari")) return "Safari Browser"
+  if (ua.includes("Edge")) return "Edge Browser"
+  if (ua.includes("curl") || ua.includes("python")) return "API Client"
+  return ua.slice(0, 24)
 }

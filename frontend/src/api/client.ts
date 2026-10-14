@@ -38,7 +38,7 @@ export class ApiError extends Error {
   }
 }
 
-const BASE_URL: string = import.meta.env.VITE_API_URL ?? "http://localhost:7575"
+const BASE_URL: string = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:7575"
 const TIMEOUT_MS = 30_000
 
 // ---------------------------------------------------------------------------
@@ -63,7 +63,7 @@ export function setAccessToken(token: string | null): void {
 
 export function readPersistedRefreshToken(): string | null {
   try {
-    return sessionStorage.getItem(REFRESH_KEY)
+    return sessionStorage.getItem(REFRESH_KEY) ?? localStorage.getItem(REFRESH_KEY)
   } catch {
     return null
   }
@@ -72,6 +72,7 @@ export function readPersistedRefreshToken(): string | null {
 export function persistRefreshToken(token: string): void {
   try {
     sessionStorage.setItem(REFRESH_KEY, token)
+    localStorage.setItem(REFRESH_KEY, token)
   } catch {
     /* private mode: session simply ends with the page */
   }
@@ -81,6 +82,7 @@ export function clearPersistedSession(): void {
   accessToken = null
   try {
     sessionStorage.removeItem(REFRESH_KEY)
+    localStorage.removeItem(REFRESH_KEY)
   } catch {
     /* ignore */
   }

@@ -1,34 +1,34 @@
-import type { ReactNode } from "react"
+import { cn } from "../../lib/utils"
 
-/**
- * A bordered surface group — used only where a resource or state is genuinely
- * isolated, per the design rules. Most structure comes from hairlines and
- * whitespace, not boxes.
- */
-export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`glass rounded-md border border-line ${className}`}>{children}</section>
+interface PanelHeaderProps {
+  title?: React.ReactNode
+  meta?: React.ReactNode
+  actions?: React.ReactNode
+  children?: React.ReactNode
+  className?: string
 }
 
-export function PanelHeader({
-  title,
-  meta,
-  actions,
-}: {
-  title: ReactNode
-  meta?: ReactNode
-  actions?: ReactNode
-}) {
+export function Panel({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
-      <div className="flex min-w-0 flex-wrap items-baseline gap-3">
-        <h2 className="text-base font-semibold text-ink">{title}</h2>
-        {meta ? <div className="truncate font-mono text-2xs text-ink-3 tnum">{meta}</div> : null}
-      </div>
-      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
-    </header>
+    <div className={cn("nc-card overflow-hidden", className)} {...props}>
+      {children}
+    </div>
   )
 }
 
-export function Divider({ className = "" }: { className?: string }) {
-  return <div role="presentation" className={`h-px bg-line ${className}`} />
+export function PanelHeader({ title, meta, actions, children, className }: PanelHeaderProps) {
+  return (
+    <div className={cn("flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3.5", className)}>
+      <div className="flex items-center gap-3 min-w-0">
+        {title && <span className="font-semibold text-sm text-ink truncate">{title}</span>}
+        {meta && <span className="font-mono text-2xs text-ink-3">{meta}</span>}
+        {children}
+      </div>
+      {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+    </div>
+  )
+}
+
+export function Divider({ className }: { className?: string }) {
+  return <div className={cn("h-px bg-line", className)} />
 }

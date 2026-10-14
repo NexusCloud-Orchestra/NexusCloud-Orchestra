@@ -2,6 +2,7 @@ import base from "../../tailwind.config.ts"
 
 const colors = {
   night: "background", deep: "brand-strong", paper: "background",
+  "brand-ink": "brand-ink",
   surface: "surface", raise: "surface-muted", line: "border",
   "line-strong": "border-strong", ink: "text-primary",
   "ink-2": "text-secondary", "ink-3": "text-muted",
@@ -11,6 +12,8 @@ const colors = {
   "ok-line": "success-border", warn: "warning", "warn-wash": "warning-soft",
   "warn-line": "warning-border", bad: "danger", "bad-wash": "danger-soft",
   "bad-line": "danger-border", brand: "brand-primary", gold: "accent-gold",
+  "royal-gold": "accent-gold", sand: "divider-sand",
+  "donut-track": "donut-track",
 }
 
 export default {

@@ -5,6 +5,7 @@ import { Cloud, CircuitBoard, FolderOpen, Gauge, LayoutDashboard, Activity, Sett
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "../../state/query"
 import { formatBytes, fileExtension } from "../../lib/format"
+import { DIALOG_EXIT_MS, usePresence } from "../../hooks/use-presence"
 import { ProviderMark } from "../ui/provider-mark"
 import type { FileRecord } from "../../types/api"
 
@@ -24,6 +25,7 @@ interface Command {
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [query, setQuery] = useState("")
   const [cursor, setCursor] = useState(0)
+  const { mounted, closing } = usePresence(open, DIALOG_EXIT_MS)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const listRef = useRef<HTMLDivElement>(null)
@@ -118,18 +120,18 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     listRef.current?.querySelector<HTMLElement>('[data-active="true"]')?.scrollIntoView({ block: "nearest" })
   }, [cursor])
 
-  if (!open) return null
+  if (!mounted) return null
 
   let lastSection = ""
 
   return createPortal(
     <div className="fixed inset-0 z-[65] flex items-start justify-center px-4 pt-[12vh]" role="presentation">
-      <div className="animate-fade-in absolute inset-0 bg-deep/40 backdrop-blur-sm" onClick={onClose} aria-hidden />
+      <div className={`absolute inset-0 bg-brand-ink/35 ${closing ? "nc-backdrop-exit" : "nc-backdrop-enter"}`} onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
-        className="animate-scale-in relative w-full max-w-lg overflow-hidden rounded-md border border-line bg-surface shadow-pop"
+        className={`relative w-full max-w-lg overflow-hidden rounded-xl border border-line bg-surface shadow-pop ${closing ? "nc-dialog-exit" : "nc-dialog-enter"}`}
       >
         <div className="border-b border-line px-3.5 py-2.5">
           <input
