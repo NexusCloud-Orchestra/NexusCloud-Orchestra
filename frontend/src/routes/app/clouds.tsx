@@ -4,10 +4,10 @@ import { useQueryClient } from "@tanstack/react-query"
 import {
   CheckCircle2,
   ChevronRight,
+  Database,
   Eye,
   EyeOff,
   HardDrive,
-  Lock,
   Plus,
   Server,
   ShieldCheck,
@@ -21,14 +21,42 @@ import { useToast } from "../../state/toast"
 import { queryKeys } from "../../state/query"
 import { formatBytes } from "../../lib/format"
 import { PROVIDER_IDS, PROVIDER_META } from "../../lib/providers"
-import { PageHeader } from "../../components/layout/shell"
 import { Panel, PanelHeader, Divider } from "../../components/ui/panel"
 import { ErrorState, ListSkeleton } from "../../components/ui/states"
 import { Button } from "../../components/ui/button"
 import { Field, Input, TextArea, useFieldId } from "../../components/ui/field"
 import { ConfirmModal } from "../../components/ui/modal"
 import { ProviderMark } from "../../components/ui/provider-mark"
+import { motion, type Variants } from "framer-motion"
+import {
+  SpotlightCard,
+  BorderBeam,
+  ShinyText,
+  PulsingStatusDot,
+} from "../../components/ui/effects"
 import type { Connection, ProviderId } from "../../types/api"
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+    },
+  },
+}
+
+const sectionVariants: Variants = {
+  hidden: { opacity: 0, y: 14 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.38,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
+}
 
 export function CloudsPage() {
   const [params, setParams] = useSearchParams()
@@ -44,85 +72,125 @@ export function CloudsPage() {
   const totalLimit = quota.data?.total_limit_bytes ?? 0
   const totalUsed = (quota.data?.total_used_bytes ?? 0) + (quota.data?.total_reserved_bytes ?? 0)
 
-  return (
-    <div className="animate-fade-rise flex flex-col gap-6">
-      <PageHeader
-        kicker="Infrastructure"
-        title="Cloud Providers"
-        description="Bring your own cloud storage. Credentials are encrypted at rest with AES-256-GCM and never displayed again."
-        actions={
-          <Button
-            size="md"
-            variant={connecting ? "secondary" : "gold"}
-            onClick={() => {
-              if (connecting) {
-                setParams({}, { replace: true })
-              } else {
-                setParams({ connect: "1" }, { replace: true })
-              }
-            }}
-            className="shadow-sm font-bold"
-          >
-            {connecting ? (
-              "Close Wizard"
-            ) : (
-              <>
-                <Plus size={14} className="mr-1.5" aria-hidden />
-                Connect Cloud Provider
-              </>
-            )}
-          </Button>
-        }
-      />
+  const quickStartProviders: Array<{ id: ProviderId; name: string; desc: string; marker: string }> = [
+    { id: "aws", name: "AWS S3", desc: "Standard BYOC", marker: "#D97706" },
+    { id: "gcp", name: "Google Cloud", desc: "GCS Multi-Region", marker: "#1A73E8" },
+    { id: "azure", name: "Azure Blob", desc: "Enterprise Tier", marker: "#0369A1" },
+    { id: "r2", name: "Cloudflare R2", desc: "Zero Egress Free", marker: "#C2570F" },
+  ]
 
-      {/* Infrastructure KPI Summary */}
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="nc-card p-4.5 flex items-center gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-regal-navy text-royal-gold shadow-2xs">
-            <Server size={19} />
+  return (
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="w-full flex flex-col gap-4.5"
+    >
+      {/* 1. Page Heading and Connect Action */}
+      <motion.div variants={sectionVariants} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-1">
+        <div>
+          <div className="flex items-center gap-2">
+            <PulsingStatusDot color="gold" size="sm" />
+            <span className="font-mono text-xs font-bold tracking-[0.16em] uppercase text-[#A77B26]">
+              INFRASTRUCTURE
+            </span>
           </div>
-          <div>
-            <p className="font-mono text-2xs uppercase tracking-wider text-muted-slate font-semibold">Active Connections</p>
-            <p className="font-palatino text-2xl font-bold text-regal-navy tnum">
+          <ShinyText className="font-palatino text-3xl sm:text-[34px] font-bold text-[#142B4A] tracking-tight mt-1 leading-tight">
+            Cloud Providers
+          </ShinyText>
+          <p className="font-alora text-sm sm:text-base text-[#68768A] mt-1.5 leading-relaxed max-w-2xl">
+            Bring your own cloud storage. Credentials are encrypted at rest with AES-256-GCM and never displayed again.
+          </p>
+        </div>
+
+        <motion.button
+          type="button"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => {
+            if (connecting) {
+              setParams({}, { replace: true })
+            } else {
+              setParams({ connect: "1" }, { replace: true })
+            }
+          }}
+          className="relative overflow-hidden rounded-full px-6 h-10 bg-[#C49A3A] hover:bg-[#A77B26] text-white font-bold text-sm shadow-xs transition-all flex items-center gap-2 shrink-0 whitespace-nowrap self-start sm:self-center cursor-pointer"
+        >
+          {!connecting && <BorderBeam size={70} duration={6} colorFrom="#FFFFFF" colorTo="#F4DFC8" borderWidth={2} />}
+          {connecting ? (
+            "Close Wizard"
+          ) : (
+            <>
+              <Plus size={15} strokeWidth={2.5} aria-hidden />
+              <span>Connect Cloud Provider</span>
+            </>
+          )}
+        </motion.button>
+      </motion.div>
+
+      {/* 2. Four Summary Metric Cards */}
+      <motion.div variants={sectionVariants} className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        {/* KPI 1: Active Connections */}
+        <SpotlightCard className="rounded-xl border border-[#E8E0D1] bg-white px-4.5 py-4 shadow-2xs flex items-center gap-3.5 min-h-[86px] transition-all hover:border-[#C49A3A]/50 hover:shadow-xs group">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-800 border border-sky-200/70 shadow-2xs group-hover:scale-105 transition-transform">
+            <Database size={16} strokeWidth={2.2} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#68768A]">
+              ACTIVE CONNECTIONS
+            </p>
+            <p className="font-palatino text-xl sm:text-[22px] font-bold text-[#142B4A] tnum leading-tight mt-0.5 truncate">
               {connections.isLoading ? "—" : `${activeCount} Cloud${activeCount === 1 ? "" : "s"}`}
             </p>
           </div>
-        </div>
+        </SpotlightCard>
 
-        <div className="nc-card p-4.5 flex items-center gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-corn-silk text-regal-navy shadow-2xs">
-            <HardDrive size={19} />
+        {/* KPI 2: Allocated Storage */}
+        <SpotlightCard className="rounded-xl border border-[#E8E0D1] bg-white px-4.5 py-4 shadow-2xs flex items-center gap-3.5 min-h-[86px] transition-all hover:border-[#C49A3A]/50 hover:shadow-xs group">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FFF8E7] text-[#C49A3A] border border-[#C49A3A]/35 shadow-2xs group-hover:scale-105 transition-transform">
+            <HardDrive size={16} strokeWidth={2.2} />
           </div>
-          <div>
-            <p className="font-mono text-2xs uppercase tracking-wider text-muted-slate font-semibold">Allocated Storage</p>
-            <p className="font-palatino text-2xl font-bold text-regal-navy tnum">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#68768A]">
+              ALLOCATED STORAGE
+            </p>
+            <p className="font-palatino text-xl sm:text-[22px] font-bold text-[#142B4A] tnum leading-tight mt-0.5 truncate">
               {quota.isLoading ? "—" : `${formatBytes(totalUsed)} / ${formatBytes(totalLimit)}`}
             </p>
           </div>
-        </div>
+        </SpotlightCard>
 
-        <div className="nc-card p-4.5 flex items-center gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 shadow-2xs">
-            <Lock size={19} />
+        {/* KPI 3: Vault Encryption */}
+        <SpotlightCard className="rounded-xl border border-[#E8E0D1] bg-white px-4.5 py-4 shadow-2xs flex items-center gap-3.5 min-h-[86px] transition-all hover:border-[#C49A3A]/50 hover:shadow-xs group">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/70 shadow-2xs group-hover:scale-105 transition-transform">
+            <ShieldCheck size={16} strokeWidth={2.2} />
           </div>
-          <div>
-            <p className="font-mono text-2xs uppercase tracking-wider text-muted-slate font-semibold">Vault Encryption</p>
-            <p className="font-palatino text-xl font-bold text-emerald-800">AES-256-GCM</p>
-          </div>
-        </div>
-
-        <div className="nc-card p-4.5 flex items-center gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 shadow-2xs">
-            <Zap size={19} />
-          </div>
-          <div>
-            <p className="font-mono text-2xs uppercase tracking-wider text-muted-slate font-semibold">Catalog Support</p>
-            <p className="font-palatino text-2xl font-bold text-regal-navy tnum">
-              {PROVIDER_IDS.length} Providers
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#68768A]">
+              VAULT ENCRYPTION
+            </p>
+            <p className="font-palatino text-xl sm:text-[22px] font-bold text-[#142B4A] tnum leading-tight mt-0.5 truncate flex items-center gap-2">
+              <span>AES-256-GCM</span>
+              <PulsingStatusDot color="emerald" size="sm" />
             </p>
           </div>
-        </div>
-      </div>
+        </SpotlightCard>
+
+        {/* KPI 4: Catalog Support */}
+        <SpotlightCard className="rounded-xl border border-[#E8E0D1] bg-white px-4.5 py-4 shadow-2xs flex items-center gap-3.5 min-h-[86px] transition-all hover:border-[#C49A3A]/50 hover:shadow-xs group">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-800 border border-amber-200/70 shadow-2xs group-hover:scale-105 transition-transform">
+            <Zap size={16} strokeWidth={2.2} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#68768A]">
+              CATALOG SUPPORT
+            </p>
+            <p className="font-palatino text-xl sm:text-[22px] font-bold text-[#142B4A] tnum leading-tight mt-0.5 truncate">
+              8 Providers
+            </p>
+          </div>
+        </SpotlightCard>
+      </motion.div>
 
       {/* Connect Wizard Modal/Drawer when active */}
       {connecting ? (
@@ -132,31 +200,37 @@ export function CloudsPage() {
         />
       ) : null}
 
-      {/* Connected Clouds List */}
-      <Panel>
-        <PanelHeader
-          title="Connected Storage Accounts"
-          meta={connections.data ? `${connections.data.length} active` : undefined}
-          actions={
-            !connecting ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setParams({ connect: "1" }, { replace: true })}
-              >
-                <Plus size={12} className="mr-1" /> Add account
-              </Button>
-            ) : null
-          }
-        />
+      {/* 3. Connected Storage Accounts Container */}
+      <div className="rounded-2xl border border-[#E8E0D1] bg-white shadow-2xs overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-3.5 border-b border-[#E8E0D1] bg-white">
+          <div className="flex items-baseline gap-2.5">
+            <h2 className="font-palatino text-base sm:text-lg font-bold text-[#142B4A]">
+              Connected Storage Accounts
+            </h2>
+            <span className="font-mono text-xs font-semibold text-[#68768A]">
+              {connections.data ? `${connections.data.length} active` : "0 active"}
+            </span>
+          </div>
+          {!connecting ? (
+            <button
+              type="button"
+              onClick={() => setParams({ connect: "1" }, { replace: true })}
+              className="inline-flex items-center gap-1.5 font-alora text-xs font-bold text-[#142B4A] hover:text-[#C49A3A] transition-colors cursor-pointer"
+            >
+              <Plus size={14} strokeWidth={2.5} />
+              <span>Add account</span>
+            </button>
+          ) : null}
+        </div>
+
         {connections.isLoading ? (
-          <div className="p-5">
+          <div className="p-6">
             <ListSkeleton rows={3} />
           </div>
         ) : connections.isError ? (
           <ErrorState error={connections.error} onRetry={() => void connections.refetch()} />
         ) : connections.data && connections.data.length > 0 ? (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-[#E8E0D1]">
             {connections.data.map((connection) => (
               <ConnectionRow
                 key={connection.id}
@@ -167,32 +241,133 @@ export function CloudsPage() {
             ))}
           </ul>
         ) : (
-          <div className="p-8 text-center flex flex-col items-center">
-            <div className="h-12 w-12 rounded-xl bg-corn-silk text-regal-navy flex items-center justify-center mb-3">
-              <Server size={22} />
+          <div className="p-6 sm:p-7">
+            {/* Inset Onboarding Surface matching Screenshot */}
+            <div className="rounded-2xl border border-[#E8E0D1]/80 bg-[#FAF6ED]/35 p-6 sm:p-8">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                {/* Left Column: Context, Value Proposition & CTA */}
+                <div className="lg:col-span-7 flex flex-col gap-3.5 text-left">
+                  <div className="inline-flex items-center gap-2 self-start rounded-full bg-[#FFF8E7] border border-[#C49A3A]/40 px-3.5 py-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#C49A3A]" />
+                    <span className="font-mono text-xs font-bold tracking-wider text-[#A77B26] uppercase">
+                      ZERO-TRUST CLOUD MESH
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="font-palatino text-2xl sm:text-[28px] font-bold text-[#142B4A] leading-snug">
+                      No Storage Accounts Connected Yet
+                    </h3>
+                    <p className="font-alora text-sm text-[#68768A] mt-2 leading-relaxed max-w-xl">
+                      NexusCloud turns individual cloud buckets into a unified, high-speed virtual storage mesh. Connect your AWS S3, Google Cloud, Azure, Cloudflare R2, or private storage to start uploading with AES-256-GCM encryption.
+                    </p>
+                  </div>
+
+                  {/* 4 Benefit Items in 2x2 Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <div className="flex items-start gap-2.5">
+                      <CheckCircle2 size={17} className="text-[#168568] shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-palatino text-sm font-bold text-[#142B4A]">Smart Egress Routing</p>
+                        <p className="font-alora text-xs text-[#68768A] mt-0.5 leading-snug">
+                          Automatically shifts traffic to zero-egress providers.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <CheckCircle2 size={17} className="text-[#168568] shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-palatino text-sm font-bold text-[#142B4A]">Client-Side Vault</p>
+                        <p className="font-alora text-xs text-[#68768A] mt-0.5 leading-snug">
+                          Credentials encrypted at rest and never shared.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <CheckCircle2 size={17} className="text-[#168568] shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-palatino text-sm font-bold text-[#142B4A]">Unified Virtual FS</p>
+                        <p className="font-alora text-xs text-[#68768A] mt-0.5 leading-snug">
+                          Seamless cross-cloud file browsing and quota tracking.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <CheckCircle2 size={17} className="text-[#168568] shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-palatino text-sm font-bold text-[#142B4A]">Zero Vendor Lock-In</p>
+                        <p className="font-alora text-xs text-[#68768A] mt-0.5 leading-snug">
+                          Your buckets remain yours; disconnect anytime.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setParams({ connect: "1" }, { replace: true })}
+                      className="inline-flex items-center gap-2 rounded-full bg-[#C49A3A] hover:bg-[#A77B26] text-white px-6 h-11 text-sm font-bold shadow-xs transition-all active:scale-[0.98] cursor-pointer"
+                    >
+                      <Plus size={16} strokeWidth={2.5} />
+                      <span>Connect First Cloud Account</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right Column: Quick-Start Provider Selector Grid */}
+                <div className="lg:col-span-5 flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between pb-1">
+                    <p className="font-mono text-xs font-bold uppercase tracking-wider text-[#68768A]">
+                      QUICK-START CONNECT
+                    </p>
+                    <span className="font-mono text-xs font-bold text-[#A77B26]">
+                      1-Click Wizard
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {quickStartProviders.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setParams({ connect: "1", provider: item.id }, { replace: true })}
+                        className="flex items-center justify-between p-4 rounded-xl border border-[#E8E0D1] bg-white text-left transition-all hover:border-[#C49A3A] hover:shadow-xs group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span
+                            className="h-3.5 w-3.5 rounded-xs shrink-0 shadow-2xs"
+                            style={{ backgroundColor: item.marker }}
+                            aria-hidden
+                          />
+                          <div>
+                            <p className="font-palatino text-sm font-bold text-[#142B4A]">{item.name}</p>
+                            <p className="font-alora text-xs text-[#68768A] mt-0.5">{item.desc}</p>
+                          </div>
+                        </div>
+                        <ChevronRight size={15} className="text-[#68768A] group-hover:text-[#C49A3A] transition-transform group-hover:translate-x-0.5" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
-            <h3 className="font-semibold text-regal-navy text-base">No clouds connected yet</h3>
-            <p className="text-muted-slate text-sm max-w-md mt-1 mb-4">
-              Connect your first S3, GCS, Azure, R2, or B2 bucket. Your credentials stay encrypted and files are routed automatically.
-            </p>
-            <Button
-              variant="gold"
-              size="sm"
-              onClick={() => setParams({ connect: "1" }, { replace: true })}
-            >
-              <Plus size={13} className="mr-1" /> Connect your first cloud
-            </Button>
           </div>
         )}
-      </Panel>
+      </div>
 
-      {/* Supported Cloud Catalog */}
-      <Panel>
-        <PanelHeader
-          title="Supported Provider Catalog"
-          meta={`${PROVIDER_IDS.length} certified integrations`}
-        />
-        <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-2 sm:divide-y-0 sm:divide-x lg:grid-cols-3 xl:grid-cols-4 bg-line gap-px">
+      {/* 4. Supported Provider Catalog */}
+      <div className="rounded-2xl border border-[#E8E0D1] bg-white shadow-2xs overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-3.5 border-b border-[#E8E0D1] bg-white">
+          <div className="flex items-baseline gap-2.5">
+            <h2 className="font-palatino text-base sm:text-lg font-bold text-[#142B4A]">
+              Supported Provider Catalog
+            </h2>
+            <span className="font-mono text-xs font-semibold text-[#68768A]">
+              8 Certified &amp; Private Integrations
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-[#FAF6ED]/30">
           {PROVIDER_IDS.map((id) => {
             const meta = PROVIDER_META[id]
             const spec = providers.data?.find((p) => p.name === id)
@@ -201,73 +376,138 @@ export function CloudsPage() {
             return (
               <div
                 key={id}
-                className="bg-surface p-4 flex flex-col justify-between gap-3 transition-colors hover:bg-raise"
+                className="group rounded-2xl border border-[#E8E0D1] bg-white p-5 flex flex-col justify-between gap-3.5 shadow-2xs hover:border-[#C49A3A]/70 hover:shadow-xs transition-all"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <ProviderMark provider={id} size={16} />
+                {/* Top Row: Provider Mark + Name + BYOC Native + Available Badge */}
+                <div className="flex items-start justify-between gap-2 min-h-[46px]">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <span
+                      className="h-3.5 w-3.5 rounded-xs shrink-0 shadow-2xs mt-1"
+                      style={{ backgroundColor: meta.marker }}
+                      aria-hidden
+                    />
                     <div>
-                      <p className="text-sm font-semibold text-ink">{meta.name}</p>
-                      <p className="font-mono text-2xs text-muted-slate">BYOC Native</p>
+                      <p className="font-palatino text-base font-bold text-[#142B4A] leading-snug">{meta.name}</p>
+                      <p className="font-mono text-2xs uppercase tracking-wider text-[#68768A] font-semibold mt-0.5">
+                        BYOC NATIVE
+                      </p>
                     </div>
                   </div>
                   {isConnected ? (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-2xs font-semibold text-emerald-700">
-                      <CheckCircle2 size={11} /> Connected
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 text-2xs font-mono font-bold text-emerald-800 shrink-0 mt-0.5">
+                      <CheckCircle2 size={11} /> CONNECTED
                     </span>
                   ) : (
-                    <span className="font-mono text-2xs text-muted-slate uppercase">Available</span>
+                    <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#FFF8E7] text-[#A77B26] border border-[#C49A3A]/30 uppercase tracking-wider shrink-0 mt-0.5">
+                      AVAILABLE
+                    </span>
                   )}
                 </div>
 
-                <div className="space-y-1 text-xs text-muted-slate">
-                  <p className="flex justify-between font-mono">
-                    <span>Free Tier:</span>
-                    <span className="font-medium text-ink">
+                {/* Metadata Box */}
+                <div className="rounded-xl border border-[#E8E0D1]/60 bg-[#FAF6ED]/50 p-3 space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="font-alora text-xs text-[#68768A]">Free Tier</span>
+                    <span className="font-mono text-xs font-bold text-[#142B4A]">
                       {spec?.free_bytes ? formatBytes(spec.free_bytes) : "Free tier"}
                     </span>
-                  </p>
-                  <p className="flex justify-between font-mono">
-                    <span>Tier Duration:</span>
-                    <span className="font-medium text-ink">
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-alora text-xs text-[#68768A]">Tier Duration</span>
+                    <span className="font-mono text-xs font-semibold text-[#142B4A]">
                       {spec?.permanent ? "Permanent" : "12 Months"}
                     </span>
-                  </p>
-                  <p className="flex justify-between font-mono">
-                    <span>Egress Efficiency:</span>
-                    <span className="font-medium text-ink">
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-alora text-xs text-[#68768A]">Egress Efficiency</span>
+                    <span className="font-mono text-xs font-bold text-[#168568]">
                       {id === "r2" ? "Zero egress" : spec ? `${((spec.inverse_egress) * 100).toFixed(0)}% score` : "Standard"}
                     </span>
-                  </p>
+                  </div>
                 </div>
 
-                <div className="pt-2 border-t border-border flex items-center justify-between">
-                  <span className="text-2xs text-muted-slate font-mono uppercase">
+                {/* Bottom Row: Region Note + Connect Action */}
+                <div className="pt-2.5 border-t border-[#E8E0D1]/70 flex items-center justify-between">
+                  <span className="font-mono text-2xs uppercase tracking-wider text-[#68768A] font-semibold">
                     {meta.regionRequired ? "Region required" : "Global bucket"}
                   </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-xs h-7 px-2.5"
+                  <button
+                    type="button"
+                    className="rounded-full border border-[#E8E0D1] bg-white hover:bg-[#FFF8E7] hover:border-[#C49A3A] text-xs h-7 px-3.5 font-semibold text-[#142B4A] transition-colors inline-flex items-center gap-1 cursor-pointer active:scale-95"
                     onClick={() => {
                       setParams({ connect: "1", provider: id }, { replace: true })
                     }}
                   >
-                    Connect <ChevronRight size={12} className="ml-0.5" />
-                  </Button>
+                    <span>Connect</span>
+                    <ChevronRight size={13} className="text-[#C49A3A]" />
+                  </button>
                 </div>
               </div>
             )
           })}
+
+          {/* 8th Slot: Custom S3 / Private Storage to complete the 4x2 grid with zero empty spaces */}
+          <div
+            key="custom-s3"
+            className="group rounded-2xl border border-[#E8E0D1] bg-white p-5 flex flex-col justify-between gap-3.5 shadow-2xs hover:border-[#C49A3A]/70 hover:shadow-xs transition-all"
+          >
+            <div className="flex items-start justify-between gap-2 min-h-[46px]">
+              <div className="flex items-start gap-2.5 min-w-0">
+                <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-xs bg-[#142B4A] text-[#C49A3A] shadow-2xs mt-1">
+                  <Server size={10} />
+                </span>
+                <div>
+                  <p className="font-palatino text-base font-bold text-[#142B4A] leading-snug">Custom S3 / MinIO</p>
+                  <p className="font-mono text-2xs uppercase tracking-wider text-[#A77B26] font-semibold mt-0.5">
+                    PRIVATE BYOC
+                  </p>
+                </div>
+              </div>
+              <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#FFF8E7] text-[#A77B26] border border-[#C49A3A]/30 uppercase tracking-wider shrink-0 mt-0.5">
+                AVAILABLE
+              </span>
+            </div>
+
+            <div className="rounded-xl border border-[#E8E0D1]/60 bg-[#FAF6ED]/50 p-3 space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="font-alora text-xs text-[#68768A]">Free Tier</span>
+                <span className="font-mono text-xs font-bold text-[#142B4A]">Self-Hosted</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-alora text-xs text-[#68768A]">Tier Duration</span>
+                <span className="font-mono text-xs font-semibold text-[#142B4A]">Permanent</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-alora text-xs text-[#68768A]">Egress Efficiency</span>
+                <span className="font-mono text-xs font-bold text-[#168568]">Zero egress</span>
+              </div>
+            </div>
+
+            <div className="pt-2.5 border-t border-[#E8E0D1]/70 flex items-center justify-between">
+              <span className="font-mono text-2xs uppercase tracking-wider text-[#68768A] font-semibold">
+                MinIO · Ceph · Wasabi
+              </span>
+              <button
+                type="button"
+                className="rounded-full border border-[#E8E0D1] bg-white hover:bg-[#FFF8E7] hover:border-[#C49A3A] text-xs h-7 px-3.5 font-semibold text-[#142B4A] transition-colors inline-flex items-center gap-1 cursor-pointer active:scale-95"
+                onClick={() => {
+                  setParams({ connect: "1", provider: "aws" }, { replace: true })
+                }}
+              >
+                <span>Connect</span>
+                <ChevronRight size={13} className="text-[#C49A3A]" />
+              </button>
+            </div>
+          </div>
         </div>
-      </Panel>
+      </div>
 
       <DisconnectModal
         targetId={disconnectTarget}
         connections={connections.data ?? []}
         onDone={() => setParams({}, { replace: true })}
       />
-    </div>
+    </motion.div>
   )
 }
 
@@ -296,34 +536,34 @@ function ConnectionRow({
   }
 
   return (
-    <li className="group flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4 transition-colors duration-fast hover:bg-raise">
+    <li className="group flex flex-wrap items-center gap-x-6 gap-y-3 px-6 py-4.5 transition-colors duration-fast hover:bg-[#FAF6ED]/60">
       <div className="flex min-w-0 flex-1 items-center gap-3.5">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-warm-white shadow-2xs">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#E8E0D1] bg-white shadow-2xs">
           <ProviderMark provider={connection.provider} size={20} />
         </div>
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-bold text-ink">{connection.display_name}</p>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 text-2xs font-mono font-bold text-emerald-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="flex items-center gap-2.5">
+            <p className="truncate font-palatino text-base font-bold text-[#142B4A]">{connection.display_name}</p>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 text-xs font-mono font-bold text-emerald-800">
+              <PulsingStatusDot color="emerald" size="sm" />
               Verified Active
             </span>
           </div>
-          <p className="font-mono text-2xs uppercase tracking-wider text-muted-slate mt-0.5">
-            {meta?.name ?? connection.provider} · <span className="text-ink font-semibold">{connection.bucket_name}</span>
+          <p className="font-mono text-xs uppercase tracking-wider text-[#68768A] mt-1">
+            {meta?.name ?? connection.provider} · <span className="text-[#142B4A] font-semibold">{connection.bucket_name}</span>
             {connection.region ? ` · ${connection.region}` : ""}
           </p>
         </div>
       </div>
 
-      <div className="w-48 shrink-0">
+      <div className="w-56 shrink-0">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="font-mono text-2xs uppercase tracking-wider text-muted-slate font-bold">Storage Pool</span>
-          <span className="font-mono text-xs text-ink tnum">
+          <span className="font-alora text-xs uppercase tracking-wider text-[#68768A] font-bold">Storage Pool</span>
+          <span className="font-mono text-xs text-[#142B4A] tnum">
             {quotaRow ? (
               <>
-                <span className="font-semibold">{formatBytes(used)}</span>
-                <span className="text-muted-slate font-normal"> / {formatBytes(limit)}</span>
+                <span className="font-bold">{formatBytes(used)}</span>
+                <span className="text-[#68768A] font-normal"> / {formatBytes(limit)}</span>
               </>
             ) : (
               "Calculating…"
@@ -331,10 +571,10 @@ function ConnectionRow({
           </span>
         </div>
         {quotaRow ? (
-          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-line">
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#E8E0D1]">
             <div
               className={`h-full rounded-full transition-all ${
-                pct >= 90 ? "bg-danger" : pct >= 75 ? "bg-warning" : "bg-royal-gold"
+                pct >= 90 ? "bg-danger" : pct >= 75 ? "bg-warning" : "bg-[#C49A3A]"
               }`}
               style={{ width: `${pct}%` }}
             />
@@ -342,24 +582,24 @@ function ConnectionRow({
         ) : null}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <button
           type="button"
           onClick={handleReverify}
           disabled={verifying}
-          className="hidden sm:inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2.5 py-1 font-mono text-2xs text-slate-text hover:text-ink hover:border-royal-gold transition-colors"
+          className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-[#E8E0D1] bg-white px-3 py-1.5 font-mono text-xs text-[#142B4A] hover:text-[#C49A3A] hover:border-[#C49A3A] transition-colors shadow-2xs"
           title="Re-verify bucket latency and credentials"
         >
-          <Zap size={11} className={verifying ? "animate-spin text-royal-gold" : "text-royal-gold"} />
+          <Zap size={13} className={verifying ? "animate-spin text-[#C49A3A]" : "text-[#C49A3A]"} />
           {verifying ? "Verifying…" : "Re-verify"}
         </button>
-        <span className="hidden items-center gap-1 rounded border border-border bg-surface px-2 py-1 font-mono text-2xs text-muted-slate lg:inline-flex">
-          <ShieldCheck size={11} className="text-emerald-700" /> AES-256
+        <span className="hidden items-center gap-1.5 rounded-xl border border-[#E8E0D1] bg-white px-3 py-1.5 font-mono text-xs text-[#68768A] lg:inline-flex shadow-2xs">
+          <ShieldCheck size={13} className="text-emerald-700" /> AES-256
         </span>
         <button
           type="button"
           onClick={onDisconnect}
-          className="rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-semibold text-slate-text transition-colors duration-fast hover:border-danger/30 hover:bg-danger/10 hover:text-danger"
+          className="rounded-xl border border-[#E8E0D1] bg-white px-3.5 py-1.5 text-xs font-semibold text-danger transition-colors duration-fast hover:border-danger/30 hover:bg-danger/10 shadow-2xs"
         >
           Disconnect
         </button>
@@ -548,43 +788,66 @@ function ConnectWizard({
           <p className="text-sm text-slate-text mb-4">
             Select the cloud storage provider you would like to connect. You will provide your bucket name and scoped API credentials in the next step.
           </p>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {providers.isLoading ? (
-              <div className="bg-surface px-4 py-8 sm:col-span-2 lg:col-span-3">
+              <div className="bg-white rounded-2xl border border-[#E8E0D1] px-4 py-8 sm:col-span-2 lg:col-span-4">
                 <ListSkeleton rows={3} />
               </div>
             ) : providers.isError ? (
-              <div className="bg-surface sm:col-span-2 lg:col-span-3">
+              <div className="bg-white rounded-2xl border border-[#E8E0D1] p-4 sm:col-span-2 lg:col-span-4">
                 <ErrorState error={providers.error} onRetry={() => void providers.refetch()} />
               </div>
             ) : (
-              PROVIDER_IDS.map((id) => {
-                const providerMeta = PROVIDER_META[id]
-                const providerSpec = providers.data?.find((provider) => provider.name === id)
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => {
-                      setSelected(id)
-                      setStep("configure")
-                    }}
-                    className="group flex flex-col justify-between rounded-xl border border-border bg-surface p-4 text-left transition-all duration-fast hover:border-royal-gold hover:bg-raise hover:shadow-xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <ProviderMark provider={id} size={18} />
-                        <span className="text-sm font-semibold text-regal-navy">{providerMeta.name}</span>
+              <>
+                {PROVIDER_IDS.map((id) => {
+                  const providerMeta = PROVIDER_META[id]
+                  const providerSpec = providers.data?.find((provider) => provider.name === id)
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        setSelected(id)
+                        setStep("configure")
+                      }}
+                      className="group flex flex-col justify-between rounded-2xl border border-[#E8E0D1] bg-white p-4.5 text-left transition-all duration-fast hover:border-[#C49A3A] hover:bg-[#FAF6ED] hover:shadow-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <ProviderMark provider={id} size={18} />
+                          <span className="font-palatino text-base font-bold text-[#142B4A]">{providerMeta.name}</span>
+                        </div>
+                        <ChevronRight size={15} className="text-[#68768A] transition-transform group-hover:translate-x-0.5 group-hover:text-[#C49A3A]" />
                       </div>
-                      <ChevronRight size={14} className="text-muted-slate transition-transform group-hover:translate-x-0.5 text-royal-gold" />
+                      <div className="mt-3 font-mono text-2xs text-[#68768A]">
+                        <span>Free tier: {formatBytes(providerSpec?.free_bytes ?? null)}</span> ·{" "}
+                        <span>{providerSpec?.permanent ? "Permanent" : "12-mo"}</span>
+                      </div>
+                    </button>
+                  )
+                })}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelected("aws")
+                    setStep("configure")
+                  }}
+                  className="group flex flex-col justify-between rounded-2xl border border-dashed border-[#C49A3A]/60 bg-gradient-to-b from-white to-[#FFF8E7]/30 p-4.5 text-left transition-all duration-fast hover:border-[#C49A3A] hover:bg-[#FAF6ED] hover:shadow-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-xs bg-[#142B4A] text-[#C49A3A] shadow-2xs">
+                        <Server size={11} />
+                      </span>
+                      <span className="font-palatino text-base font-bold text-[#142B4A]">Custom S3 / MinIO</span>
                     </div>
-                    <div className="mt-2.5 font-mono text-2xs text-muted-slate">
-                      <span>Free tier: {formatBytes(providerSpec?.free_bytes ?? null)}</span> ·{" "}
-                      <span>{providerSpec?.permanent ? "Permanent" : "12-mo"}</span>
-                    </div>
-                  </button>
-                )
-              })
+                    <ChevronRight size={15} className="text-[#68768A] transition-transform group-hover:translate-x-0.5 group-hover:text-[#C49A3A]" />
+                  </div>
+                  <div className="mt-3 font-mono text-2xs text-[#A77B26] font-semibold">
+                    <span>S3-Compatible</span> · <span>Self-Hosted</span>
+                  </div>
+                </button>
+              </>
             )}
           </div>
         </div>

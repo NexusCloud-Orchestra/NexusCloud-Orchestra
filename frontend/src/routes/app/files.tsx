@@ -34,6 +34,7 @@ import { Drawer } from "../../components/ui/drawer"
 import { ConfirmModal } from "../../components/ui/modal"
 import { Menu } from "../../components/ui/menu"
 import { ProviderMark } from "../../components/ui/provider-mark"
+import { ProviderBadge } from "../../components/ui/cloud-logos"
 import { Button } from "../../components/ui/button"
 import type { FileRecord } from "../../types/api"
 
@@ -180,7 +181,7 @@ export function FilesPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 pb-8">
+    <div className="flex flex-col gap-4 sm:gap-4.5 pb-6">
       <PageHeader
         kicker="Virtual Storage"
         title="Files"
@@ -279,15 +280,15 @@ export function FilesPage() {
           </div>
         ) : visible.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-[#E8E0D1] bg-[#FAF6ED]/60 font-mono text-2xs uppercase tracking-wider text-[#68768A]">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-[#E8E0D1] bg-[#FAF6ED]/70 font-alora text-xs font-bold tracking-wider uppercase text-[#68768A]">
                 <tr>
-                  <th className="px-5 py-2.5 font-semibold">Name</th>
-                  <th className="px-4 py-2.5 font-semibold">Cloud Destination</th>
-                  <th className="px-4 py-2.5 font-semibold">Storage Mode</th>
-                  <th className="px-4 py-2.5 font-semibold">Size</th>
-                  <th className="px-4 py-2.5 font-semibold hidden sm:table-cell">Uploaded</th>
-                  <th className="px-5 py-2.5 font-semibold text-right">Actions</th>
+                  <th className="px-5 py-3.5 font-bold">Name</th>
+                  <th className="px-4 py-3.5 font-bold">Cloud Destination</th>
+                  <th className="px-4 py-3.5 font-bold">Storage Mode</th>
+                  <th className="px-4 py-3.5 font-bold text-right">Size</th>
+                  <th className="px-4 py-3.5 font-bold hidden sm:table-cell">Uploaded</th>
+                  <th className="px-5 py-3.5 font-bold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E8E0D1]/60">
@@ -443,25 +444,20 @@ function FileRow({
         </button>
       </td>
       <td className="px-4 py-3.5">
-        <div className="flex items-center gap-1.5">
-          <ProviderMark provider={file.provider} size={15} />
-          <span className="font-mono text-2xs text-slate-text font-medium">
-            {providerName(file.provider)}
-          </span>
-        </div>
+        <ProviderBadge provider={file.provider} />
       </td>
       <td className="px-4 py-3.5">
-        <span
-          className={`inline-block rounded-xs px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${
-            file.storage_mode === "striped"
-              ? "bg-royal-gold/15 text-royal-gold border border-royal-gold/30"
-              : "bg-corn-silk text-slate-text border border-line"
-          }`}
-        >
-          {file.storage_mode === "striped" ? "Striped Mesh" : "Single Bucket"}
-        </span>
+        {file.storage_mode === "striped" ? (
+          <span className="inline-flex items-center rounded-md border border-purple-200 bg-purple-50 px-2.5 py-0.5 text-xs font-mono font-semibold text-purple-800">
+            Striped Mesh
+          </span>
+        ) : (
+          <span className="inline-flex items-center rounded-md border border-[#E8E0D1] bg-[#FAF6ED] px-2.5 py-0.5 text-xs font-mono font-semibold text-[#142B4A]">
+            Standard
+          </span>
+        )}
       </td>
-      <td className="px-4 py-3.5 font-mono text-xs text-regal-navy font-semibold tnum">
+      <td className="px-4 py-3.5 text-right font-mono text-sm font-semibold text-[#142B4A]">
         {formatBytes(file.size_bytes)}
       </td>
       <td className="px-4 py-3.5 font-mono text-2xs text-muted-slate hidden sm:table-cell">

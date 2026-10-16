@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { Link } from "react-router-dom"
+import { motion } from "framer-motion"
 import cloudImage from "../assets/auth-clouds.webp"
 
 /** The Dual Chevron Brand Logo Mark with Royal Gold Dot matching the reference image */
@@ -95,10 +96,10 @@ export function AuthLayout({
           </div>
         </aside>
 
-        {/* ── Right Form Column (Pure White with Rounded Left Border) ── */}
+        {/* ── Right Form Column (Pure White flush with left story panel) ── */}
         <main
           id="main-content"
-          className="relative flex-1 bg-white rounded-tl-[28px] sm:rounded-tl-[36px] rounded-bl-[28px] sm:rounded-bl-[36px] shadow-[-14px_0_40px_rgba(22,33,62,0.05)] p-6 sm:p-8 lg:p-10 xl:p-12 flex flex-col justify-between h-full z-10 overflow-hidden"
+          className="relative flex-1 bg-white border-t md:border-t-0 md:border-l border-[#E7DFCE] shadow-[-14px_0_40px_rgba(22,33,62,0.04)] p-6 sm:p-8 lg:p-10 xl:p-12 flex flex-col justify-between h-full z-10 overflow-hidden"
         >
           {/* Top Kicker in Crisp Dark Slate */}
           <div className="flex justify-end items-center gap-4 shrink-0">
@@ -107,8 +108,14 @@ export function AuthLayout({
             </span>
           </div>
 
-          {/* Form Container (Expanded width & comfortable rhythm matching 150% scale) */}
-          <div className="w-full max-w-[440px] sm:max-w-[480px] lg:max-w-[520px] xl:max-w-[540px] mx-auto my-auto py-1 flex flex-col justify-center">
+          {/* Form Container with Smooth Latency Entrance Transition */}
+          <motion.div
+            key={title}
+            initial={{ opacity: 0, x: 16, filter: "blur(3px)" }}
+            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full max-w-[440px] sm:max-w-[480px] lg:max-w-[520px] xl:max-w-[540px] mx-auto my-auto py-1 flex flex-col justify-center"
+          >
             {/* Heading in Crisp Dark Navy */}
             <div className="mb-4 sm:mb-5 lg:mb-6">
               <h1 className="font-display text-2xl sm:text-[32px] lg:text-[35px] xl:text-[38px] font-extrabold tracking-tight text-[#0F172A]">
@@ -124,7 +131,7 @@ export function AuthLayout({
 
             {/* Form Footer (New account link) */}
             {footer && <div className="mt-4 sm:mt-5 text-center text-xs sm:text-sm lg:text-[15px] font-medium text-[#334155]">{footer}</div>}
-          </div>
+          </motion.div>
 
           {/* Bottom Legal Links inside the white card */}
           <div className="flex items-center justify-center gap-3.5 text-xs sm:text-[13px] font-medium text-[#475569] pt-2 shrink-0">

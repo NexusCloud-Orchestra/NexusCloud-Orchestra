@@ -27,8 +27,15 @@ export default {
       )),
       fontFamily: {
         ...base.theme.extend.fontFamily,
-        display: ["Instrument Sans", "sans-serif"],
-        brand: ["Black Ops One", "sans-serif"],
+        sans: ["'Alora'", "Lora", "'Palatino Linotype'", "Palatino", "'Book Antiqua'", "Georgia", "serif"],
+        alora: ["'Alora'", "Lora", "'Palatino Linotype'", "Palatino", "serif"],
+        display: ["'Palatino Linotype'", "'Alora'", "Palatino", "serif"],
+        palatino: ["'Palatino Linotype'", "Palatino", "'URW Palladio L'", "'Book Antiqua'", "Georgia", "serif"],
+        brand: ["'Black Ops One'", "'BlackOpsOne'", "cursive"],
+        blackops: ["'Black Ops One'", "'BlackOpsOne'", "cursive"],
+      },
+      fontSize: {
+        ...base.theme.extend.fontSize,
       },
       boxShadow: {
         pop: "0 20px 64px -18px rgb(20 43 74 / .20)",

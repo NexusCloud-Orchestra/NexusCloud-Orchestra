@@ -76,7 +76,7 @@ export function RouterPage() {
   }
 
   return (
-    <div className="animate-fade-rise flex flex-col gap-6">
+    <div className="animate-fade-rise flex flex-col gap-4 sm:gap-4.5 pb-6">
       <PageHeader
         kicker="Placement Engine"
         title="Smart Router"

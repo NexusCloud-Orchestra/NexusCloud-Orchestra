@@ -36,7 +36,7 @@ export function SettingsPage() {
   const currentPlan = plans.data?.find((plan) => plan.name === user?.plan) ?? null
 
   return (
-    <div className="animate-fade-rise flex flex-col gap-6">
+    <div className="animate-fade-rise flex flex-col gap-4 sm:gap-4.5 pb-6">
       <PageHeader
         kicker="Account Administration"
         title="Settings &amp; Security"

@@ -4,7 +4,7 @@
 @import "@fontsource/instrument-sans/700.css";
 @import "@fontsource/jetbrains-mono/400.css";
 @import "@fontsource/jetbrains-mono/500.css";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Black+Ops+One&family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @config "./tailwind.config.js";
 @tailwind base;
 @tailwind components;
@@ -14,6 +14,18 @@
   font-family: "Black Ops One";
   src: url("../assets/fonts/BlackOpsOne-Regular.ttf") format("truetype");
   font-weight: 400; font-style: normal; font-display: swap;
+}
+
+@font-face {
+  font-family: "Alora";
+  src: local("Alora"), local("Alora-Regular"), local("Lora"), local("Lora-Regular");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+
+@font-face {
+  font-family: "Alora";
+  src: local("Alora Bold"), local("Alora-Bold"), local("Lora Bold"), local("Lora-Bold");
+  font-weight: 700; font-style: normal; font-display: swap;
 }
 
 /* ===== DESIGN TOKENS ===== */
@@ -116,7 +128,9 @@
   body {
     background: rgb(var(--bg-base));
     color: rgb(var(--text-1));
-    font-family: 'Inter', 'Instrument Sans', system-ui, sans-serif;
+    font-family: 'Alora', 'Lora', 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+    font-size: 13.5px;
+    line-height: 1.5;
   }
 
   *, *::before, *::after { box-sizing: border-box; }

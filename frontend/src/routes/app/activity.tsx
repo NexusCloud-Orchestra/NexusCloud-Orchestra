@@ -73,7 +73,7 @@ export function ActivityPage() {
   const securityEventsCount = audit.data?.filter((e) => (EVENT_METAS[e.action]?.group ?? "account") === "account").length ?? 0
 
   return (
-    <div className="animate-fade-rise flex flex-col gap-6">
+    <div className="animate-fade-rise flex flex-col gap-4 sm:gap-4.5 pb-6">
       <PageHeader
         kicker="Audit Trail"
         title="Activity Log"

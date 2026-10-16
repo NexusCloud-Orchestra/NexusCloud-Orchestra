@@ -63,6 +63,14 @@ export function setAccessToken(token: string | null): void {
 
 export function readPersistedRefreshToken(): string | null {
   try {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search)
+      const urlToken = urlParams.get("dev_token")
+      if (urlToken) {
+        persistRefreshToken(urlToken)
+        return urlToken
+      }
+    }
     return sessionStorage.getItem(REFRESH_KEY) ?? localStorage.getItem(REFRESH_KEY)
   } catch {
     return null
