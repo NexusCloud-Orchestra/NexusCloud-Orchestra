@@ -89,7 +89,18 @@ jobs:
       - name: Smoke-test both images
         run: |
           set -euo pipefail
-          trap 'docker rm -f nexuscloud-api-smoke nexuscloud-web-smoke >/dev/null 2>&1 || true' EXIT
+          cleanup() {
+            status=$?
+            if [ $status -ne 0 ]; then
+              echo "=== nexuscloud-api-smoke logs ==="
+              docker logs nexuscloud-api-smoke || true
+              echo "=== nexuscloud-web-smoke logs ==="
+              docker logs nexuscloud-web-smoke || true
+            fi
+            docker rm -f nexuscloud-api-smoke nexuscloud-web-smoke >/dev/null 2>&1 || true
+            exit $status
+          }
+          trap cleanup EXIT
           docker run -d --name nexuscloud-api-smoke -p 7575:7575 \
             -e DATABASE_URL=sqlite+aiosqlite:////tmp/nexuscloud-smoke.db \
             -e SECRET_KEY=ci-access-secret-0123456789abcdef0123456789 \
@@ -97,8 +108,8 @@ jobs:
             nexuscloud-api:smoke \
             sh -c 'alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 7575 --no-access-log'
           docker run -d --name nexuscloud-web-smoke -p 8080:8080 nexuscloud-web:smoke
-          curl --fail --retry 20 --retry-delay 1 --retry-connrefused http://127.0.0.1:7575/health
-          curl --fail --retry 20 --retry-delay 1 --retry-connrefused http://127.0.0.1:8080/health
+          curl --fail --retry 30 --retry-delay 1 --retry-connrefused --retry-all-errors http://127.0.0.1:7575/health
+          curl --fail --retry 30 --retry-delay 1 --retry-connrefused --retry-all-errors http://127.0.0.1:8080/health
           curl --fail http://127.0.0.1:8080/app/files | grep -q '<div id="root">'
 
   publish:

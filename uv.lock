@@ -1368,6 +1368,7 @@ name = "nexuscloud"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "aiosqlite" },
     { name = "alembic" },
     { name = "asyncpg" },
     { name = "azure-storage-blob" },
@@ -1390,7 +1391,6 @@ dependencies = [
 
 [package.optional-dependencies]
 test = [
-    { name = "aiosqlite" },
     { name = "fakeredis" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -1398,7 +1398,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiosqlite", marker = "extra == 'test'", specifier = ">=0.22" },
+    { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "alembic", specifier = ">=1.18.4" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "azure-storage-blob", specifier = ">=12.31.0" },

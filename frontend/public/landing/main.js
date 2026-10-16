@@ -484,6 +484,27 @@
     if (r) a.setAttribute("href", r);
   });
 
+  // Mobile drawer toggle
+  const navBurger = $("navBurger");
+  const navDrawer = $("navDrawer");
+  const navOverlay = $("navOverlay");
+  function toggleDrawer(open) {
+    if (!navDrawer || !navBurger || !navOverlay) return;
+    const isOpen = open !== undefined ? open : !navDrawer.classList.contains("is-open");
+    navDrawer.classList.toggle("is-open", isOpen);
+    navOverlay.classList.toggle("is-open", isOpen);
+    navBurger.classList.toggle("is-open", isOpen);
+    navBurger.setAttribute("aria-expanded", String(isOpen));
+    document.body.style.overflow = isOpen ? "hidden" : "";
+  }
+  if (navBurger && navDrawer && navOverlay) {
+    navBurger.addEventListener("click", () => toggleDrawer());
+    navOverlay.addEventListener("click", () => toggleDrawer(false));
+    navDrawer.querySelectorAll("a").forEach((a) => {
+      a.addEventListener("click", () => toggleDrawer(false));
+    });
+  }
+
   // ---------------- Boot ----------------
   window.addEventListener("scroll", readScroll, { passive: true });
   window.addEventListener("resize", () => { resize(); readScroll(); });

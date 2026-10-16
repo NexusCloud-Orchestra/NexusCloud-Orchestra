@@ -31,8 +31,26 @@
     <div class="nav__auth">
       <a class="nav__login" data-route="login" href="/login">Log in</a>
       <a class="btn btn--ghost" data-route="register" href="/register">Create account</a>
+      <button class="nav__burger" id="navBurger" aria-label="Open menu" aria-expanded="false" aria-controls="navDrawer">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </header>
+
+  <!-- Mobile full-screen drawer -->
+  <div class="nav__overlay" id="navOverlay" aria-hidden="true"></div>
+  <div class="nav__drawer" id="navDrawer" role="dialog" aria-label="Navigation" aria-modal="true">
+    <ul class="nav__drawer-links">
+      <li><a href="#providers" data-num="01">Providers</a></li>
+      <li><a href="#how" data-num="02">How it works</a></li>
+      <li><a href="#pricing" data-num="03">Pricing</a></li>
+    </ul>
+    <div class="nav__drawer-auth">
+      <a class="btn--solid" data-route="register" href="/register">Start free &rarr;</a>
+      <a class="btn--outline-ghost" data-route="login" href="/login">Log in</a>
+    </div>
+    <p class="nav__drawer-footer">NEXUS CLOUD &middot; Multi Cloud Orchestration</p>
+  </div>
 
   <main id="top">
     <!-- Scroll-driven flight: 270 4K frames pinned to the viewport -->
