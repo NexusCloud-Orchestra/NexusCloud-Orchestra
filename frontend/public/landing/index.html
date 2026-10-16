@@ -107,35 +107,84 @@
 
     <section class="after">
       <div class="after__inner" id="providers">
-        <p class="eyebrow mono">Supported providers</p>
-        <h2>Seven clouds. <span data-total-free>80 GB</span> of estimated free capacity.</h2>
-        <p class="after__note">Capacities are provider free-tier estimates, not live billing balances.</p>
+        <div class="kicker-badge"><span class="kicker-dot"></span><span class="mono">SUPPORTED CLOUDS</span></div>
+        <h2 class="section-heading">Seven clouds. <span data-total-free>80 GB</span> of estimated free capacity.</h2>
+        <p class="section-desc">Capacities are provider free-tier estimates pooled into a single high-speed virtual mesh.</p>
         <div class="providers" id="providerGrid"></div>
       </div>
 
       <div class="after__inner" id="how">
-        <p class="eyebrow mono">How it works</p>
-        <h2>A control plane, not a data plane.</h2>
+        <div class="kicker-badge"><span class="kicker-dot"></span><span class="mono">ZERO-TRUST ARCHITECTURE</span></div>
+        <h2 class="section-heading">A control plane, not a data plane.</h2>
+        <p class="section-desc">Your credentials and storage buckets remain entirely under your control. Bytes move directly between browser and storage.</p>
         <div class="how">
-          <article><b class="mono">Connect</b><h3>Link your buckets</h3><p>AWS S3, Azure Blob, GCS, R2, B2, Oracle and IBM COS. Each connection is verified against the provider.</p></article>
-          <article><b class="mono">Route</b><h3>Score every cloud</h3><p>Capacity, egress, permanence and fit decide where each file lands. $0-egress and permanent tiers are preferred.</p></article>
-          <article><b class="mono">Transfer</b><h3>Go direct</h3><p>Presigned URLs move bytes between your browser and your cloud. NexusCloud stores only metadata.</p></article>
-          <article><b class="mono">Track</b><h3>One quota</h3><p>A single pooled quota with a per-cloud breakdown, updated as soon as an upload is confirmed.</p></article>
+          <article class="how-card reveal">
+            <div class="how-card__spotlight"></div>
+            <div class="how-card__header">
+              <span class="how-card__step mono">01 · CONNECT</span>
+              <div class="how-card__icon-box">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              </div>
+            </div>
+            <h3>Link your buckets</h3>
+            <p>AWS S3, Azure Blob, GCS, R2, B2, Oracle and IBM COS. Credentials are encrypted at rest with AES-256-GCM.</p>
+          </article>
+
+          <article class="how-card reveal">
+            <div class="how-card__spotlight"></div>
+            <div class="how-card__header">
+              <span class="how-card__step mono">02 · ROUTE</span>
+              <div class="how-card__icon-box">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
+              </div>
+            </div>
+            <h3>Score every cloud</h3>
+            <p>Capacity, egress cost, tier permanence and file size score where each file lands in real time. $0-egress tiers take priority.</p>
+          </article>
+
+          <article class="how-card reveal">
+            <div class="how-card__spotlight"></div>
+            <div class="how-card__header">
+              <span class="how-card__step mono">03 · TRANSFER</span>
+              <div class="how-card__icon-box">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              </div>
+            </div>
+            <h3>Go direct</h3>
+            <p>Presigned signed URLs stream bytes directly between your browser and cloud storage bucket. Zero proxy latency.</p>
+          </article>
+
+          <article class="how-card reveal">
+            <div class="how-card__spotlight"></div>
+            <div class="how-card__header">
+              <span class="how-card__step mono">04 · TRACK</span>
+              <div class="how-card__icon-box">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+              </div>
+            </div>
+            <h3>One virtual pool</h3>
+            <p>A single pooled quota across all providers with per-cloud analytics, synced automatically upon upload confirmation.</p>
+          </article>
         </div>
       </div>
 
       <div class="after__inner" id="pricing">
-        <p class="eyebrow mono">Pricing</p>
-        <h2>Start at &#8377;0. Scale when you need to.</h2>
+        <div class="kicker-badge"><span class="kicker-dot"></span><span class="mono">TRANSPARENT PRICING</span></div>
+        <h2 class="section-heading">Start at &#8377;0. Scale when you need to.</h2>
+        <p class="section-desc">No hidden egress markup. Connect your own clouds and pay only for orchestrator intelligence.</p>
         <div class="pricing" id="planGrid"></div>
-        <p class="after__note">Paid plans are shown for reference. Upgrades open once billing is live.</p>
+        <p class="after__note">Capacities and quotas are pooled across all connected accounts. Upgrades activate instantly.</p>
       </div>
 
-      <div class="after__inner closing">
-        <h2>Ready for departure?</h2>
-        <div class="hero__cta">
-          <a class="btn btn--solid" data-route="register" href="/register">Create free account</a>
-          <a class="btn btn--line" data-route="login" href="/login">Log in</a>
+      <div class="after__inner">
+        <div class="closing-card reveal">
+          <div class="kicker-badge"><span class="kicker-dot"></span><span class="mono">READY FOR TAKE-OFF</span></div>
+          <h2 class="section-heading">Ready for departure?</h2>
+          <p class="section-desc">Pool your cloud storage and start uploading with zero-egress routing in minutes.</p>
+          <div class="hero__cta">
+            <a class="btn btn--solid" data-route="register" href="/register">Create free account</a>
+            <a class="btn btn--outline" data-route="login" href="/login">Log in</a>
+          </div>
         </div>
       </div>
 

@@ -1,3 +1,30 @@
-node_modules
-dist
+node_modules/
+dist/
+build/
+.vite/
 *.local
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.tsbuildinfo
+
+# Media, Mockups & Unwanted Assets
+*.mp4
+*.mov
+*.avi
+*.wmv
+*.mkv
+*.webm
+assests/
+src/assets/dashboard-reference.jpg
+src/assets/nexuscloud-orchestration-hero.png
+src/assets/dashboard-hero-section.mp4
+public/dashboard-hero-section.mp4
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

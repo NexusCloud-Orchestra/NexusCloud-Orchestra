@@ -180,7 +180,14 @@
     const total = flight.offsetHeight - window.innerHeight;
     const p = Math.min(1, Math.max(0, (window.scrollY - flight.offsetTop) / total));
     target = p * (FRAME_COUNT - 1);
-    nav.classList.toggle("is-solid", window.scrollY > flight.offsetTop + total - 10);
+
+    const afterSection = document.querySelector(".after");
+    const isOverLight = afterSection
+      ? afterSection.getBoundingClientRect().top <= 65
+      : window.scrollY > (flight.offsetTop + total - 40);
+
+    nav.classList.toggle("is-light", isOverLight);
+    nav.classList.toggle("is-solid", isOverLight);
   }
 
   const smoothstep = (e0, e1, x) => {
@@ -261,13 +268,13 @@
     { name: "team", max_connections: null, max_bytes: null, seats: 10 },
   ];
   const PROVIDER_META = {
-    aws: { label: "AWS S3", service: "Amazon Simple Storage Service" },
-    azure: { label: "Azure Blob", service: "Microsoft Azure Storage" },
-    gcp: { label: "Google Cloud Storage", service: "Google Cloud" },
-    r2: { label: "Cloudflare R2", service: "S3-compatible, zero egress" },
-    b2: { label: "Backblaze B2", service: "S3-compatible" },
-    oracle: { label: "Oracle OCI", service: "Object Storage" },
-    ibm: { label: "IBM COS", service: "Cloud Object Storage" },
+    aws: { label: "AWS S3", service: "Amazon Simple Storage Service", marker: "#D97706" },
+    azure: { label: "Azure Blob", service: "Microsoft Azure Storage", marker: "#0369A1" },
+    gcp: { label: "Google Cloud Storage", service: "Google Cloud", marker: "#1A73E8" },
+    r2: { label: "Cloudflare R2", service: "S3-compatible, zero egress", marker: "#C2570F" },
+    b2: { label: "Backblaze B2", service: "S3-compatible", marker: "#0070F3" },
+    oracle: { label: "Oracle OCI", service: "Object Storage", marker: "#C74634" },
+    ibm: { label: "IBM COS", service: "Cloud Object Storage", marker: "#1261FE" },
   };
   // INR pricing from the BRD; the API exposes limits only.
   const PLAN_PRICE = { free: "0", starter: "249", pro: "749", team: "2,499" };
@@ -299,6 +306,16 @@
     }
   }
 
+  function attachSpotlight(card) {
+    card.addEventListener("mousemove", (e) => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      card.style.setProperty("--spotlight-x", `${x}px`);
+      card.style.setProperty("--spotlight-y", `${y}px`);
+    });
+  }
+
   function renderProviders(list) {
     const total = list.reduce((a, p) => a + p.free_bytes, 0);
     const max = Math.max(...list.map((p) => p.free_bytes));
@@ -306,26 +323,58 @@
     document.querySelectorAll("[data-provider-count]").forEach((n) => (n.textContent = list.length));
 
     const chips = $("flightProviders");
-    chips.replaceChildren(...list.map((p) => {
-      const m = PROVIDER_META[p.name] || { label: p.name };
-      return el("li", null, `${esc(m.label)} <em>${gb(p.free_bytes)}G</em>`);
-    }));
+    if (chips) {
+      chips.replaceChildren(...list.map((p) => {
+        const m = PROVIDER_META[p.name] || { label: p.name };
+        return el("li", null, `${esc(m.label)} <em>${gb(p.free_bytes)}G</em>`);
+      }));
+    }
 
     const grid = $("providerGrid");
+    if (!grid) return;
     const sorted = [...list].sort((a, b) => b.free_bytes - a.free_bytes);
     grid.replaceChildren(...sorted.map((p, i) => {
-      const m = PROVIDER_META[p.name] || { label: p.name, service: "" };
-      const egress = p.inverse_egress >= 1 ? "$0 egress" : p.inverse_egress >= 0.8 ? "Low egress" : "Paid egress";
-      const card = el("article", "provider reveal", `
-        <div class="provider__top"><h3>${esc(m.label)}</h3><span class="provider__code mono">${esc(p.name)}</span></div>
-        <p class="provider__gb">${gb(p.free_bytes)}<small>GB free est.</small></p>
-        <div class="provider__tags mono">
-          <span class="${p.inverse_egress >= 0.8 ? "is-good" : ""}">${egress}</span>
-          <span class="${p.permanent ? "is-good" : ""}">${p.permanent ? "Always free" : "Trial tier"}</span>
+      const m = PROVIDER_META[p.name] || { label: p.name, service: "", marker: "#C49A3A" };
+      const egressText = p.inverse_egress >= 1 ? "Zero egress" : p.inverse_egress >= 0.8 ? "Low egress" : "Standard egress";
+      const durationText = p.permanent ? "Always Free" : "12-Month Trial";
+      const card = el("article", "provider-card reveal", `
+        <div class="provider-card__spotlight"></div>
+        <div class="provider-card__top">
+          <div class="provider-card__brand">
+            <span class="provider-card__marker" style="background-color: ${m.marker || '#C49A3A'}" aria-hidden="true"></span>
+            <div>
+              <h3 class="provider-card__name">${esc(m.label)}</h3>
+              <span class="provider-card__sub mono">BYOC NATIVE</span>
+            </div>
+          </div>
+          <span class="provider-badge ${p.permanent ? 'provider-badge--good' : 'provider-badge--neutral'} mono">
+            <span class="badge-dot ${p.permanent ? 'badge-dot--green' : 'badge-dot--amber'}"></span>
+            ${durationText}
+          </span>
         </div>
-        <i class="provider__bar"></i>`);
+        
+        <div class="provider-card__metric">
+          <span class="provider-card__num">${gb(p.free_bytes)}</span>
+          <span class="provider-card__unit">GB free pool</span>
+        </div>
+
+        <div class="provider-card__meta">
+          <div class="provider-card__row">
+            <span class="meta-label">Egress tier</span>
+            <span class="meta-val mono ${p.inverse_egress >= 0.8 ? 'is-good' : ''}">${egressText}</span>
+          </div>
+          <div class="provider-card__row">
+            <span class="meta-label">Orchestration</span>
+            <span class="meta-val mono">Direct Presigned</span>
+          </div>
+        </div>
+
+        <div class="provider-card__progress">
+          <div class="provider-card__bar" style="width: ${((p.free_bytes / max) * 100).toFixed(1)}%; background: ${m.marker || '#C49A3A'}"></div>
+        </div>
+      `);
       card.style.setProperty("--i", i);
-      card.querySelector(".provider__bar").style.setProperty("--share", (p.free_bytes / max).toFixed(3));
+      attachSpotlight(card);
       return card;
     }));
     observeReveals(grid);
@@ -333,19 +382,63 @@
 
   function renderPlans(list) {
     const grid = $("planGrid");
+    if (!grid) return;
     grid.replaceChildren(...list.map((p, i) => {
-      const conns = p.max_connections == null ? "Unlimited clouds" : `${p.max_connections} connected clouds`;
+      const conns = p.max_connections == null ? "Unlimited connected clouds" : `${p.max_connections} connected clouds`;
       const bytes = p.max_bytes == null ? "Unlimited managed storage" : `${gb(p.max_bytes)} GB managed storage`;
-      const seats = p.seats > 1 ? `${p.seats} seats` : "1 seat";
+      const seats = p.seats > 1 ? `${p.seats} team seats` : "1 seat included";
       const hi = p.name === "starter";
       const isFree = p.name === "free";
-      const card = el("article", `plan reveal${hi ? " plan--hi" : ""}`, `
-        ${hi ? '<span class="plan__badge mono">Most popular</span>' : ""}
-        <h3>${esc(p.name)}</h3>
-        <p class="plan__price"><b>&#8377;${PLAN_PRICE[p.name] ?? "-"}</b> / month</p>
-        <ul><li>${conns}</li><li>${bytes}</li><li>${seats}</li><li>${esc(PLAN_EXTRA[p.name] || "")}</li></ul>
-        <a class="btn ${isFree ? "btn--solid" : "btn--line"}" data-route="register" href="${CFG.routes.register || "/register"}">${isFree ? "Start free" : "Create account"}</a>`);
+      const extra = PLAN_EXTRA[p.name] || "";
+      const price = PLAN_PRICE[p.name] ?? "0";
+
+      const card = el("article", `plan-card reveal${hi ? " plan-card--popular" : ""}`, `
+        <div class="plan-card__spotlight"></div>
+        ${hi ? '<div class="plan-popular-pill mono"><span class="kicker-dot"></span> MOST POPULAR</div>' : ""}
+        <div class="plan-card__header">
+          <h3 class="plan-card__name">${esc(p.name)}</h3>
+          <p class="plan-card__desc">${esc(extra)}</p>
+        </div>
+
+        <div class="plan-card__pricing">
+          <div class="plan-price-wrap">
+            <span class="currency">₹</span>
+            <span class="amount">${price}</span>
+          </div>
+          <span class="period">/ month</span>
+        </div>
+
+        <ul class="plan-features">
+          <li>
+            <svg class="check-svg" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#168568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>${conns}</span>
+          </li>
+          <li>
+            <svg class="check-svg" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#168568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>${bytes}</span>
+          </li>
+          <li>
+            <svg class="check-svg" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#168568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>${seats}</span>
+          </li>
+          <li>
+            <svg class="check-svg" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#168568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Smart Egress Routing</span>
+          </li>
+          <li>
+            <svg class="check-svg" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#168568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>AES-256-GCM Vault</span>
+          </li>
+        </ul>
+
+        <div class="plan-card__cta">
+          <a class="btn ${hi || isFree ? "btn--solid" : "btn--outline"}" data-route="register" href="${CFG.routes.register || "/register"}">
+            ${isFree ? "Start free" : "Choose plan"}
+          </a>
+        </div>
+      `);
       card.style.setProperty("--i", i);
+      attachSpotlight(card);
       return card;
     }));
     observeReveals(grid);
@@ -378,10 +471,11 @@
   function observeReveals(root) {
     root.querySelectorAll(".reveal").forEach((n) => (io ? io.observe(n) : n.classList.add("is-in")));
   }
-  document.querySelectorAll(".after__inner > h2, .after__inner > .eyebrow, .how article").forEach((n, i) => {
+  document.querySelectorAll(".after__inner > .section-heading, .after__inner > .kicker-badge, .after__inner > .section-desc, .how-card, .closing-card").forEach((n, i) => {
     n.classList.add("reveal");
-    if (n.matches(".how article")) n.style.setProperty("--i", i % 4);
+    if (n.matches(".how-card")) n.style.setProperty("--i", i % 4);
   });
+  document.querySelectorAll(".how-card").forEach(attachSpotlight);
   observeReveals(document);
 
   // Route links from config

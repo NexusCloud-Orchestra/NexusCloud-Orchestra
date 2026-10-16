@@ -4,3 +4,11 @@ verify-*.mjs
 debug-*.mjs
 *.log
 .DS_Store
+Thumbs.db
+*.mp4
+*.mov
+assests
+src/assets/dashboard-reference.jpg
+src/assets/nexuscloud-orchestration-hero.png
+src/assets/dashboard-hero-section.mp4
+public/dashboard-hero-section.mp4

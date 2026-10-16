@@ -2,6 +2,9 @@
 .env
 .env.*
 !.env.example
+*.cred
+*.pem
+*.key
 
 # Python
 __pycache__/
@@ -9,42 +12,79 @@ __pycache__/
 *$py.class
 .venv/
 venv/
+env/
+ENV/
 *.egg-info/
+.installed.cfg
+*.egg
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.whl
 
-# Database
+# Database & Local Storage
 *.db
+*.sqlite
 *.sqlite3
+ci-migration.db
+storage/*.bin
+storage/local_objects/
+local-storage/
 
-# Alembic (keep migrations, ignore cache)
+# Alembic cache
 alembic/versions/__pycache__/
+alembic/backend_versions/__pycache__/
 
-# IDE
+# IDEs & System files
 .vscode/
 .idea/
 *.swp
-
-# OS
+*.swo
+*~
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Logs
+# Logs & Diagnostics
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# Node (for frontend later)
+# Node / Frontend Build Outputs
 node_modules/
-dist/
-build/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+.vite/
+*.tsbuildinfo
 
-# Docker
+# Docker & Container overrides
 docker-compose.override.yml
+*.docker.log
 
-*.cred
-
-# Personal Notes & Obsidian Vaults
+# Temporary tools & Notes
+.freebuff/
+.cache/
+tmp/
+temp/
 NexusCloud Learning/
 NexusCloud\ Learning/
 
-# Local data & build cache
-storage/*.bin
-frontend/.vite/
+# Media, Mockups & Unwanted Heavy Assets (prevents CI/CD bloat & failures)
+*.mp4
+*.mov
+*.avi
+*.wmv
+*.mkv
+*.webm
+frontend/assests/
+frontend/public/dashboard-hero-section.mp4
+frontend/src/assets/dashboard-hero-section.mp4
+frontend/src/assets/dashboard-reference.jpg
+frontend/src/assets/nexuscloud-orchestration-hero.png
