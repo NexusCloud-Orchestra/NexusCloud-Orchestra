@@ -143,4 +143,4 @@ Do not invent live analytics, bandwidth benchmarks, AI insights, 2FA, API keys, 
 
 ## Health and development
 
-`GET /health` checks the database; `GET /redis-health` checks Redis. `/docs` provides interactive OpenAPI. With `LOCAL_STORAGE_ENABLED=true` in development only, provider connections use signed `/api/v1/local-objects/{id}` URLs so the full flow can run without real cloud credentials. This local data route must remain disabled in production and does not represent the Zero Data Touch production architecture.
+`GET /livez` is a dependency-free liveness probe; `GET /readyz` checks the database (`SELECT 1`) and Redis (`PING`) and returns 503 `Dependency unavailable` if either fails. `GET /health` remains as an alias of `/readyz`; `/redis-health` has been removed. `/docs` provides interactive OpenAPI. With `LOCAL_STORAGE_ENABLED=true` in development only, provider connections use signed `/api/v1/local-objects/{id}` URLs so the full flow can run without real cloud credentials. This local data route must remain disabled in production and does not represent the Zero Data Touch production architecture.

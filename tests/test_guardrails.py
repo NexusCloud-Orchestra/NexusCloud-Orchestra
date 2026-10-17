@@ -88,3 +88,61 @@ async def test_unknown_email_still_runs_password_check(client, monkeypatch):
     response = await client.post("/api/v1/auth/login", json=LOGIN)
     assert response.status_code == 401
     assert calls == [auth_routes.DUMMY_PASSWORD_HASH]
+
+
+@pytest.mark.asyncio
+async def test_livez_ok_when_database_down(client, monkeypatch):
+    import app.main as main_module
+
+    def broken():
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(main_module, "SessionLocal", broken)
+    assert (await client.get("/livez")).json() == {"status": "ok"}
+    for path in ("/readyz", "/health"):
+        response = await client.get(path)
+        assert response.status_code == 503
+        assert response.json()["error"]["message"] == "Dependency unavailable"
+
+
+@pytest.mark.asyncio
+async def test_readyz_ok_and_redis_down(client, monkeypatch):
+    assert (await client.get("/readyz")).json() == {"status": "ok"}
+    assert (await client.get("/health")).status_code == 200
+    assert (await client.get("/redis-health")).status_code == 404
+
+    class BrokenRedis:
+        async def ping(self):
+            raise ConnectionError("redis down")
+
+    monkeypatch.setattr(redis_module, "get_redis", lambda: BrokenRedis())
+    assert (await client.get("/readyz")).status_code == 503
+    assert (await client.get("/livez")).status_code == 200
+
+
+def test_init_sentry_noop_without_dsn(monkeypatch):
+    from app.core.config import settings
+    from app.core.observability import init_sentry
+
+    monkeypatch.setattr(settings, "SENTRY_DSN", "")
+    assert init_sentry("api") is False
+
+
+def test_scrub_event_removes_secrets():
+    from app.core.observability import scrub_event
+
+    event = {
+        "request": {
+            "cookies": {"nc_refresh": "abc"},
+            "query_string": "sig=secret",
+            "headers": {"Authorization": "Bearer x", "cookie": "nc_refresh=abc", "X-NC-CSRF": "t", "Accept": "*/*"},
+        },
+        "breadcrumbs": [{"message": "GET https://b.example/o?X-Amz-Signature=deadbeef"}],
+        "extra": {"note": "cookie nc_refresh=abc", "ok": "fine"},
+    }
+    scrubbed = scrub_event(event, {})
+    assert "cookies" not in scrubbed["request"]
+    assert "query_string" not in scrubbed["request"]
+    assert scrubbed["request"]["headers"] == {"Accept": "*/*"}
+    assert scrubbed["breadcrumbs"][0]["message"] == "[scrubbed]"
+    assert scrubbed["extra"] == {"note": "[scrubbed]", "ok": "fine"}

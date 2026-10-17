@@ -14,6 +14,7 @@ from sqlalchemy import select, text
 
 from app.api.v1.routes import auth, connections, files, quota, striped
 from app.core.config import settings
+from app.core.observability import init_sentry
 from app.core.client_ip import client_ip
 from app.core.ratelimit import limiter
 from app.core import redis as shared_redis
@@ -50,6 +51,7 @@ logger = logging.getLogger("nexuscloud")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings.assert_safe()
+    init_sentry("api")
     yield
     await engine.dispose()
 
@@ -143,23 +145,22 @@ async def root():
     return {"name": settings.APP_NAME, "api": "/api/v1", "docs": "/docs"}
 
 
+@app.get("/livez")
+async def livez():
+    # Liveness must not touch dependencies, or an outage would restart healthy processes.
+    return {"status": "ok"}
+
+
+@app.get("/readyz")
 @app.get("/health")
-async def health():
+async def readyz():
     try:
         async with SessionLocal() as db:
             await db.execute(text("SELECT 1"))
-        return {"status": "ok"}
-    except Exception:
-        raise HTTPException(503, "Database unavailable")
-
-
-@app.get("/redis-health")
-async def redis_health():
-    try:
         await shared_redis.get_redis().ping()
         return {"status": "ok"}
     except Exception:
-        raise HTTPException(503, "Redis unavailable")
+        raise HTTPException(503, "Dependency unavailable")
 
 
 @app.get("/api/v1/providers")

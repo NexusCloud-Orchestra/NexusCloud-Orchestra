@@ -7,6 +7,8 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "NexusCloud"
     ENVIRONMENT: str = "development"
+    SENTRY_DSN: str = ""
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.0
     DEBUG: bool = False
     DATABASE_URL: str = "postgresql+asyncpg://nexuscloud:nexuscloud@localhost:5432/nexuscloud"
     REDIS_URL: str = "redis://localhost:6379/0"
