@@ -55,3 +55,36 @@ def test_get_redis_reuses_client_within_a_loop():
 def test_get_redis_requires_running_loop():
     with pytest.raises(RuntimeError):
         redis_module.get_redis()
+
+
+@pytest.mark.asyncio
+async def test_password_hashing_does_not_block_event_loop(client, monkeypatch):
+    import time
+
+    import app.core.security as security
+    from tests.conftest import signup
+    await signup(client, "loop-probe@example.com")
+    monkeypatch.setattr(security.bcrypt, "checkpw", lambda *a: time.sleep(0.5) or False)
+    login = asyncio.create_task(client.post("/api/v1/auth/login", json={"email": "loop-probe@example.com", "password": "SecurePassword123!"}))
+    started = time.perf_counter()
+    await asyncio.sleep(0.05)
+    assert (await client.get("/")).status_code == 200
+    assert time.perf_counter() - started < 0.2
+    assert not login.done()
+    assert (await login).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_unknown_email_still_runs_password_check(client, monkeypatch):
+    import app.api.v1.routes.auth as auth_routes
+    calls = []
+    real = auth_routes.verify_password_async
+
+    async def spy(password, digest):
+        calls.append(digest)
+        return await real(password, digest)
+
+    monkeypatch.setattr(auth_routes, "verify_password_async", spy)
+    response = await client.post("/api/v1/auth/login", json=LOGIN)
+    assert response.status_code == 401
+    assert calls == [auth_routes.DUMMY_PASSWORD_HASH]

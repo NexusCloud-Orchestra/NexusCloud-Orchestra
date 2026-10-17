@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.deps import audit, current_user
-from app.core.security import digest_token, hash_password, parse_token, verify_password
+from app.core.security import DUMMY_PASSWORD_HASH, digest_token, hash_password_async, parse_token, verify_password_async
 from app.db.models import AccessRevocation, AuditLog, CloudConnection, FileManifest, FileRecord, PasswordReset, Quota, RefreshSession, User
 from app.db.session import get_db
 from app.schemas import AuditOut, ChangePasswordIn, DeleteAccountIn, EmailIn, LoginIn, PlanIn, RegisterIn, ResetIn, TokenOut, UserOut
@@ -30,7 +30,7 @@ async def register(body: RegisterIn, request: Request, db: AsyncSession = Depend
     email = body.email.lower()
     if await db.scalar(select(User.id).where(User.email == email)):
         raise HTTPException(409, "Email already registered")
-    user = User(first_name=body.first_name.strip(), last_name=body.last_name.strip(), email=email, password_hash=hash_password(body.password))
+    user = User(first_name=body.first_name.strip(), last_name=body.last_name.strip(), email=email, password_hash=await hash_password_async(body.password))
     db.add(user)
     await db.flush()
     db.add(Quota(user_id=user.id, used_bytes=0))
@@ -46,7 +46,10 @@ async def register(body: RegisterIn, request: Request, db: AsyncSession = Depend
 @router.post("/login", response_model=TokenOut)
 async def login(body: LoginIn, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     user = await db.scalar(select(User).where(User.email == body.email.lower()))
-    if user is None or not user.is_active or not verify_password(body.password, user.password_hash):
+    usable = user is not None and user.is_active
+    # Always run one bcrypt check so unknown/inactive accounts are indistinguishable by timing.
+    password_ok = await verify_password_async(body.password, user.password_hash if usable else DUMMY_PASSWORD_HASH)
+    if not usable or not password_ok:
         raise HTTPException(401, "Invalid email or password")
     tokens, refresh_token = await create_tokens(db, user)
     audit(db, request, user.id, "LOGIN")
@@ -140,7 +143,7 @@ async def reset_password(body: ResetIn, request: Request, response: Response, db
     if not user or not reset or reset.user_id != user.id or reset.used_at is not None or reset.expires_at.replace(tzinfo=timezone.utc) <= datetime.now(timezone.utc):
         raise HTTPException(400, "Invalid or expired reset token")
     reset.used_at = datetime.now(timezone.utc)
-    user.password_hash = hash_password(body.new_password)
+    user.password_hash = await hash_password_async(body.new_password)
     await revoke_sessions(db, user, "password")
     audit(db, request, user.id, "PASSWORD_RESET")
     await db.commit()
@@ -150,9 +153,9 @@ async def reset_password(body: ResetIn, request: Request, response: Response, db
 
 @router.post("/change-password")
 async def change_password(body: ChangePasswordIn, request: Request, response: Response, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
-    if not verify_password(body.current_password, user.password_hash):
+    if not await verify_password_async(body.current_password, user.password_hash):
         raise HTTPException(400, "Current password is incorrect")
-    user.password_hash = hash_password(body.new_password)
+    user.password_hash = await hash_password_async(body.new_password)
     await revoke_sessions(db, user, "password")
     audit(db, request, user.id, "PASSWORD_CHANGE")
     await db.commit()
@@ -189,7 +192,7 @@ async def audit_logs(user: User = Depends(current_user), db: AsyncSession = Depe
 async def delete_account(body: DeleteAccountIn, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
     """Erase the account and all metadata (BRD 11.1). Cloud objects must be deleted first so none are orphaned."""
     user = await db.scalar(select(User).where(User.id == user.id).with_for_update())
-    if not verify_password(body.password, user.password_hash):
+    if not await verify_password_async(body.password, user.password_hash):
         raise HTTPException(400, "Password is incorrect")
     remaining = await db.scalar(select(func.count()).select_from(FileRecord).where(
         FileRecord.user_id == user.id, FileRecord.status.in_(("active", "pending", "cleanup_pending", "cleanup_failed"))

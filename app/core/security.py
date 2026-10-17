@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import secrets
@@ -21,6 +22,18 @@ def verify_password(password: str, digest: str) -> bool:
         return bcrypt.checkpw(password.encode(), digest.encode())
     except ValueError:
         return False
+
+
+async def hash_password_async(password: str) -> str:
+    return await asyncio.to_thread(hash_password, password)
+
+
+async def verify_password_async(password: str, digest: str) -> bool:
+    return await asyncio.to_thread(verify_password, password, digest)
+
+
+# Verified when the account is missing/inactive so unknown emails cost the same as wrong passwords.
+DUMMY_PASSWORD_HASH = hash_password("nexuscloud-dummy-password")
 
 
 def digest_token(value: str) -> str:
