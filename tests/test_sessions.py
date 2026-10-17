@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select, update
 
 from app.core.config import Settings
-from app.db.models import AuditLog, RefreshSession
+from app.db.models import AuditLog, RefreshSession, User
 from tests.conftest import signup
 
 CSRF = {"X-NC-CSRF": "1"}
@@ -87,6 +87,32 @@ async def test_refresh_reuse_after_grace_revokes_family(client):
         assert await db.scalar(select(AuditLog.id).where(AuditLog.action == "SESSION_REUSE_DETECTED"))
         reasons = set((await db.scalars(select(RefreshSession.revoked_reason))).all())
         assert reasons == {"rotated", "reuse"}
+
+
+async def test_replaying_dead_family_token_does_not_log_out_new_sessions(client):
+    await signup(client, "dead@example.com")
+    old = client.cookies.get("nc_refresh")
+    assert (await client.post("/api/v1/auth/refresh", headers=CSRF)).status_code == 200
+    async with client.test_session_factory() as db:
+        session = await db.scalar(select(RefreshSession).where(RefreshSession.revoked_reason == "rotated"))
+        await db.execute(update(RefreshSession).where(RefreshSession.id == session.id).values(
+            revoked_at=session.revoked_at - timedelta(seconds=31)
+        ))
+        await db.commit()
+    assert (await replay(client, old)).status_code == 401  # first detection kills the family
+    login = await client.post("/api/v1/auth/login", json={"email": "dead@example.com", "password": "SecurePassword123!"})
+    assert login.status_code == 200
+    second_family = cookie_value(login)
+    async with client.test_session_factory() as db:
+        version = await db.scalar(select(User.token_version).where(User.email == "dead@example.com"))
+    assert (await replay(client, old)).status_code == 401  # the family is already dead
+    async with client.test_session_factory() as db:
+        assert await db.scalar(select(User.token_version).where(User.email == "dead@example.com")) == version
+        audits = (await db.scalars(select(AuditLog.id).where(AuditLog.action == "SESSION_REUSE_DETECTED"))).all()
+        assert len(audits) == 2
+    me = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {login.json()['access_token']}"})
+    assert me.status_code == 200
+    assert (await replay(client, second_family)).status_code == 200
 
 
 async def test_login_starts_a_new_family(client):
