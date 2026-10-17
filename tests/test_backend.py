@@ -444,7 +444,7 @@ async def test_striped_cancel_after_partial_upload_blocks_old_url_and_releases_q
         manifest = await db.get(FileManifest, uuid.UUID(ticket["file_id"]))
         manifest.upload_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
         await db.commit()
-    monkeypatch.setattr(worker_tasks, "SessionLocal", client.test_session_factory)
+    monkeypatch.setattr(worker_tasks, "worker_session", client.test_session_factory)
     assert await worker_tasks._cleanup() == 1
     assert (await client.delete(f"/api/v1/connections/{aws}", headers=headers)).status_code == 204
     assert (await client.delete(f"/api/v1/connections/{r2}", headers=headers)).status_code == 204
@@ -485,7 +485,7 @@ async def test_striped_partial_delete_is_retried_by_worker(client, monkeypatch):
     assert (await client.get("/api/v1/files", headers=headers)).json() == []
     assert (await client.get("/api/v1/quota/summary", headers=headers)).json()["total_used_bytes"] == sum(map(len, pieces))
     monkeypatch.setattr(LocalProvider, "delete", original_delete)
-    monkeypatch.setattr(worker_tasks, "SessionLocal", client.test_session_factory)
+    monkeypatch.setattr(worker_tasks, "worker_session", client.test_session_factory)
     async with client.test_session_factory() as db:
         manifest = await db.get(FileManifest, uuid.UUID(ticket["file_id"]))
         manifest.upload_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
@@ -568,7 +568,7 @@ async def test_worker_purges_expired_tokens(client, monkeypatch):
     import app.workers.tasks as tasks
     from app.db.models import RefreshSession
     from sqlalchemy import func, select
-    monkeypatch.setattr(tasks, "SessionLocal", main_module.SessionLocal)
+    monkeypatch.setattr(tasks, "worker_session", client.test_session_factory)
     await signup(client, "purge@example.com")
     async with main_module.SessionLocal() as db:
         session = await db.scalar(select(RefreshSession))

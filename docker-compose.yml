@@ -20,6 +20,17 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       retries: 10
+  migrate:
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://nexuscloud:${POSTGRES_PASSWORD}@postgres:5432/nexuscloud
+      REDIS_URL: redis://redis:6379/0
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
   api:
     build: .
     env_file: .env
@@ -28,11 +39,17 @@ services:
       REDIS_URL: redis://redis:6379/0
     ports:
       - "7575:7575"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:7575/health', timeout=2)"]
+      interval: 10s
+      retries: 6
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
   web:
     build:
       context: ./frontend
@@ -44,7 +61,7 @@ services:
       - api
   worker:
     build: .
-    command: ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "-B", "--loglevel=info", "-s", "/tmp/celerybeat-schedule"]
+    command: ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "--loglevel=info"]
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://nexuscloud:${POSTGRES_PASSWORD}@postgres:5432/nexuscloud
@@ -52,6 +69,18 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+  beat:
+    build: .
+    command: ["celery", "-A", "app.workers.celery_app:celery_app", "beat", "--loglevel=info", "-s", "/tmp/celerybeat-schedule"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://nexuscloud:${POSTGRES_PASSWORD}@postgres:5432/nexuscloud
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
       redis:
         condition: service_healthy
 

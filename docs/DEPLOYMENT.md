@@ -46,10 +46,10 @@ Files larger than 16 MiB are striped when the account has at least two active, d
 
 This is striping, not replication or erasure coding: losing any chunk makes the file unavailable. Supported browsers save verified chunks incrementally; other browsers can download up to 512 MiB through a bounded in-memory fallback. Cloud providers can honor an issued signed PUT URL until its 15-minute expiry. Cancelling a striped upload releases its quota reservation immediately but blocks disconnect/account deletion until the cleanup worker sweeps the chunks after that window. Keep Celery beat and workers healthy; alert on `cleanup_failed` rows. The API verifies object existence and size at confirmation, but cannot independently verify the client-asserted content hash without reading the object.
 
-Run `alembic upgrade head` once with the API image and the production database settings before starting API replicas.
+In `docker-compose.yml` the one-shot `migrate` service runs `alembic upgrade head`; `api` and `worker` start only after it completes successfully. Outside compose, run `alembic upgrade head` once with the API image and the production database settings before starting API replicas.
 The current baseline is for a new database; installations on either legacy Alembic lineage need a planned data migration first.
 
-Run Celery workers from the same API image. Keep exactly one beat scheduler (`worker -B` on a single worker or a separate beat process).
+Run Celery workers from the same API image. Run exactly one `beat` scheduler as its own process (the compose `beat` service); workers are started without `-B` and can be scaled freely. Worker tasks open database sessions with `NullPool` because each task runs in a fresh asyncio event loop.
 The frontend's `/health` and API's `/health` endpoints can be used for service health checks.
 The workflow publishes images; deploying them to a cloud environment still requires the target account's credentials and rollout configuration.
 

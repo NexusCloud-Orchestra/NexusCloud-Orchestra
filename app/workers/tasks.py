@@ -5,16 +5,16 @@ from sqlalchemy import delete, select
 
 from app.core.security import decrypt_credentials
 from app.db.models import AccessRevocation, CloudConnection, FileManifest, FileRecord, PasswordReset, Quota, RefreshSession
-from app.db.session import SessionLocal
 from app.services.providers import provider_for
 from app.services.quota import invalidate_quota
 from app.workers.celery_app import celery_app
+from app.workers.db import worker_session
 
 logger = logging.getLogger(__name__)
 
 
 async def _cleanup():
-    async with SessionLocal() as db:
+    async with worker_session() as db:
         files = (await db.scalars(select(FileRecord).where(
             FileRecord.status.in_(("pending", "cleanup_failed")),
             FileRecord.upload_expires_at < datetime.now(timezone.utc),
@@ -69,7 +69,7 @@ async def _cleanup():
 async def _purge_expired_tokens():
     """Revocation, refresh and reset rows are useless after expiry; keep the tables bounded."""
     now = datetime.now(timezone.utc)
-    async with SessionLocal() as db:
+    async with worker_session() as db:
         removed = 0
         for model in (AccessRevocation, RefreshSession, PasswordReset):
             result = await db.execute(delete(model).where(model.expires_at < now))
