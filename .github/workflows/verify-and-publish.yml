@@ -127,11 +127,15 @@ jobs:
               echo "=== nexuscloud-web-smoke logs ==="
               docker logs nexuscloud-web-smoke || true
             fi
-            docker rm -f nexuscloud-api-smoke nexuscloud-web-smoke >/dev/null 2>&1 || true
+            docker rm -f nexuscloud-api-smoke nexuscloud-web-smoke nexuscloud-redis-smoke >/dev/null 2>&1 || true
+            docker network rm nexuscloud-smoke >/dev/null 2>&1 || true
             exit $status
           }
           trap cleanup EXIT
-          docker run -d --name nexuscloud-api-smoke -p 7575:7575 \
+          docker network create nexuscloud-smoke
+          docker run -d --name nexuscloud-redis-smoke --network nexuscloud-smoke redis:7-alpine
+          docker run -d --name nexuscloud-api-smoke --network nexuscloud-smoke -p 7575:7575 \
+            -e REDIS_URL=redis://nexuscloud-redis-smoke:6379/0 \
             -e DATABASE_URL=sqlite+aiosqlite:////tmp/nexuscloud-smoke.db \
             -e SECRET_KEY=ci-access-secret-0123456789abcdef0123456789 \
             -e ENCRYPTION_KEY=ci-encryption-secret-0123456789abcdef \
