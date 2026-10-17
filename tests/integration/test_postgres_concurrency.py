@@ -47,3 +47,77 @@ def test_cleanup_task_runs_repeatedly_in_fresh_event_loops(monkeypatch):
             assert isinstance(worker_tasks.purge_expired_tokens(), int)
     finally:
         reset_worker_engine()
+
+
+def _block_exists(monkeypatch):
+    from app.services.providers import LocalProvider
+
+    original = LocalProvider.exists
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def blocked(self, connection, credentials, object_key, file_id):
+        entered.set()
+        await release.wait()
+        return await original(self, connection, credentials, object_key, file_id)
+
+    monkeypatch.setattr(LocalProvider, "exists", blocked)
+    return entered, release
+
+
+async def _assert_user_not_locked(client, headers, confirm, entered, release):
+    """While confirm waits on the provider, another locking request for the same user must not queue behind it."""
+    task = asyncio.create_task(confirm)
+    try:
+        await asyncio.wait_for(entered.wait(), 2)
+        other = await asyncio.wait_for(client.post("/api/v1/files/upload-request", headers=headers, json={
+            "original_name": "other.bin", "size_bytes": 10, "mime_type": "application/octet-stream",
+        }), 2)
+        assert other.status_code == 200, other.text
+    finally:
+        release.set()
+        response = await task
+    assert response.status_code == 200, response.text
+
+
+@pytest.mark.postgres
+async def test_confirm_does_not_hold_user_lock_during_provider_call(client, monkeypatch):
+    tokens = await signup(client, "confirm-lock@example.com")
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    await client.post("/api/v1/connections", headers=headers, json=AWS_CONNECTION)
+    content = b"p" * 32
+    ticket = (await client.post("/api/v1/files/upload-request", headers=headers, json={
+        "original_name": "a.bin", "size_bytes": len(content), "mime_type": "application/octet-stream",
+    })).json()
+    assert (await client.put(ticket["upload_url"], content=content)).status_code == 200
+    entered, release = _block_exists(monkeypatch)
+    confirm = client.post(f"/api/v1/files/confirm-upload/{ticket['file_id']}", headers=headers)
+    await _assert_user_not_locked(client, headers, confirm, entered, release)
+
+
+@pytest.mark.postgres
+async def test_striped_confirm_does_not_hold_user_lock_during_provider_call(client, monkeypatch):
+    import hashlib
+
+    from app.services.striping import CHUNK_BYTES
+
+    tokens = await signup(client, "striped-lock@example.com")
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    credentials = {"aws_access_key_id": "test", "aws_secret_access_key": "secret"}
+    await client.post("/api/v1/connections", headers=headers, json=AWS_CONNECTION)
+    response = await client.post("/api/v1/connections", headers=headers, json={
+        **AWS_CONNECTION, "provider": "r2", "display_name": "R2", "credentials": {**credentials, "account_id": "0" * 32},
+    })
+    assert response.status_code == 201, response.text
+    pieces = [b"a" * CHUNK_BYTES, b"tail"]
+    response = await client.post("/api/v1/files/striped-upload-request", headers=headers, json={
+        "original_name": "striped.bin", "size_bytes": sum(map(len, pieces)), "mime_type": "application/octet-stream",
+        "chunks": [{"size_bytes": len(piece), "sha256": hashlib.sha256(piece).hexdigest()} for piece in pieces],
+    })
+    assert response.status_code == 200, response.text
+    ticket = response.json()
+    for index, piece in enumerate(pieces):
+        signed = (await client.get(f"/api/v1/files/striped/{ticket['file_id']}/chunks/{index}/upload-url", headers=headers)).json()
+        assert (await client.put(signed["url"], content=piece, headers=signed["required_headers"])).status_code == 200
+    entered, release = _block_exists(monkeypatch)
+    confirm = client.post(f"/api/v1/files/striped/{ticket['file_id']}/confirm", headers=headers)
+    await _assert_user_not_locked(client, headers, confirm, entered, release)

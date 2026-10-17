@@ -143,3 +143,22 @@ async def test_disconnect_blocked_while_file_deleting(client, monkeypatch):
     assert (await client.delete(f"/api/v1/connections/{connection_id}", headers=headers)).status_code == 409
     response = await client.post("/api/v1/auth/delete-account", headers=headers, json={"password": "SecurePassword123!"})
     assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_confirm_after_concurrent_cancel_conflicts(client, monkeypatch):
+    headers, _ = await _setup(client, "confirm-race@example.com")
+    file_id = await _upload(client, headers, b"c" * 48, confirm=False)
+    original = LocalProvider.exists
+
+    async def cancel_then_exists(self, connection, credentials, object_key, file_id_):
+        # The user cancels while confirm is talking to the provider.
+        assert (await client.post(f"/api/v1/files/cancel-upload/{file_id}", headers=headers)).status_code == 204
+        return await original(self, connection, credentials, object_key, file_id_)
+
+    monkeypatch.setattr(LocalProvider, "exists", cancel_then_exists)
+    response = await client.post(f"/api/v1/files/confirm-upload/{file_id}", headers=headers)
+    assert response.status_code == 409
+    assert response.json()["error"]["message"] == "Upload is no longer pending"
+    assert (await _record(client, file_id)).status == "cleanup_pending"
+    assert (await client.get("/api/v1/quota/summary", headers=headers)).json()["total_used_bytes"] == 0

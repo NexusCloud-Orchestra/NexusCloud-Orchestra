@@ -28,7 +28,7 @@ async def _manifest(db: AsyncSession, user_id: UUID, manifest_id: UUID, lock: bo
         .where(FileManifest.id == manifest_id, FileManifest.user_id == user_id)
     )
     if lock:
-        query = query.with_for_update()
+        query = query.with_for_update().execution_options(populate_existing=True)
     manifest = await db.scalar(query)
     if manifest is None:
         raise HTTPException(404, "File not found")
@@ -108,14 +108,25 @@ async def request_striped_upload(
     )
 
 
+def _is_pending(manifest: FileManifest) -> bool:
+    return manifest.status == "pending" and manifest.upload_expires_at.replace(tzinfo=timezone.utc) > datetime.now(timezone.utc)
+
+
+async def _relock(db: AsyncSession, user_id: UUID, manifest_id: UUID) -> FileManifest:
+    """End the unlocked read transaction, then lock user row + manifest to re-check state after a provider call."""
+    await db.rollback()
+    await db.scalar(select(User).where(User.id == user_id).with_for_update())
+    return await _manifest(db, user_id, manifest_id, lock=True)
+
+
 @router.get("/striped/{manifest_id}/chunks/{index}/upload-url", response_model=SignedChunkOut)
 async def chunk_upload_url(
     manifest_id: UUID, index: int,
     user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
 ):
-    await db.scalar(select(User).where(User.id == user.id).with_for_update())
-    manifest = await _manifest(db, user.id, manifest_id, lock=True)
-    if manifest.status != "pending" or manifest.upload_expires_at.replace(tzinfo=timezone.utc) <= datetime.now(timezone.utc):
+    user_id = user.id
+    manifest = await _manifest(db, user_id, manifest_id)
+    if not _is_pending(manifest):
         raise HTTPException(409, "Striped upload has expired")
     chunk = _chunk(manifest, index)
     try:
@@ -125,8 +136,9 @@ async def chunk_upload_url(
         )
     except Exception:
         raise HTTPException(502, "Could not create cloud upload URL")
-    # Hold the user lock through URL issuance so cancellation's 15-minute
-    # cleanup delay starts after the last URL can have been issued.
+    # A cancel committed after this re-check still waits a full URL lifetime before cleanup.
+    if not _is_pending(await _relock(db, user_id, manifest_id)):
+        raise HTTPException(409, "Upload is no longer pending")
     await db.commit()
     return SignedChunkOut(url=url, required_headers=headers, expires_in_seconds=900)
 
@@ -136,11 +148,12 @@ async def confirm_striped_upload(
     manifest_id: UUID, request: Request,
     user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
 ):
-    await db.scalar(select(User).where(User.id == user.id).with_for_update())
-    manifest = await _manifest(db, user.id, manifest_id, lock=True)
+    user_id = user.id
+    # Verify every chunk before taking row locks: up to hundreds of HEADs must not hold the user row.
+    manifest = await _manifest(db, user_id, manifest_id)
     if manifest.status == "active":
         return manifest
-    if manifest.status != "pending" or manifest.upload_expires_at.replace(tzinfo=timezone.utc) <= datetime.now(timezone.utc):
+    if not _is_pending(manifest):
         raise HTTPException(409, "Striped upload has expired")
     semaphore = asyncio.Semaphore(8)
 
@@ -158,7 +171,12 @@ async def confirm_striped_upload(
         raise HTTPException(502, "Could not verify cloud chunks")
     if not all(verified):
         raise HTTPException(409, "One or more chunks are missing or have the wrong size")
-    quota = await db.scalar(select(Quota).where(Quota.user_id == user.id).with_for_update())
+    manifest = await _relock(db, user_id, manifest_id)
+    if manifest.status == "active":
+        return manifest
+    if not _is_pending(manifest):
+        raise HTTPException(409, "Upload is no longer pending")
+    quota = await db.scalar(select(Quota).where(Quota.user_id == user_id).with_for_update())
     quota.used_bytes += manifest.size_bytes
     uploaded = datetime.now(timezone.utc)
     manifest.status = "active"
@@ -166,9 +184,9 @@ async def confirm_striped_upload(
     for chunk in manifest.chunks:
         chunk.status = "active"
         chunk.uploaded_at = uploaded
-    audit(db, request, user.id, "STRIPED_UPLOAD", str(manifest.id))
+    audit(db, request, user_id, "STRIPED_UPLOAD", str(manifest.id))
     await db.commit()
-    await invalidate_quota(user.id)
+    await invalidate_quota(user_id)
     return manifest
 
 
