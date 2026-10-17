@@ -69,3 +69,15 @@ async def test_signing_runs_off_event_loop(monkeypatch):
     creds = {"account_name": "testaccount", "account_key": base64.b64encode(b"x" * 32).decode()}
     await AzureProvider().download_url(SimpleNamespace(bucket_name="c"), creds, "k", uuid.uuid4())
     assert seen and seen[0] != main
+
+
+@pytest.mark.asyncio
+async def test_client_construction_runs_off_event_loop(monkeypatch):
+    import threading
+    main = threading.get_ident()
+    seen = []
+    real = providers.boto3.client
+    monkeypatch.setattr(providers.boto3, "client", lambda *a, **k: seen.append(threading.get_ident()) or real(*a, **k))
+    connection = SimpleNamespace(id=uuid.uuid4(), bucket_name="b", region="us-east-1")
+    await S3Provider().client(connection, {"aws_access_key_id": "k", "aws_secret_access_key": "s"})
+    assert seen and seen[0] != main
