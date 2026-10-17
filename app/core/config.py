@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     DATABASE_URL: str = "postgresql+asyncpg://nexuscloud:nexuscloud@localhost:5432/nexuscloud"
     REDIS_URL: str = "redis://localhost:6379/0"
+    TRUSTED_PROXIES: str = "127.0.0.1"
     SECRET_KEY: str = ""
     ENCRYPTION_KEY: str = ""
     PUBLIC_API_URL: str = "http://localhost:7575"

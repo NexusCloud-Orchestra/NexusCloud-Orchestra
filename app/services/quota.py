@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
+from app.core import redis as shared_redis
 from app.db.models import CloudConnection, FileRecord, Quota, User
 from app.schemas import QuotaSummaryOut
 from app.services.catalog import PLANS, PROVIDERS
@@ -44,25 +44,16 @@ async def quota_usage(db: AsyncSession, user_id: UUID) -> QuotaUsage:
     return QuotaUsage(active, pending)
 
 
-def redis_client():
-    from redis.asyncio import Redis
-    return Redis.from_url(settings.REDIS_URL, socket_connect_timeout=0.2, socket_timeout=0.2)
-
-
 async def invalidate_quota(user_id: UUID) -> None:
-    client = redis_client()
     try:
-        await client.delete(f"quota:{user_id}")
+        await shared_redis.get_redis().delete(f"quota:{user_id}")
     except Exception:
         logger.warning("Quota cache unavailable")
-    finally:
-        await client.aclose()
 
 
 async def quota_summary(db: AsyncSession, user: User) -> dict:
-    client = redis_client()
     try:
-        cached = await client.get(f"quota:{user.id}")
+        cached = await shared_redis.get_redis().get(f"quota:{user.id}")
         if cached:
             try:
                 result = json.loads(cached)
@@ -72,8 +63,6 @@ async def quota_summary(db: AsyncSession, user: User) -> dict:
                 logger.warning("Invalid quota cache entry for user %s", user.id)
     except Exception:
         logger.warning("Quota cache unavailable")
-    finally:
-        await client.aclose()
     connections = (await db.scalars(select(CloudConnection).where(CloudConnection.user_id == user.id, CloudConnection.is_active.is_(True)))).all()
     quota = await db.scalar(select(Quota).where(Quota.user_id == user.id))
     usage = await quota_usage(db, user.id)
@@ -103,11 +92,8 @@ async def quota_summary(db: AsyncSession, user: User) -> dict:
         "total_reserved_bytes": reserved_total, "plan": user.plan, "plan_limit_bytes": plan_limit,
         "by_connection": by_connection,
     }
-    client = redis_client()
     try:
-        await client.set(f"quota:{user.id}", json.dumps(result), ex=900)
+        await shared_redis.get_redis().set(f"quota:{user.id}", json.dumps(result), ex=900)
     except Exception:
         logger.warning("Quota cache unavailable")
-    finally:
-        await client.aclose()
     return result

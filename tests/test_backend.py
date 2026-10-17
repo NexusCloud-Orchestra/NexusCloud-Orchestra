@@ -13,11 +13,11 @@ import pytest
 import pytest_asyncio
 import fakeredis.aioredis
 import jwt
-from redis.asyncio import Redis
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config import Settings, settings
+from app.core.redis import get_redis
 from app.core.security import issue_token, parse_token
 from app.db.base import Base
 from app.db.session import get_db
@@ -81,16 +81,13 @@ async def test_quota_summary_recovers_from_invalid_cache(client):
     tokens = await signup(client, "quota-cache@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
     user_id = (await client.get("/api/v1/auth/me", headers=headers)).json()["id"]
-    redis = Redis.from_url(settings.REDIS_URL)
-    try:
-        for malformed in ("not json", '{"by_connection": []}'):
-            await redis.set(f"quota:{user_id}", malformed)
-            response = await client.get("/api/v1/quota/summary", headers=headers)
-            assert response.status_code == 200, response.text
-            assert response.json()["total_used_bytes"] == 0
-            assert response.json()["plan"] == "free"
-    finally:
-        await redis.aclose()
+    redis = get_redis()
+    for malformed in ("not json", '{"by_connection": []}'):
+        await redis.set(f"quota:{user_id}", malformed)
+        response = await client.get("/api/v1/quota/summary", headers=headers)
+        assert response.status_code == 200, response.text
+        assert response.json()["total_used_bytes"] == 0
+        assert response.json()["plan"] == "free"
 
 
 @pytest.mark.asyncio

@@ -6,6 +6,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.client_ip import client_ip
 from app.core.security import digest_token, parse_token
 from app.db.models import AccessRevocation, User
 from app.db.session import get_db
@@ -39,6 +40,6 @@ def audit(db: AsyncSession, request: Request, user_id: uuid.UUID, action: str, r
     from app.db.models import AuditLog
     db.add(AuditLog(
         user_id=user_id, action=action, resource_id=resource_id,
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
         user_agent=request.headers.get("user-agent", "")[:512],
     ))

@@ -7,7 +7,6 @@ import fakeredis.aioredis
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config import settings
@@ -15,6 +14,7 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 import app.main as main_module
+import app.core.redis as redis_module
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 
@@ -36,7 +36,7 @@ def pytest_collection_modifyitems(config, items):
 @pytest_asyncio.fixture
 async def client(tmp_path, monkeypatch):
     redis_server = fakeredis.FakeServer()
-    monkeypatch.setattr(Redis, "from_url", lambda *args, **kwargs: fakeredis.aioredis.FakeRedis(server=redis_server))
+    monkeypatch.setattr(redis_module, "get_redis", lambda: fakeredis.aioredis.FakeRedis(server=redis_server))
     engine = create_async_engine(TEST_DATABASE_URL or f"sqlite+aiosqlite:///{tmp_path / 'test.db'}")
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as conn:
