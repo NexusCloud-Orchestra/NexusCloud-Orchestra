@@ -55,6 +55,8 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: ${PUBLIC_API_URL:-http://localhost:7575}
+    environment:
+      CSP_CONNECT_SRC: "'self' https: http://localhost:7575"
     ports:
       - "8080:8080"
     depends_on:

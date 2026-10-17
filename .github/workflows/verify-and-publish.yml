@@ -146,6 +146,11 @@ jobs:
           curl --fail --retry 30 --retry-delay 1 --retry-connrefused --retry-all-errors http://127.0.0.1:7575/readyz
           curl --fail --retry 30 --retry-delay 1 --retry-connrefused --retry-all-errors http://127.0.0.1:8080/health
           curl --fail http://127.0.0.1:8080/app/files | grep -q '<div id="root">'
+          for path in /app/files /landing/index.html /health "/assets/$(curl -s http://127.0.0.1:8080/app/files | grep -o 'assets/index-[^"]*\.js' | head -1 | cut -d/ -f2)"; do
+            headers=$(curl -sI "http://127.0.0.1:8080$path")
+            echo "$headers" | grep -qi '^content-security-policy:.*frame-ancestors' || { echo "missing CSP on $path"; exit 1; }
+            echo "$headers" | grep -qi '^x-frame-options: DENY' || { echo "missing XFO on $path"; exit 1; }
+          done
 
   publish:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
