@@ -31,41 +31,7 @@ from app.services.providers import AzureProvider, GCPProvider, S3Provider
 from app.services.providers import LocalProvider
 from app.db.models import FileManifest, FileRecord
 import app.workers.tasks as worker_tasks
-
-
-@pytest_asyncio.fixture
-async def client(tmp_path, monkeypatch):
-    redis_server = fakeredis.FakeServer()
-    monkeypatch.setattr(Redis, "from_url", lambda *args, **kwargs: fakeredis.aioredis.FakeRedis(server=redis_server))
-    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'test.db'}")
-    factory = async_sessionmaker(engine, expire_on_commit=False)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    async def override_db():
-        async with factory() as db:
-            yield db
-
-    app.dependency_overrides[get_db] = override_db
-    monkeypatch.setattr(main_module, "SessionLocal", factory)
-    monkeypatch.setattr(settings, "LOCAL_STORAGE_ENABLED", True)
-    monkeypatch.setattr(settings, "LOCAL_STORAGE_PATH", str(tmp_path / "storage"))
-    monkeypatch.setattr(settings, "PUBLIC_API_URL", "http://testserver")
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as test_client:
-        test_client.test_session_factory = factory
-        yield test_client
-    app.dependency_overrides.clear()
-    await engine.dispose()
-
-
-async def signup(client, email):
-    response = await client.post("/api/v1/auth/register", json={
-        "first_name": "Test", "last_name": "User", "email": email, "password": "SecurePassword123!"
-    })
-    assert response.status_code == 201, response.text
-    response = await client.post("/api/v1/auth/login", json={"email": email, "password": "SecurePassword123!"})
-    assert response.status_code == 200, response.text
-    return response.json()
+from tests.conftest import signup
 
 
 @pytest.mark.asyncio

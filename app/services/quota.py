@@ -40,7 +40,7 @@ async def quota_usage(db: AsyncSession, user_id: UUID) -> QuotaUsage:
     active: dict[UUID, int] = {}
     pending: dict[UUID, int] = {}
     for connection_id, status, amount in rows:
-        (active if status == "active" else pending)[connection_id] = amount
+        (active if status == "active" else pending)[connection_id] = int(amount)
     return QuotaUsage(active, pending)
 
 
