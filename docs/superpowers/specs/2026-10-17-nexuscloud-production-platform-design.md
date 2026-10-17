@@ -129,11 +129,31 @@ Project ─< File, Manifest, ApiKey
 ```
 - Signup auto-creates a personal org (`kind=personal`) with one default project. A personal org cannot add members.
 - Organizations have `tier ∈ {standard, verified}`; superadmin grants `verified`.
-- **Domain auto-join:** a verified org may claim email domains (proved by superadmin approval, or a DNS TXT record). Users with a verified email on that domain see a "Join <Org>" prompt; the org setting chooses instant join or admin approval.
+- **Domain claims:** a verified org may claim email domains (proved by superadmin approval, or a DNS TXT record).
+- **Membership evidence and approval** (see §5.2): a verified institutional email is instant, automatic approval; an uploaded document is a manual fallback reviewed by an org admin.
 - Invites: signed, single-use, 7-day expiry, bound to the invited email.
 - Every repository method takes the tenant scope (`org_id`/`project_id`) as a required argument; there is no unscoped query method on tenant data.
 
-### 5.2 Migration of existing data
+### 5.2 Join requests and evidence
+A user requests to join an org by submitting one piece of evidence. Implemented as an `EvidenceVerifier` port with one strategy per evidence type.
+
+| Evidence | Verifier | Decision |
+|---|---|---|
+| Institutional email on a claimed domain | `InstitutionalEmailVerifier`: sends a 6-digit code + magic link to that address (10-min expiry, 5 attempts, rate-limited per user and per address); the address may differ from the login email and is stored as a verified secondary email | **Instant, automatic approval** on successful verification. No human involved. |
+| Document upload (student ID, fee receipt, admission letter) | `ManualDocumentVerifier`: queues a join request for org admins | **Manual** approve/reject by an org admin; never auto-approved. |
+
+- **Join request states:** `PENDING_VERIFICATION → APPROVED` (email path) or `PENDING_REVIEW → APPROVED | REJECTED` (document path); `EXPIRED` after 14 days without action.
+- **Re-verification:** institutional email membership is re-confirmed yearly (one code email); unconfirmed members drop to `member_lapsed` with read-only access for 30 days, then removal.
+- **Document handling (privacy):**
+  - Accepted types: JPEG, PNG, PDF; max 5 MiB; one document per request; EXIF stripped on upload.
+  - Stored in a platform-owned private bucket (not a user's connection), encrypted with the credential-vault envelope scheme, never publicly addressable; admins view through a 5-minute signed URL; every view is audited.
+  - **Deleted automatically** when the request is decided, or after 30 days, whichever is first; only the decision, reviewer, and timestamp are kept.
+  - Explicit consent checkbox and purpose statement at upload; documented in the privacy policy.
+- **Org settings:** claimed domains; whether the document fallback is enabled; reviewers (org admins by default).
+- **Abuse limits:** max 3 pending join requests per user; max 5 document submissions per user per 30 days.
+- **Audit actions:** `JOIN_REQUESTED`, `JOIN_EMAIL_VERIFIED`, `JOIN_APPROVED`, `JOIN_REJECTED`, `EVIDENCE_VIEWED`, `EVIDENCE_PURGED`.
+
+### 5.3 Migration of existing data
 Each existing user gets a personal org + default project; existing connections and files are moved into that project. Done in an expand → backfill → contract migration sequence.
 
 ## 6. Governance
@@ -167,7 +187,7 @@ Each existing user gets a personal org + default project; existing connections a
 | Max file size | 1 GiB | 5 GiB (single), 5 GiB striped |
 | Org members | 5 | 2000 |
 
-(The bytes quota stays bounded by the user's own connected capacity; NexusCloud stores no bytes.)
+(The bytes quota stays bounded by the user's own connected capacity. NexusCloud stores no user file bytes; the only platform-held objects are short-lived join-evidence documents, §5.2.)
 
 ### 6.4 Abuse controls
 - Suspension of a user/org revokes sessions and API keys immediately and blocks new URL issuance.
