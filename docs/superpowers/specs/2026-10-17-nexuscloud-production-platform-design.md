@@ -33,7 +33,7 @@
 ### Non-goals (this spec)
 - App hosting / build pipelines / custom domains (future spec "Product B").
 - Outbound storage agent for NAT'd servers (future).
-- Erasure coding / replication (future; striping keeps its current no-redundancy semantics and is labeled as such in the UI).
+- Server-side repair worker (repair is browser-driven in this spec; an opt-in server worker is future).
 - Paid billing integration. Tiers exist; payment does not.
 - SSO (SAML/OIDC). Email-domain auto-join only.
 - Custom role builder.
@@ -48,6 +48,7 @@ Each phase gets its own implementation plan and ships independently.
 | **1 Restructure** | Hexagonal modules; file state machine; provider adapter registry; reservation ledger; repo hygiene | Behavior parity; existing tests pass; import-linter green |
 | **2 Tenancy + governance** | Orgs, projects, memberships, invites, RBAC, policy engine, API keys, super-admin, abuse guardrails | Isolation + permission-matrix suites green |
 | **3 Bring your own server** | `s3_compatible` provider, SSRF guard, CORS check, health checker, envelope-encrypted vault, MinIO guide | SSRF table green; MinIO E2E green |
+| **3.5 Durability** | Redundancy modes (mirror, Reed-Solomon erasure coding) encoded in the browser, scrubbing, free-tier expiry warnings, browser-driven repair (§7.7) | Durability E2E: delete one cloud's pieces → file still downloads and repairs |
 | **4 Developer platform** | Public API v1 for API keys, JS + Python SDKs, multipart/resumable uploads, idempotency keys, docs | SDK E2E against staging |
 | **5 Launch** | Deployment, onboarding, terms/privacy, status page, pilot org setup | Pilot cohort onboarded |
 
@@ -176,7 +177,7 @@ Each existing user gets a personal org + default project; existing connections a
 ### 6.2 Policy engine
 - `Policy.evaluate(ctx) -> Allow | Deny(code, message, limit)`; the engine evaluates all applicable policies and returns the first deny.
 - Layering: platform → tier → org → project. A lower layer can only tighten a limit; attempts to loosen are rejected at write time.
-- Initial policies: storage bytes quota; file count; max file size; MIME/extension allow/deny list (executables denied by default on org-shared connections); provider allowlist; retention days; striping allowed; max projects per org; max API keys per project.
+- Initial policies: storage bytes quota; file count; max file size; MIME/extension allow/deny list (executables denied by default on org-shared connections); provider allowlist; retention days; redundancy mode (minimum protection level an org can require); max projects per org; max API keys per project.
 
 ### 6.3 Default limits (configurable)
 | | standard | verified |
@@ -233,6 +234,41 @@ Each existing user gets a personal org + default project; existing connections a
 - Ciphertext header: `version byte | key_id | wrapped_dek | nonce | ciphertext`.
 - AAD = `connection_id || org_id`.
 - Rotation: new master key version → background re-wrap job. Decryption only inside adapter calls; audited as `CREDENTIAL_USE` (sampled to 1 per connection per hour).
+
+### 7.7 Durability
+
+**Problem.** Pieces of a file spread across clouds with no redundancy make the file only as reliable as its weakest cloud; temporary free tiers (AWS, Azure: 12 months) guarantee real losses.
+
+**Interim rule (Phase 0).** Striping is opt-in and off by default; large files go to a single connection. Striping and every redundancy mode place pieces only on connections whose provider is `permanent` in the catalog or is `s3_compatible` (self-hosted). Non-redundant files are labeled "Not backed up" in the UI.
+
+**Redundancy modes (Phase 3.5).** Chosen automatically from the number of eligible distinct connections (permanent tiers or self-hosted, `healthy`), overridable per project and floor-able by org policy (§6.2):
+
+| Eligible connections | Default mode | Overhead | Tolerates |
+|---|---|---|---|
+| 1 | `single` | 1× | 0 losses; labeled "Not backed up" |
+| 2 | `mirror` (full copy on each) | 2× | 1 loss |
+| 3 | `rs(2,1)` | 1.5× | 1 loss |
+| 4 | `rs(3,1)` | 1.33× | 1 loss |
+| ≥5 | `rs(3,2)` | 1.67× | 2 losses |
+
+- Default for a user with ≥2 eligible connections is **protected** (owner decision 2026-10-17). Users may downgrade to `single` per project with an explicit "files will not be backed up" confirmation; an org policy can forbid downgrade.
+- Each shard of a file goes to a **different connection**, preferring different providers; placement uses the router scores, health, and capacity counting the full overhead.
+- Files are processed in 16 MiB stripes; each stripe is encoded into `k` data + `m` parity shards. Mirror is treated as `k=1, m=1`.
+- **Encoding/decoding happens in the browser** (Reed-Solomon over GF(2^8) compiled to WebAssembly, run in a Web Worker); shards are uploaded directly via signed URLs. NexusCloud still never handles file bytes.
+- **Manifest v3** extends the v2 index: `redundancy_mode, k, m, stripe_bytes`, and per shard `stripe_index, shard_index, connection_id, size, sha256`. The index hash commits to all of it; the client verifies it as today.
+- **Download:** fetch any `k` healthy shards per stripe (data shards first), verify checksums, decode in the worker, stream to disk.
+- **Quota:** reservations and the ledger count physical bytes including parity/mirror overhead; the UI shows both "logical" and "physical" size.
+
+**Scrubbing and health.**
+- A worker HEADs every shard on a rolling schedule (each file at least weekly; files on degraded connections daily) and records `protection_state ∈ {protected, degraded, at_risk, lost}`: `degraded` = some shards missing but ≥ k remain with spare, `at_risk` = exactly k remain, `lost` = fewer than k.
+- A connection becoming `unreachable` for 24 h, being disconnected, or failing auth marks its shards missing.
+- Users get a notification and a dashboard banner for `degraded`/`at_risk`; `lost` files are listed honestly.
+
+**Free-tier expiry.** Connections on non-permanent tiers record `tier_started_at` (asked at connect time, default = connect date). From day 300 the user is warned: "Your AWS free tier ends in N days; X files have data there" with a **Move files** action.
+
+**Repair (browser-driven).** When the user opens the app with `degraded`/`at_risk` files and a healthy target connection exists, a background repair job in the browser downloads `k` shards per affected stripe, regenerates missing shards, uploads them to the target via signed URLs, and the API commits the new placement (new manifest version). Repair is resumable and rate-limited; "Move files" reuses the same mechanism. Disconnecting a connection that holds shards requires first running Move files (or confirming loss of protection).
+
+**Testing.** Encoder/decoder property tests (random data, erase any ≤ m shards → identical bytes) shared between the WASM build and a Python reference implementation; E2E on MinIO: upload with `rs(2,1)` across three buckets, delete one bucket's objects, download succeeds, scrub reports `degraded`, repair restores `protected`.
 
 ## 8. File lifecycle and data flow
 
@@ -303,5 +339,5 @@ Remove `quota-engine/`, legacy `alembic/versions/` and tracked `.pyc`, committed
 | Tenancy migration of existing data | expand → backfill → contract; dry run against a production snapshot |
 | SSRF bypass | defense in depth: guard + pinned-IP transport + no redirects + egress network policy where host supports it |
 | Free-tier limits (DB connections, Redis commands) | pool sizing per instance, Redis used only for cache/rate limits/broker, documented upgrade path |
-| Striping data loss | UI labels striping as non-redundant; erasure coding is the next storage feature after launch |
+| Data loss from a lost cloud | Phase 0: striping opt-in, permanent tiers only; Phase 3.5 (before launch): mirror/erasure coding by default, scrubbing, expiry warnings, repair (§7.7) |
 | Scope creep toward app hosting | explicitly out of scope; separate spec |
