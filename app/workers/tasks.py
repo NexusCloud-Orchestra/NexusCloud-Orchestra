@@ -12,11 +12,20 @@ from app.workers.db import worker_session
 
 logger = logging.getLogger(__name__)
 
+SINGLE_FILE_FINAL_STATUS = {
+    "pending": "expired",
+    "cleanup_pending": "cancelled",
+    "cleanup_failed": "cancelled",
+    "deleting": "deleted",
+}
+
 
 async def _cleanup():
     async with worker_session() as db:
+        # upload_expires_at is the signed PUT URL's expiry (or the delete request time for deleting files),
+        # so no browser can still write the object once it has passed.
         files = (await db.scalars(select(FileRecord).where(
-            FileRecord.status.in_(("pending", "cleanup_failed")),
+            FileRecord.status.in_(tuple(SINGLE_FILE_FINAL_STATUS)),
             FileRecord.upload_expires_at < datetime.now(timezone.utc),
             FileRecord.manifest_id.is_(None),
         ).with_for_update(skip_locked=True).limit(500))).all()
@@ -29,10 +38,15 @@ async def _cleanup():
                     credentials = decrypt_credentials(connection.encrypted_creds)
                     if await provider.exists(connection, credentials, file.object_key, file.id):
                         await provider.delete(connection, credentials, file.object_key, file.id)
-                file.status = "expired"
+                if file.status == "deleting":
+                    quota = await db.scalar(select(Quota).where(Quota.user_id == file.user_id).with_for_update())
+                    quota.used_bytes = max(0, quota.used_bytes - file.size_bytes)
+                file.status = SINGLE_FILE_FINAL_STATUS[file.status]
             except Exception:
-                logger.exception("Expired object cleanup failed for file %s", file.id)
-                file.status = "cleanup_failed"
+                logger.exception("Object cleanup failed for file %s", file.id)
+                # A failed delete stays deleting so its bytes remain charged until the object is gone.
+                if file.status != "deleting":
+                    file.status = "cleanup_failed"
             affected.add(file.user_id)
         manifests = (await db.scalars(select(FileManifest).where(
             FileManifest.status.in_(("pending", "cleanup_pending", "cleanup_failed")),

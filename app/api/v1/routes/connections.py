@@ -10,7 +10,7 @@ from app.db.session import get_db
 from app.schemas import ConnectionIn, ConnectionOut
 from app.services.catalog import PLANS
 from app.services.providers import provider_for
-from app.services.quota import invalidate_quota
+from app.services.quota import BLOCKING_FILE_STATUSES, invalidate_quota
 
 router = APIRouter(prefix="/connections", tags=["connections"])
 
@@ -55,7 +55,7 @@ async def delete_connection(connection_id: UUID, request: Request, user: User = 
     connection = await db.scalar(select(CloudConnection).where(CloudConnection.id == connection_id, CloudConnection.user_id == user.id, CloudConnection.is_active.is_(True)).with_for_update())
     if not connection:
         raise HTTPException(404, "Connection not found")
-    active_files = await db.scalar(select(func.count()).select_from(FileRecord).where(FileRecord.connection_id == connection.id, FileRecord.user_id == user.id, FileRecord.status.in_(("active", "pending", "cleanup_pending", "cleanup_failed"))))
+    active_files = await db.scalar(select(func.count()).select_from(FileRecord).where(FileRecord.connection_id == connection.id, FileRecord.user_id == user.id, FileRecord.status.in_(BLOCKING_FILE_STATUSES)))
     if active_files:
         raise HTTPException(409, "Delete files or wait for pending upload cleanup before disconnecting")
     connection.is_active = False

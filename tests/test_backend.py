@@ -291,7 +291,7 @@ async def test_route_preview_explains_decision_without_reserving(client):
 
 
 @pytest.mark.asyncio
-async def test_cancel_upload_releases_reservation(client):
+async def test_cancel_upload_releases_reservation(client, monkeypatch):
     tokens = await signup(client, "cancel@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
     other = await signup(client, "cancel-other@example.com")
@@ -309,6 +309,17 @@ async def test_cancel_upload_releases_reservation(client):
     assert (await client.post(f"/api/v1/files/cancel-upload/{ticket['file_id']}", headers=headers)).status_code == 409
     assert (await client.post(f"/api/v1/files/confirm-upload/{ticket['file_id']}", headers=headers)).status_code == 409
     assert (await client.get("/api/v1/quota/summary", headers=headers)).json()["total_reserved_bytes"] == 0
+    async with client.test_session_factory() as db:
+        file = await db.get(FileRecord, uuid.UUID(ticket["file_id"]))
+        assert file.status == "cleanup_pending"
+    # The signed URL is still live, so disconnect waits for the worker to clean up after expiry.
+    assert (await client.delete(f"/api/v1/connections/{connection_id}", headers=headers)).status_code == 409
+    async with client.test_session_factory() as db:
+        file = await db.get(FileRecord, uuid.UUID(ticket["file_id"]))
+        file.upload_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        await db.commit()
+    monkeypatch.setattr(worker_tasks, "worker_session", client.test_session_factory)
+    assert await worker_tasks._cleanup() == 1
     assert (await client.delete(f"/api/v1/connections/{connection_id}", headers=headers)).status_code == 204
 
 
@@ -537,7 +548,7 @@ async def test_file_listing_includes_provider(client):
 
 
 @pytest.mark.asyncio
-async def test_delete_account_requires_password_and_empty_storage(client):
+async def test_delete_account_requires_password_and_empty_storage(client, monkeypatch):
     tokens = await signup(client, "erase@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
     connection_id = await connect(client, headers, "aws", "S3")
@@ -549,6 +560,15 @@ async def test_delete_account_requires_password_and_empty_storage(client):
     blocked = await client.post("/api/v1/auth/delete-account", headers=headers, json={"password": "SecurePassword123!"})
     assert blocked.status_code == 409
     await client.post(f"/api/v1/files/cancel-upload/{ticket['file_id']}", headers=headers)
+    # Cancelled uploads keep blocking erasure until the worker removes them after URL expiry.
+    blocked = await client.post("/api/v1/auth/delete-account", headers=headers, json={"password": "SecurePassword123!"})
+    assert blocked.status_code == 409
+    async with client.test_session_factory() as db:
+        file = await db.get(FileRecord, uuid.UUID(ticket["file_id"]))
+        file.upload_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        await db.commit()
+    monkeypatch.setattr(worker_tasks, "worker_session", client.test_session_factory)
+    assert await worker_tasks._cleanup() == 1
     refresh_token = client.cookies.get("nc_refresh")
     erased = await client.post("/api/v1/auth/delete-account", headers=headers, json={"password": "SecurePassword123!"})
     assert erased.status_code == 204, erased.text

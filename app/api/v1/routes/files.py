@@ -150,19 +150,12 @@ async def upload_request(body: UploadIn, request: Request, user: User = Depends(
 async def cancel_upload(file_id: UUID, request: Request, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
     """Release a pending reservation after a failed or abandoned browser PUT."""
     await db.scalar(select(User).where(User.id == user.id).with_for_update())
-    file, connection = await _file(db, user.id, file_id, True)
+    file, _ = await _file(db, user.id, file_id, True)
     if file.status != "pending":
         raise HTTPException(409, "Only pending uploads can be cancelled")
-    try:
-        provider = provider_for(connection.provider)
-        credentials = decrypt_credentials(connection.encrypted_creds)
-        if await provider.exists(connection, credentials, file.object_key, file.id):
-            await provider.delete(connection, credentials, file.object_key, file.id)
-        file.status = "cancelled"
-    except Exception:
-        # The cleanup worker retries cleanup_failed records; disconnect stays blocked until it succeeds.
-        file.status = "cleanup_failed"
-        file.upload_expires_at = datetime.now(timezone.utc)
+    # The signed PUT URL stays valid until upload_expires_at, so deleting now could leave a later PUT orphaned.
+    # The cleanup worker removes the object once the URL has expired; disconnect stays blocked until then.
+    file.status = "cleanup_pending"
     audit(db, request, user.id, "UPLOAD_CANCEL", str(file.id))
     await db.commit()
     await invalidate_quota(user.id)
@@ -238,15 +231,26 @@ async def delete_file(file_id: UUID, request: Request, user: User = Depends(curr
     file, connection = await _file(db, user.id, file_id, True)
     if file.status != "active":
         raise HTTPException(404, "File not found")
+    # Persist delete intent before touching the cloud so a crash or provider failure is retried by the worker.
+    file.status = "deleting"
+    file.upload_expires_at = datetime.now(timezone.utc)
+    audit(db, request, user.id, "DELETE", str(file.id))
+    await db.commit()
+    await invalidate_quota(user.id)
     try:
         await provider_for(connection.provider).delete(
             connection, decrypt_credentials(connection.encrypted_creds), file.object_key, file.id
         )
     except Exception:
-        raise HTTPException(502, "Could not delete cloud object")
+        raise HTTPException(502, "Could not delete cloud object; cleanup will retry")
+    await db.scalar(select(User).where(User.id == user.id).with_for_update())
+    file = await db.scalar(
+        select(FileRecord).where(FileRecord.id == file_id).with_for_update().execution_options(populate_existing=True)
+    )
+    if file.status != "deleting":
+        return  # The cleanup worker finished this delete first.
     quota = await db.scalar(select(Quota).where(Quota.user_id == user.id).with_for_update())
     quota.used_bytes = max(0, quota.used_bytes - file.size_bytes)
     file.status = "deleted"
-    audit(db, request, user.id, "DELETE", str(file.id))
     await db.commit()
     await invalidate_quota(user.id)

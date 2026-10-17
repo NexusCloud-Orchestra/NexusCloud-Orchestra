@@ -19,7 +19,7 @@ from app.services.auth import (
     REFRESH_COOKIE, clear_refresh_cookie, create_reset, create_tokens, revoke_sessions, send_reset_email, set_refresh_cookie,
 )
 from app.services.catalog import PLANS
-from app.services.quota import invalidate_quota
+from app.services.quota import BLOCKING_FILE_STATUSES, invalidate_quota
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -195,7 +195,7 @@ async def delete_account(body: DeleteAccountIn, user: User = Depends(current_use
     if not await verify_password_async(body.password, user.password_hash):
         raise HTTPException(400, "Password is incorrect")
     remaining = await db.scalar(select(func.count()).select_from(FileRecord).where(
-        FileRecord.user_id == user.id, FileRecord.status.in_(("active", "pending", "cleanup_pending", "cleanup_failed"))
+        FileRecord.user_id == user.id, FileRecord.status.in_(BLOCKING_FILE_STATUSES)
     ))
     if remaining:
         raise HTTPException(409, "Delete your files or wait for pending upload cleanup before deleting the account")
