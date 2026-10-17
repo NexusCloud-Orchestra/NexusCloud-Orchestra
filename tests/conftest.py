@@ -53,6 +53,8 @@ async def client(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "LOCAL_STORAGE_ENABLED", True)
     monkeypatch.setattr(settings, "LOCAL_STORAGE_PATH", str(tmp_path / "storage"))
     monkeypatch.setattr(settings, "PUBLIC_API_URL", "http://testserver")
+    # The test client talks plain http://testserver; a Secure cookie would never be sent back.
+    monkeypatch.setattr(settings, "COOKIE_SECURE", False)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as test_client:
         test_client.test_session_factory = factory
         yield test_client

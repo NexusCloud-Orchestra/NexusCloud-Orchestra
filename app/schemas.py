@@ -48,10 +48,6 @@ class ChangePasswordIn(BaseModel):
         return RegisterIn.valid_password(value)
 
 
-class RefreshIn(BaseModel):
-    refresh_token: str
-
-
 class PlanIn(BaseModel):
     plan: Literal["free", "starter", "pro", "team"]
 
@@ -68,8 +64,8 @@ class UserOut(BaseModel):
 
 class TokenOut(BaseModel):
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
+    expires_in: int
 
 
 class ConnectionIn(BaseModel):

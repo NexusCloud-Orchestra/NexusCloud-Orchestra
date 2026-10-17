@@ -17,8 +17,11 @@ class Settings(BaseSettings):
     LOCAL_STORAGE_ENABLED: bool = False
     LOCAL_STORAGE_PATH: str = "storage"
     RESET_TOKEN_TTL_MINUTES: int = 30
-    ACCESS_TOKEN_TTL_MINUTES: int = 30
+    ACCESS_TOKEN_TTL_MINUTES: int = 15
     REFRESH_TOKEN_TTL_DAYS: int = 7
+    REFRESH_REUSE_GRACE_SECONDS: int = 30
+    COOKIE_SECURE: bool | None = None
+    COOKIE_DOMAIN: str | None = None
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USERNAME: str = ""
@@ -30,6 +33,10 @@ class Settings(BaseSettings):
     def production(self) -> bool:
         return self.ENVIRONMENT == "production"
 
+    @property
+    def cookie_secure(self) -> bool:
+        return self.production if self.COOKIE_SECURE is None else self.COOKIE_SECURE
+
     def assert_safe(self) -> None:
         if self.production:
             if len(self.SECRET_KEY) < 32 or len(self.ENCRYPTION_KEY) < 32:
@@ -38,6 +45,8 @@ class Settings(BaseSettings):
                 raise ValueError("Production secrets must be independent and non-placeholder")
             if self.LOCAL_STORAGE_ENABLED or self.DEBUG:
                 raise ValueError("Local storage and debug must be disabled in production")
+            if self.COOKIE_SECURE is False:
+                raise ValueError("Production requires COOKIE_SECURE to be enabled")
             if not self.PUBLIC_API_URL.startswith("https://"):
                 raise ValueError("Production PUBLIC_API_URL must use HTTPS")
             if not self.FRONTEND_URL.startswith("https://"):

@@ -117,9 +117,11 @@ class RefreshSession(Base):
     __tablename__ = "refresh_sessions"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=new_id)
     user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    family_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_reason: Mapped[str | None] = mapped_column(String(20))  # rotated | logout | reuse | password
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 

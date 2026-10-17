@@ -98,13 +98,18 @@ async def test_refresh_rotation_logout_and_plan_guard(client):
     tokens = await signup(client, "auth@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
     assert (await client.post("/api/v1/auth/plan", headers=headers, json={"plan": "pro"})).status_code == 403
-    rotated = await client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
+    original = client.cookies.get("nc_refresh")
+    rotated = await client.post("/api/v1/auth/refresh", headers={"X-NC-CSRF": "1"})
     assert rotated.status_code == 200, rotated.text
-    assert (await client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})).status_code == 401
+    current = client.cookies.get("nc_refresh")
+    assert current != original
+    old = await client.post("/api/v1/auth/refresh", headers={"X-NC-CSRF": "1", "Cookie": f"nc_refresh={original}"})
+    assert old.status_code == 401
     new_headers = {"Authorization": f"Bearer {rotated.json()['access_token']}"}
     assert (await client.post("/api/v1/auth/logout", headers=new_headers)).status_code == 204
     assert (await client.get("/api/v1/auth/me", headers=new_headers)).status_code == 401
-    assert (await client.post("/api/v1/auth/refresh", json={"refresh_token": rotated.json()["refresh_token"]})).status_code == 401
+    after = await client.post("/api/v1/auth/refresh", headers={"X-NC-CSRF": "1", "Cookie": f"nc_refresh={current}"})
+    assert after.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -547,10 +552,11 @@ async def test_delete_account_requires_password_and_empty_storage(client):
     blocked = await client.post("/api/v1/auth/delete-account", headers=headers, json={"password": "SecurePassword123!"})
     assert blocked.status_code == 409
     await client.post(f"/api/v1/files/cancel-upload/{ticket['file_id']}", headers=headers)
+    refresh_token = client.cookies.get("nc_refresh")
     erased = await client.post("/api/v1/auth/delete-account", headers=headers, json={"password": "SecurePassword123!"})
     assert erased.status_code == 204, erased.text
     assert (await client.get("/api/v1/auth/me", headers=headers)).status_code == 401
-    assert (await client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})).status_code == 401
+    assert (await client.post("/api/v1/auth/refresh", headers={"X-NC-CSRF": "1", "Cookie": f"nc_refresh={refresh_token}"})).status_code == 401
     assert (await client.post("/api/v1/auth/login", json={
         "email": "erase@example.com", "password": "SecurePassword123!"
     })).status_code == 401
@@ -566,7 +572,7 @@ async def test_worker_purges_expired_tokens(client, monkeypatch):
     from app.db.models import RefreshSession
     from sqlalchemy import func, select
     monkeypatch.setattr(tasks, "SessionLocal", main_module.SessionLocal)
-    tokens = await signup(client, "purge@example.com")
+    await signup(client, "purge@example.com")
     async with main_module.SessionLocal() as db:
         session = await db.scalar(select(RefreshSession))
         session.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
@@ -574,4 +580,4 @@ async def test_worker_purges_expired_tokens(client, monkeypatch):
     assert await tasks._purge_expired_tokens() == 1
     async with main_module.SessionLocal() as db:
         assert await db.scalar(select(func.count()).select_from(RefreshSession)) == 0
-    assert (await client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})).status_code == 401
+    assert (await client.post("/api/v1/auth/refresh", headers={"X-NC-CSRF": "1"})).status_code == 401
