@@ -38,20 +38,27 @@ export class ApiError extends Error {
   }
 }
 
-const BASE_URL: string = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:7575"
+const BASE_URL: string = import.meta.env.VITE_API_URL ?? "http://localhost:7575"
 const TIMEOUT_MS = 30_000
 
 // ---------------------------------------------------------------------------
-// Token store. Access token lives in memory only. The refresh token is kept in
-// sessionStorage so a page reload can restore the session without ever writing
-// tokens to localStorage, URLs, or logs. It is cleared on logout / expiry.
+// Session store. The access token lives in memory only. The refresh token is an
+// HttpOnly SameSite=Strict cookie the browser manages; JS never sees it. A page
+// reload restores the session via refreshSession().
 // ---------------------------------------------------------------------------
-
-const REFRESH_KEY = "nc.refresh"
 
 let accessToken: string | null = null
 let refreshInFlight: Promise<boolean> | null = null
 let sessionExpiredHandler: (() => void) | null = null
+
+// Earlier builds kept the refresh token in web storage; purge any leftovers.
+for (const store of ["localStorage", "sessionStorage"] as const) {
+  try {
+    window[store].removeItem("nc.refresh")
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 export function getAccessToken(): string | null {
   return accessToken
@@ -61,39 +68,8 @@ export function setAccessToken(token: string | null): void {
   accessToken = token
 }
 
-export function readPersistedRefreshToken(): string | null {
-  try {
-    if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search)
-      const urlToken = urlParams.get("dev_token")
-      if (urlToken) {
-        persistRefreshToken(urlToken)
-        return urlToken
-      }
-    }
-    return sessionStorage.getItem(REFRESH_KEY) ?? localStorage.getItem(REFRESH_KEY)
-  } catch {
-    return null
-  }
-}
-
-export function persistRefreshToken(token: string): void {
-  try {
-    sessionStorage.setItem(REFRESH_KEY, token)
-    localStorage.setItem(REFRESH_KEY, token)
-  } catch {
-    /* private mode: session simply ends with the page */
-  }
-}
-
-export function clearPersistedSession(): void {
+export function clearSession(): void {
   accessToken = null
-  try {
-    sessionStorage.removeItem(REFRESH_KEY)
-    localStorage.removeItem(REFRESH_KEY)
-  } catch {
-    /* ignore */
-  }
 }
 
 export function setSessionExpiredHandler(handler: (() => void) | null): void {
@@ -176,41 +152,45 @@ function toApiError(response: Response, payload: unknown): ApiError {
   })
 }
 
+async function requestRefresh(): Promise<boolean> {
+  try {
+    const response = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "X-NC-CSRF": "1" },
+      // Backend guardrail: POST requires Content-Length, so send an empty object.
+      body: "{}",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+    if (!response.ok) {
+      clearSession()
+      return false
+    }
+    const payload = (await parseJson(response)) as { access_token?: unknown } | null
+    if (!payload || typeof payload.access_token !== "string") {
+      clearSession()
+      return false
+    }
+    accessToken = payload.access_token
+    return true
+  } catch {
+    return false
+  }
+}
+
 /**
- * Rotate the refresh token and install the new access token. Single-flight:
- * concurrent 401s share one refresh call, per the backend's immediate
- * refresh-token rotation.
+ * Rotate the refresh cookie and install the new access token. Single-flight
+ * in-tab, and serialized across tabs with a Web Lock, because the backend
+ * rotates the refresh token on every use.
  */
 export function refreshSession(): Promise<boolean> {
   if (refreshInFlight) return refreshInFlight
-  const stored = readPersistedRefreshToken()
-  if (!stored) return Promise.resolve(false)
-  refreshInFlight = (async () => {
-    try {
-      const response = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: stored }),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      })
-      if (!response.ok) {
-        clearPersistedSession()
-        return false
-      }
-      const payload = (await parseJson(response)) as { access_token?: unknown; refresh_token?: unknown } | null
-      if (!payload || typeof payload.access_token !== "string" || typeof payload.refresh_token !== "string") {
-        clearPersistedSession()
-        return false
-      }
-      accessToken = payload.access_token
-      persistRefreshToken(payload.refresh_token)
-      return true
-    } catch {
-      return false
-    } finally {
-      refreshInFlight = null
-    }
-  })()
+  const run = typeof navigator !== "undefined" && navigator.locks
+    ? navigator.locks.request("nc-refresh", requestRefresh)
+    : requestRefresh()
+  refreshInFlight = run.finally(() => {
+    refreshInFlight = null
+  })
   return refreshInFlight
 }
 
@@ -222,6 +202,7 @@ async function execute(options: RequestOptions): Promise<Response> {
     method: options.method,
     headers: buildHeaders({ ...options, body: options.body }),
     body,
+    credentials: "include",
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })
   return response
