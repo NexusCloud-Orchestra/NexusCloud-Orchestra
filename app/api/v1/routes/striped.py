@@ -112,9 +112,14 @@ def _is_pending(manifest: FileManifest) -> bool:
     return manifest.status == "pending" and manifest.upload_expires_at.replace(tzinfo=timezone.utc) > datetime.now(timezone.utc)
 
 
-async def _relock(db: AsyncSession, user_id: UUID, manifest_id: UUID) -> FileManifest:
-    """End the unlocked read transaction, then lock user row + manifest to re-check state after a provider call."""
+async def _end_read(db: AsyncSession) -> None:
+    """Detach the loaded rows so the rollback cannot expire them, and hold no transaction or connection during cloud I/O."""
+    db.expunge_all()
     await db.rollback()
+
+
+async def _relock(db: AsyncSession, user_id: UUID, manifest_id: UUID) -> FileManifest:
+    """Lock user row + manifest to re-check state after a provider call."""
     await db.scalar(select(User).where(User.id == user_id).with_for_update())
     return await _manifest(db, user_id, manifest_id, lock=True)
 
@@ -129,6 +134,7 @@ async def chunk_upload_url(
     if not _is_pending(manifest):
         raise HTTPException(409, "Striped upload has expired")
     chunk = _chunk(manifest, index)
+    await _end_read(db)
     try:
         url, headers = await provider_for(chunk.connection.provider).upload_url(
             chunk.connection, decrypt_credentials(chunk.connection.encrypted_creds),
@@ -155,6 +161,7 @@ async def confirm_striped_upload(
         return manifest
     if not _is_pending(manifest):
         raise HTTPException(409, "Striped upload has expired")
+    await _end_read(db)
     semaphore = asyncio.Semaphore(8)
 
     async def verify(chunk: FileRecord) -> bool:

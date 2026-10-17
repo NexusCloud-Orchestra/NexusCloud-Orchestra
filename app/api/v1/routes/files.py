@@ -170,6 +170,9 @@ async def confirm_upload(file_id: UUID, request: Request, user: User = Depends(c
         return file
     if file.status != "pending" or file.upload_expires_at.replace(tzinfo=timezone.utc) <= datetime.now(timezone.utc):
         raise HTTPException(409, "Upload request has expired")
+    # Detach the loaded rows so the rollback cannot expire them, and hold no transaction or connection during cloud I/O.
+    db.expunge_all()
+    await db.rollback()
     provider = provider_for(connection.provider)
     try:
         exists = await provider.exists(connection, decrypt_credentials(connection.encrypted_creds), file.object_key, file.id)
@@ -184,7 +187,6 @@ async def confirm_upload(file_id: UUID, request: Request, user: User = Depends(c
             raise HTTPException(502, "Could not verify cloud object size")
         if actual_size != file.size_bytes:
             raise HTTPException(409, "Uploaded size differs from the declared size")
-    await db.rollback()
     # A cancel or another confirm may have won while we were talking to the provider.
     await db.scalar(select(User).where(User.id == user_id).with_for_update())
     file, _ = await _file(db, user_id, file_id, True)
