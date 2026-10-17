@@ -30,6 +30,7 @@
 3. **Local development over `http://localhost`** — login must still work when cookies cannot be `Secure`. Pinned by Task 2 (`test_cookie_secure_defaults_by_environment`).
 4. **Spoofed `X-Forwarded-For` from an untrusted peer** — must not let a client dodge the rate limit. Pinned by Task 4 (`test_untrusted_forwarded_header_is_ignored`).
 5. **Confirm racing a cancel** — exactly one wins; the loser gets 409; no quota double-count. Pinned by Task 8 (`test_confirm_after_concurrent_cancel_conflicts`).
+6. **Student enables striping but only has AWS + Azure connected** — large uploads quietly use a single cloud instead of failing. Pinned by Task 12 (`shouldStripe` false with `["aws","azure"]`, `test_striping_ignores_temporary_free_tiers`).
 
 ---
 
@@ -467,6 +468,42 @@ done
 
 ---
 
+### Task 12: Striping opt-in, permanent tiers only, honest labels
+
+**Files:**
+- Create: `alembic/backend_versions/0005_user_striping_preference.py`, `tests/test_striping_policy.py`
+- Modify: `app/db/models.py` (User), `app/schemas.py` (`UserOut`, new `PreferencesIn`), `app/api/v1/routes/auth.py` (preferences route), `app/api/v1/routes/striped.py:59-83`, `app/services/striping.py:88-143`, `frontend/src/state/uploads.tsx:244-256`, `frontend/src/routes/app/settings.tsx`, `frontend/src/routes/app/files.tsx`, `frontend/src/types/api.ts`, `frontend/src/lib/providers.ts`
+
+**Interfaces:**
+- Consumes: Task 2 migration chain (`down_revision = "0004_refresh_families"`).
+- Produces: `User.striping_enabled: bool` (not null, server default `false`); `UserOut.striping_enabled: bool`; `PATCH /api/v1/auth/preferences` with body `PreferencesIn {striping_enabled: bool}` → `UserOut`, audited as `PREFERENCES_UPDATE`.
+- `def eligible_for_striping(connection) -> bool` in `app/services/striping.py`: true when `PROVIDERS[connection.provider].permanent`. `place_chunks` and the "two providers" check in `request_striped_upload` consider only eligible connections.
+- `request_striped_upload` returns 403 `"Striping is disabled. Enable it in Settings to split large files across clouds."` when `user.striping_enabled` is false, and 400 `"Striping needs two permanent-tier providers (R2, B2, GCS, Oracle, IBM)"` when fewer than two eligible providers exist.
+- Frontend: stripe only when `user.striping_enabled` and the connected providers include ≥ 2 distinct permanent ones (`isPermanentProvider(id: ProviderId): boolean` added to `lib/providers.ts`, mirroring the backend catalog); otherwise use the single-cloud path. Settings shows a switch "Split large files across clouds" with the description exactly: "Faster use of free space, but files are not backed up: losing any connected cloud loses every split file stored on it." Files list shows a "Not backed up" badge on `storage_mode === "striped"` rows.
+
+- [ ] **Step 1: Write failing backend tests** in `tests/test_striping_policy.py`:
+
+```python
+async def test_striping_disabled_by_default(client):
+    # two permanent connections (r2 + b2 with LocalProvider), striped-upload-request -> 403; /auth/me striping_enabled is False
+async def test_preferences_enable_striping(client):
+    # PATCH /auth/preferences {"striping_enabled": true} -> 200, body striping_enabled True; audit row PREFERENCES_UPDATE
+async def test_striping_ignores_temporary_free_tiers(client):
+    # striping enabled; connections aws + azure (non-permanent) -> striped request 400 with the permanent-tier message
+def test_place_chunks_never_uses_non_permanent_connections():
+    # connections r2, b2, aws; place_chunks(...) assigns no chunk to the aws connection
+```
+
+- [ ] **Step 2: Run to confirm failure** — `uv run --extra test pytest tests/test_striping_policy.py -q` → FAIL. Existing striped tests in `tests/test_backend.py` will also need `striping_enabled` set first: add a `enable_striping(client, headers)` helper in `tests/conftest.py` and call it in those tests.
+- [ ] **Step 3: Implement backend** (migration with `server_default=sa.false()`, model, schema, route, eligibility filter).
+- [ ] **Step 4: Run all backend tests** — `uv run --extra test pytest -q` → pass; `alembic upgrade head && alembic check` on SQLite → clean.
+- [ ] **Step 5: Write failing Vitest tests** in `frontend/src/state/uploads.test.ts` for the pure routing helper `export function shouldStripe(fileSize: number, user: Pick<User, "striping_enabled">, providers: ProviderId[]): boolean` (extracted from `uploads.tsx`): false when disabled; false with `["aws","azure"]`; false for files ≤ 16 MiB; true with `["r2","b2"]` and a 20 MiB file when enabled.
+- [ ] **Step 6: Implement frontend** (`shouldStripe`, settings switch calling the preferences route then `refreshUser()`, badge).
+- [ ] **Step 7: Verify** — `cd frontend && npm test && npm run lint && npm run build` → pass.
+- [ ] **Step 8: Commit** — `git commit -am "fix(storage): make striping opt-in on permanent tiers only, label non-redundant files"`
+
+---
+
 ## Spec coverage check (Phase 0)
 
 | Spec / audit item | Task |
@@ -486,5 +523,6 @@ done
 | Postgres + Redis in CI, §12 | 1 |
 | `/livez` `/readyz`, Sentry, §10 | 10 |
 | §3.5 migrate job, single beat | 6 |
+| §7.7 interim rule: striping opt-in, permanent tiers, labels | 12 |
 
-Deferred by the spec to later phases: hexagonal restructure, quota ledger, outbox, idempotency keys, multipart uploads, OpenTelemetry/Prometheus, lockout + Turnstile, email verification.
+Deferred by the spec to later phases: redundancy modes/scrubbing/repair (Phase 3.5), hexagonal restructure, quota ledger, outbox, idempotency keys, multipart uploads, OpenTelemetry/Prometheus, lockout + Turnstile, email verification.
