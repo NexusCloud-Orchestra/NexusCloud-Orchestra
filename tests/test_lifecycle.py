@@ -162,3 +162,55 @@ async def test_confirm_after_concurrent_cancel_conflicts(client, monkeypatch):
     assert response.json()["error"]["message"] == "Upload is no longer pending"
     assert (await _record(client, file_id)).status == "cleanup_pending"
     assert (await client.get("/api/v1/quota/summary", headers=headers)).json()["total_used_bytes"] == 0
+
+
+@pytest.mark.postgres
+@pytest.mark.asyncio
+async def test_cleanup_does_not_hold_quota_lock_during_provider_io(client, monkeypatch):
+    import asyncio
+
+    from sqlalchemy import text
+
+    headers, _ = await _setup(client, "lease@example.com")
+    await _upload(client, headers, b"k" * 40)
+    file_ids = [await _upload(client, headers, b"d" * 100), await _upload(client, headers, b"e" * 60)]
+    async with client.test_session_factory() as db:
+        for file_id in file_ids:
+            file = await db.get(FileRecord, uuid.UUID(file_id))
+            file.status, file.upload_expires_at = "deleting", datetime.now(timezone.utc) - timedelta(seconds=1)
+        await db.commit()
+    user_id = (await _record(client, file_ids[0])).user_id
+
+    original = LocalProvider.delete
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    calls = 0
+
+    async def blocked(self, connection, credentials, object_key, object_id):
+        # Block the second delete: the first file has finished, so a batch transaction would now hold Quota.
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            entered.set()
+            await release.wait()
+        return await original(self, connection, credentials, object_key, object_id)
+
+    monkeypatch.setattr(LocalProvider, "delete", blocked)
+    monkeypatch.setattr(worker_tasks, "worker_session", client.test_session_factory)
+    task = asyncio.create_task(worker_tasks._cleanup())
+    try:
+        await asyncio.wait_for(entered.wait(), 2)
+
+        async def lock_quota():
+            async with client.test_session_factory() as db:
+                await db.execute(text("SELECT 1 FROM quotas WHERE user_id = :u FOR UPDATE NOWAIT"), {"u": user_id})
+                await db.commit()
+
+        await asyncio.wait_for(lock_quota(), 2)
+    finally:
+        release.set()
+        assert await task == 2
+    for file_id in file_ids:
+        assert (await _record(client, file_id)).status == "deleted"
+    async with client.test_session_factory() as db:
+        assert (await db.scalar(select(Quota).where(Quota.user_id == user_id))).used_bytes == 40
