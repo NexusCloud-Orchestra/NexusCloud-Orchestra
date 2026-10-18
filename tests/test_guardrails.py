@@ -159,7 +159,7 @@ async def test_unknown_email_still_runs_password_check(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_livez_ok_when_database_down(client, monkeypatch):
+async def test_livez_ok_when_database_down(client, monkeypatch, caplog):
     import app.main as main_module
 
     def broken():
@@ -171,10 +171,11 @@ async def test_livez_ok_when_database_down(client, monkeypatch):
         response = await client.get(path)
         assert response.status_code == 503
         assert response.json()["error"]["message"] == "Dependency unavailable"
+    assert "Readiness check failed: database unavailable" in caplog.messages
 
 
 @pytest.mark.asyncio
-async def test_readyz_ok_and_redis_down(client, monkeypatch):
+async def test_readyz_ok_and_redis_down(client, monkeypatch, caplog):
     assert (await client.get("/readyz")).json() == {"status": "ok"}
     assert (await client.get("/health")).status_code == 200
     assert (await client.get("/redis-health")).status_code == 404
@@ -185,6 +186,7 @@ async def test_readyz_ok_and_redis_down(client, monkeypatch):
 
     monkeypatch.setattr(redis_module, "get_redis", lambda: BrokenRedis())
     assert (await client.get("/readyz")).status_code == 503
+    assert "Readiness check failed: redis unavailable" in caplog.messages
     assert (await client.get("/livez")).status_code == 200
 
 

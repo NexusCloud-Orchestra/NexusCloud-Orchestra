@@ -157,10 +157,15 @@ async def readyz():
     try:
         async with SessionLocal() as db:
             await db.execute(text("SELECT 1"))
-        await shared_redis.get_redis().ping()
-        return {"status": "ok"}
     except Exception:
+        logger.warning("Readiness check failed: %s unavailable", "database", exc_info=True)
         raise HTTPException(503, "Dependency unavailable")
+    try:
+        await shared_redis.get_redis().ping()
+    except Exception:
+        logger.warning("Readiness check failed: %s unavailable", "redis", exc_info=True)
+        raise HTTPException(503, "Dependency unavailable")
+    return {"status": "ok"}
 
 
 @app.get("/api/v1/providers")
