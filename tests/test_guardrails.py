@@ -52,6 +52,74 @@ def test_get_redis_reuses_client_within_a_loop():
     assert c is not a
 
 
+def test_worker_task_closes_redis_client(tmp_path, monkeypatch):
+    import os
+    import uuid
+    from datetime import datetime, timedelta, timezone
+
+    import fakeredis.aioredis
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    import app.workers.tasks as worker_tasks
+    from app.core.config import settings
+    from app.db.base import Base
+    from app.db.models import CloudConnection, FileRecord, User
+    from app.workers.db import reset_worker_engine, worker_session
+
+    url = os.environ.get("TEST_DATABASE_URL") or f"sqlite+aiosqlite:///{tmp_path / 'worker.db'}"
+    server = fakeredis.FakeServer()
+    created = []
+
+    class TrackedRedis(fakeredis.aioredis.FakeRedis):
+        closed = False
+
+        async def aclose(self, *args, **kwargs):
+            self.closed = True
+            await super().aclose(*args, **kwargs)
+
+    class RedisFactory:
+        @staticmethod
+        def from_url(*args, **kwargs):
+            created.append(TrackedRedis(server=server))
+            return created[-1]
+
+    async def create_schema():
+        engine = create_async_engine(url)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        await engine.dispose()
+
+    async def seed_expired_cancel():
+        # A swept file invalidates its owner's quota cache, so each task run really opens a Redis client.
+        async with worker_session() as db:
+            user = User(first_name="W", last_name="R", email=f"{uuid.uuid4()}@example.com", password_hash="x")
+            db.add(user)
+            await db.flush()
+            connection = CloudConnection(user_id=user.id, provider="aws", display_name="c", bucket_name="b")
+            db.add(connection)
+            await db.flush()
+            db.add(FileRecord(
+                user_id=user.id, connection_id=connection.id, original_name="f", object_key=str(uuid.uuid4()),
+                size_bytes=1, mime_type="text/plain", status="cleanup_pending",
+                upload_expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+            ))
+            await db.commit()
+
+    asyncio.run(create_schema())
+    monkeypatch.setattr(redis_module, "Redis", RedisFactory)
+    monkeypatch.setattr(settings, "DATABASE_URL", url)
+    reset_worker_engine()
+    try:
+        for _ in range(3):
+            asyncio.run(seed_expired_cancel())
+            assert worker_tasks.cleanup_expired_uploads() == 1
+    finally:
+        reset_worker_engine()
+    assert len(created) == 3
+    assert all(client.closed for client in created)
+    assert len(redis_module._clients) == 0
+
+
 def test_get_redis_requires_running_loop():
     with pytest.raises(RuntimeError):
         redis_module.get_redis()

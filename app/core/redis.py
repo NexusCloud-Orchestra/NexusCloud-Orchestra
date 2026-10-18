@@ -17,3 +17,10 @@ def get_redis() -> Redis:
         client = Redis.from_url(settings.REDIS_URL, socket_connect_timeout=0.2, socket_timeout=0.2)
         _clients[loop] = client
     return client
+
+
+async def close_redis() -> None:
+    """Close this loop's client; its connections pin the loop, so the weak cache entry alone never dies."""
+    client = _clients.pop(asyncio.get_running_loop(), None)
+    if client is not None:
+        await client.aclose()

@@ -1,8 +1,11 @@
 import asyncio
 import logging
 from datetime import datetime, timezone
+from typing import Awaitable, Callable, TypeVar
+
 from sqlalchemy import delete, select
 
+from app.core.redis import close_redis
 from app.core.security import decrypt_credentials
 from app.db.models import AccessRevocation, CloudConnection, FileManifest, FileRecord, PasswordReset, Quota, RefreshSession
 from app.services.providers import provider_for
@@ -11,6 +14,8 @@ from app.workers.celery_app import celery_app
 from app.workers.db import worker_session
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 SINGLE_FILE_FINAL_STATUS = {
     "pending": "expired",
@@ -92,11 +97,22 @@ async def _purge_expired_tokens():
     return removed
 
 
+def run_task(coro_fn: Callable[[], Awaitable[T]]) -> T:
+    """Run one task in a fresh loop and close that loop's Redis client before the loop is discarded."""
+    async def _wrapper():
+        try:
+            return await coro_fn()
+        finally:
+            await close_redis()
+
+    return asyncio.run(_wrapper())
+
+
 @celery_app.task(name="app.workers.tasks.purge_expired_tokens")
 def purge_expired_tokens():
-    return asyncio.run(_purge_expired_tokens())
+    return run_task(_purge_expired_tokens)
 
 
 @celery_app.task(name="app.workers.tasks.cleanup_expired_uploads")
 def cleanup_expired_uploads():
-    return asyncio.run(_cleanup())
+    return run_task(_cleanup)
