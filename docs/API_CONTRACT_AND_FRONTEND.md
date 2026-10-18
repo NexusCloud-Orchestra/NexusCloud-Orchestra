@@ -26,9 +26,9 @@ This file is the implementation contract for the Kimi frontend agent. Source req
 | POST | `/auth/change-password` | Bearer + `{current_password,new_password}` | 200; sign in again |
 | POST | `/auth/plan` | Bearer + `{plan}` | 200 `User`; downgrades checked; paid upgrades currently return 403 until billing is integrated |
 | GET | `/auth/audit-logs` | Bearer | 200 array of `AuditLog`, newest first, max 100 |
-| POST | `/auth/delete-account` | Bearer + `{password}` | 204; 400 wrong password; 409 while active, pending or cleanup-failed files remain. Erases profile, connections, encrypted credentials, file metadata, sessions and audit log |
+| POST | `/auth/delete-account` | Bearer + `{password}` | 204; 400 wrong password; 409 while any file is `active`, `pending`, `deleting`, `cleanup_pending` or `cleanup_failed`. Erases profile, connections, encrypted credentials, file metadata, sessions and audit log |
 
-`User`: `{id,first_name,last_name,email,plan,created_at}`. Plans: `free`, `starter`, `pro`, `team`. Password minimum is 8 characters and maximum is 72 UTF-8 bytes. `Tokens`: `{access_token,token_type:"bearer",expires_in}`. The refresh token is never in a JSON body: it travels only in the `nc_refresh` cookie (HttpOnly, SameSite=Strict, Path=`/api/v1/auth`). Access expires in 30 minutes, refresh in 7 days. Keep the access token in memory only; after a page reload restore the session with `POST /auth/refresh`. Browser requests must use `credentials: "include"`, and the SPA and API must be same-site (for example `localhost` for both) for the Strict cookie to be sent; CORS allows credentials and the `X-NC-CSRF` header for configured origins. Serialize refresh across tabs (Web Locks `nc-refresh`) because every refresh rotates the token. On a 401, perform a single coordinated refresh attempt and retry the original request once; otherwise clear auth and navigate to login. Do not put access or refresh tokens in URLs or web storage.
+`User`: `{id,first_name,last_name,email,plan,created_at}`. Plans: `free`, `starter`, `pro`, `team`. Password minimum is 8 characters and maximum is 72 UTF-8 bytes. `Tokens`: `{access_token,token_type:"bearer",expires_in}`. The refresh token is never in a JSON body: it travels only in the `nc_refresh` cookie (HttpOnly, SameSite=Strict, Path=`/api/v1/auth`). Access expires in 15 minutes (use `expires_in`, in seconds, rather than hard-coding it), refresh in 7 days. Keep the access token in memory only; after a page reload restore the session with `POST /auth/refresh`. Browser requests must use `credentials: "include"`, and the SPA and API must be same-site (for example `localhost` for both) for the Strict cookie to be sent; CORS allows credentials and the `X-NC-CSRF` header for configured origins. Serialize refresh across tabs (Web Locks `nc-refresh`) because every refresh rotates the token. On a 401, perform a single coordinated refresh attempt and retry the original request once; otherwise clear auth and navigate to login. Do not put access or refresh tokens in URLs or web storage.
 
 `AuditLog`: `{id,action,resource_id,ip_address,user_agent,created_at}`. The reset URL sent by email should navigate to `/reset-password?token=...&email=...`. Password recovery needs SMTP configuration on the backend; if SMTP is not configured in development, the generic endpoint response still appears but no mail is sent.
 
@@ -40,7 +40,7 @@ This file is the implementation contract for the Kimi frontend agent. Source req
 | GET | `/plans` | none | 200 plan catalog array |
 | POST | `/connections` | Bearer + `ConnectionCreate` | 201 `Connection` |
 | GET | `/connections` | Bearer | 200 `Connection[]` (active only) |
-| DELETE | `/connections/{id}` | Bearer | 204; 409 if active files remain |
+| DELETE | `/connections/{id}` | Bearer | 204; 409 while any file on it is `active`, `pending`, `deleting`, `cleanup_pending` or `cleanup_failed` |
 
 `ConnectionCreate`:
 

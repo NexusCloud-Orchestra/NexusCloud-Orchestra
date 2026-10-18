@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const tokenResponse = () =>
-  new Response(JSON.stringify({ access_token: "a1", token_type: "bearer", expires_in: 1800 }), {
+  new Response(JSON.stringify({ access_token: "a1", token_type: "bearer", expires_in: 900 }), {
     status: 200,
   })
 
