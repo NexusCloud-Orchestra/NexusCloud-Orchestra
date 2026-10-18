@@ -28,7 +28,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=9", "pytest-asyncio>=1.4", "fakeredis>=2.39"]
+test = [
+    "pytest>=9",
+    "pytest-asyncio>=1.4",
+    "fakeredis>=2.39",
+    "pytest-timeout>=2.4.0",
+]
 
 [build-system]
 requires = ["setuptools>=75"]
@@ -39,5 +44,6 @@ include = ["app*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+timeout = 120
 pythonpath = ["."]
 markers = ["postgres: needs real PostgreSQL row locks"]
