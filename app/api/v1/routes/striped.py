@@ -255,6 +255,8 @@ async def _remove_striped(
         raise HTTPException(502, "Could not remove all cloud chunks; cleanup will retry")
     await db.scalar(select(User).where(User.id == user.id).with_for_update())
     manifest = await _manifest(db, user.id, manifest_id, lock=True)
+    if manifest.status != "cleanup_failed":
+        return  # The cleanup worker finished this delete first and already released its quota.
     charged = sum(chunk.size_bytes for chunk in manifest.chunks if chunk.status == "active")
     if charged:
         quota = await db.scalar(select(Quota).where(Quota.user_id == user.id).with_for_update())
