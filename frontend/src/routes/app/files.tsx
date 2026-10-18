@@ -456,11 +456,10 @@ function FileRow({
             Standard
           </span>
         )}
-        {file.storage_mode === "striped" ? (
-          <span className="ml-1.5 inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-mono font-semibold text-amber-900">
-            Not backed up
-          </span>
-        ) : null}
+        {/* Phase 0 keeps one copy of every file, single-cloud or striped, so every row is non-redundant. */}
+        <span className="ml-1.5 inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-mono font-semibold text-amber-900">
+          Not backed up
+        </span>
       </td>
       <td className="px-4 py-3.5 text-right font-mono text-sm font-semibold text-[#142B4A]">
         {formatBytes(file.size_bytes)}
