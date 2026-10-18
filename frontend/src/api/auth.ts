@@ -46,6 +46,10 @@ export async function me(): Promise<User> {
   return api<User>({ method: "GET", path: "/api/v1/auth/me" })
 }
 
+export async function setStripingEnabled(enabled: boolean): Promise<User> {
+  return api<User>({ method: "PATCH", path: "/api/v1/auth/preferences", body: { striping_enabled: enabled } })
+}
+
 export async function auditLogs(): Promise<AuditLog[]> {
   return api<AuditLog[]>({ method: "GET", path: "/api/v1/auth/audit-logs" })
 }

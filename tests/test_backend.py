@@ -31,7 +31,7 @@ from app.services.providers import AzureProvider, GCPProvider, S3Provider
 from app.services.providers import LocalProvider
 from app.db.models import FileManifest, FileRecord
 import app.workers.tasks as worker_tasks
-from tests.conftest import signup
+from tests.conftest import enable_striping, signup
 
 
 @pytest.mark.asyncio
@@ -182,16 +182,16 @@ def test_router_prefers_free_egress():
 
 
 def test_stripe_placement_uses_tail_on_small_secondary_cloud():
-    aws = SimpleNamespace(provider="aws", id=uuid.uuid4())
+    b2 = SimpleNamespace(provider="b2", id=uuid.uuid4())
     r2 = SimpleNamespace(provider="r2", id=uuid.uuid4())
     free = {
-        aws.id: 3 * CHUNK_BYTES + 1,
+        b2.id: 3 * CHUNK_BYTES + 1,
         r2.id: 1,
     }
-    used = {connection.id: PROVIDERS[connection.provider].free_bytes - free[connection.id] for connection in (aws, r2)}
-    chosen = place_chunks([aws, r2], used, [CHUNK_BYTES, CHUNK_BYTES, 1])
+    used = {connection.id: PROVIDERS[connection.provider].free_bytes - free[connection.id] for connection in (b2, r2)}
+    chosen = place_chunks([b2, r2], used, [CHUNK_BYTES, CHUNK_BYTES, 1])
     assert chosen is not None
-    assert [connection.provider for connection in chosen] == ["aws", "aws", "r2"]
+    assert [connection.provider for connection in chosen] == ["b2", "b2", "r2"]
 
 
 def test_tokens_require_expiry_signature_and_type():
@@ -327,9 +327,10 @@ async def test_cancel_upload_releases_reservation(client, monkeypatch):
 async def test_striped_file_lifecycle_and_hash_index(client):
     tokens = await signup(client, "stripe@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    await enable_striping(client, headers)
     other = await signup(client, "stripe-other@example.com")
     other_headers = {"Authorization": f"Bearer {other['access_token']}"}
-    aws = await connect(client, headers, "aws", "S3")
+    b2 = await connect(client, headers, "b2", "B2")
     r2 = await connect(client, headers, "r2", "R2")
     pieces = [b"a" * CHUNK_BYTES, b"last chunk"]
     sizes_and_hashes = [(len(piece), hashlib.sha256(piece).hexdigest()) for piece in pieces]
@@ -346,7 +347,7 @@ async def test_striped_file_lifecycle_and_hash_index(client):
          uuid.UUID(chunk["connection_id"]), chunk["provider"])
         for chunk in ticket["chunks"]
     ])
-    assert {chunk["connection_id"] for chunk in ticket["chunks"]} == {aws, r2}
+    assert {chunk["connection_id"] for chunk in ticket["chunks"]} == {b2, r2}
     assert (await client.get("/api/v1/quota/summary", headers=headers)).json()["total_reserved_bytes"] == sum(map(len, pieces))
     assert (await client.post(f"/api/v1/files/striped/{ticket['file_id']}/confirm", headers=headers, json={})).status_code == 409
     assert (await client.get(f"/api/v1/files/striped/{ticket['file_id']}/manifest", headers=other_headers)).status_code == 404
@@ -374,7 +375,7 @@ async def test_striped_file_lifecycle_and_hash_index(client):
     assert (await client.delete(f"/api/v1/files/striped/{ticket['file_id']}", headers=headers)).status_code == 204
     assert (await client.get("/api/v1/quota/summary", headers=headers)).json()["total_used_bytes"] == 0
     assert (await client.get("/api/v1/files", headers=headers)).json() == []
-    assert (await client.delete(f"/api/v1/connections/{aws}", headers=headers)).status_code == 204
+    assert (await client.delete(f"/api/v1/connections/{b2}", headers=headers)).status_code == 204
     assert (await client.delete(f"/api/v1/connections/{r2}", headers=headers)).status_code == 204
 
 
@@ -382,7 +383,8 @@ async def test_striped_file_lifecycle_and_hash_index(client):
 async def test_striped_index_rejects_changed_placement(client):
     tokens = await signup(client, "stripe-index@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
-    aws = await connect(client, headers, "aws", "S3")
+    await enable_striping(client, headers)
+    b2 = await connect(client, headers, "b2", "B2")
     r2 = await connect(client, headers, "r2", "R2")
     ticket = (await client.post("/api/v1/files/striped-upload-request", headers=headers, json={
         "original_name": "index.bin", "size_bytes": CHUNK_BYTES + 1,
@@ -395,7 +397,7 @@ async def test_striped_index_rejects_changed_placement(client):
     assert (await client.get(f"/api/v1/files/striped/{ticket['file_id']}/chunks/0/upload-url", headers=headers)).status_code == 200
     async with client.test_session_factory() as db:
         chunk = await db.get(FileRecord, uuid.UUID(ticket["chunks"][0]["chunk_id"]))
-        chunk.connection_id = uuid.UUID(r2 if ticket["chunks"][0]["connection_id"] == aws else aws)
+        chunk.connection_id = uuid.UUID(r2 if ticket["chunks"][0]["connection_id"] == b2 else b2)
         await db.commit()
     assert (await client.get(f"/api/v1/files/striped/{ticket['file_id']}/manifest", headers=headers)).status_code == 503
     assert (await client.get(f"/api/v1/files/striped/{ticket['file_id']}/chunks/0/upload-url", headers=headers)).status_code == 503
@@ -405,7 +407,8 @@ async def test_striped_index_rejects_changed_placement(client):
 async def test_legacy_stripe_index_remains_readable(client):
     tokens = await signup(client, "stripe-v1@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
-    await connect(client, headers, "aws", "S3")
+    await enable_striping(client, headers)
+    await connect(client, headers, "b2", "B2")
     await connect(client, headers, "r2", "R2")
     pieces = [b"a" * CHUNK_BYTES, b"b"]
     ticket = (await client.post("/api/v1/files/striped-upload-request", headers=headers, json={
@@ -434,7 +437,8 @@ async def test_legacy_stripe_index_remains_readable(client):
 async def test_striped_cancel_after_partial_upload_blocks_old_url_and_releases_quota(client, monkeypatch):
     tokens = await signup(client, "stripe-cancel@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
-    aws = await connect(client, headers, "aws", "S3")
+    await enable_striping(client, headers)
+    b2 = await connect(client, headers, "b2", "B2")
     r2 = await connect(client, headers, "r2", "R2")
     pieces = [b"a" * CHUNK_BYTES, b"tail"]
     ticket = (await client.post("/api/v1/files/striped-upload-request", headers=headers, json={
@@ -450,14 +454,14 @@ async def test_striped_cancel_after_partial_upload_blocks_old_url_and_releases_q
     assert (await client.put(url["url"], content=pieces[0], headers=url["required_headers"])).status_code == 404
     assert (await client.post(f"/api/v1/files/striped/{ticket['file_id']}/confirm", headers=headers)).status_code == 409
     assert (await client.get("/api/v1/quota/summary", headers=headers)).json()["total_reserved_bytes"] == 0
-    assert (await client.delete(f"/api/v1/connections/{aws}", headers=headers)).status_code == 409
+    assert (await client.delete(f"/api/v1/connections/{b2}", headers=headers)).status_code == 409
     async with client.test_session_factory() as db:
         manifest = await db.get(FileManifest, uuid.UUID(ticket["file_id"]))
         manifest.upload_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
         await db.commit()
     monkeypatch.setattr(worker_tasks, "worker_session", client.test_session_factory)
     assert await worker_tasks._cleanup() == 1
-    assert (await client.delete(f"/api/v1/connections/{aws}", headers=headers)).status_code == 204
+    assert (await client.delete(f"/api/v1/connections/{b2}", headers=headers)).status_code == 204
     assert (await client.delete(f"/api/v1/connections/{r2}", headers=headers)).status_code == 204
 
 
@@ -465,7 +469,8 @@ async def test_striped_cancel_after_partial_upload_blocks_old_url_and_releases_q
 async def test_striped_partial_delete_is_retried_by_worker(client, monkeypatch):
     tokens = await signup(client, "stripe-retry@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
-    await connect(client, headers, "aws", "S3")
+    await enable_striping(client, headers)
+    await connect(client, headers, "b2", "B2")
     await connect(client, headers, "r2", "R2")
     pieces = [b"a" * CHUNK_BYTES, b"tail"]
     ticket = (await client.post("/api/v1/files/striped-upload-request", headers=headers, json={
@@ -509,7 +514,8 @@ async def test_striped_partial_delete_is_retried_by_worker(client, monkeypatch):
 async def test_striped_rejects_malformed_manifest_without_reserving_quota(client):
     tokens = await signup(client, "stripe-invalid@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
-    await connect(client, headers, "aws", "S3")
+    await enable_striping(client, headers)
+    await connect(client, headers, "b2", "B2")
     await connect(client, headers, "r2", "R2")
     valid_hash = hashlib.sha256(b"a").hexdigest()
     base = {

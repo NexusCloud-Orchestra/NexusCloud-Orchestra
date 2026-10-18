@@ -15,7 +15,7 @@ from app.schemas import FileOut, SignedChunkOut, StripedChunkOut, StripedManifes
 from app.services.catalog import PLANS, PROVIDERS
 from app.services.providers import provider_for
 from app.services.quota import invalidate_quota, quota_usage
-from app.services.striping import manifest_index_hash, place_chunks, validate_manifest
+from app.services.striping import eligible_for_striping, manifest_index_hash, place_chunks, validate_manifest
 
 router = APIRouter(prefix="/files", tags=["files"])
 SESSION_HOURS = 24
@@ -62,11 +62,14 @@ async def request_striped_upload(
     user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
 ):
     user = await db.scalar(select(User).where(User.id == user.id).with_for_update())
+    if not user.striping_enabled:
+        raise HTTPException(403, "Striping is disabled. Enable it in Settings to split large files across clouds.")
     connections = (await db.scalars(select(CloudConnection).where(
         CloudConnection.user_id == user.id, CloudConnection.is_active.is_(True)
     ).order_by(CloudConnection.created_at))).all()
+    connections = [connection for connection in connections if eligible_for_striping(connection)]
     if len({connection.provider for connection in connections}) < 2:
-        raise HTTPException(400, "Connect two different cloud providers to stripe a file")
+        raise HTTPException(400, "Striping needs two permanent-tier providers (R2, B2, GCS, Oracle, IBM)")
     usage = await quota_usage(db, user.id)
     plan_limit = PLANS[user.plan].max_bytes
     if plan_limit is not None and usage.total_active + usage.total_pending + body.size_bytes > plan_limit:

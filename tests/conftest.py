@@ -70,3 +70,8 @@ async def signup(client, email):
     response = await client.post("/api/v1/auth/login", json={"email": email, "password": "SecurePassword123!"})
     assert response.status_code == 200, response.text
     return response.json()
+
+
+async def enable_striping(client, headers):
+    response = await client.patch("/api/v1/auth/preferences", headers=headers, json={"striping_enabled": True})
+    assert response.status_code == 200, response.text

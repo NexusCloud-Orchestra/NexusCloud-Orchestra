@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from tests.conftest import AWS_CONNECTION, signup
+from tests.conftest import AWS_CONNECTION, enable_striping, signup
 
 
 @pytest.mark.postgres
@@ -103,7 +103,8 @@ async def test_striped_confirm_does_not_hold_user_lock_during_provider_call(clie
     tokens = await signup(client, "striped-lock@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
     credentials = {"aws_access_key_id": "test", "aws_secret_access_key": "secret"}
-    await client.post("/api/v1/connections", headers=headers, json=AWS_CONNECTION)
+    await enable_striping(client, headers)
+    await client.post("/api/v1/connections", headers=headers, json={**AWS_CONNECTION, "provider": "b2", "display_name": "B2"})
     response = await client.post("/api/v1/connections", headers=headers, json={
         **AWS_CONNECTION, "provider": "r2", "display_name": "R2", "credentials": {**credentials, "account_id": "0" * 32},
     })

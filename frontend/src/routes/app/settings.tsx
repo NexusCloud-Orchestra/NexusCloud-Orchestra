@@ -16,7 +16,7 @@ import {
 import { useAuth } from "../../state/auth"
 import { useToast } from "../../state/toast"
 import { queryKeys } from "../../state/query"
-import { changePassword, deleteAccount, setPlan } from "../../api/auth"
+import { changePassword, deleteAccount, setPlan, setStripingEnabled } from "../../api/auth"
 import { ApiError } from "../../api/client"
 import { formatDateTime, initialsOf } from "../../lib/format"
 import { usePlans } from "../../hooks/use-data"
@@ -29,7 +29,7 @@ import { ConfirmModal } from "../../components/ui/modal"
 import { PROVIDER_IDS } from "../../lib/providers"
 
 export function SettingsPage() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const plans = usePlans()
   const navigate = useNavigate()
 
@@ -140,6 +140,14 @@ export function SettingsPage() {
         </div>
       </Panel>
 
+      {/* Striping opt-in */}
+      <Panel>
+        <PanelHeader title="Large File Splitting" />
+        <div className="p-5">
+          <StripingToggle enabled={user?.striping_enabled ?? false} disabled={!user} onChanged={refreshUser} />
+        </div>
+      </Panel>
+
       {/* Security & Password */}
       <PasswordPanel />
 
@@ -167,6 +175,52 @@ export function SettingsPage() {
         <span>Supported Storage Providers: {PROVIDER_IDS.join(" · ")}</span>
         <span>Security: AES-256-GCM / PBKDF2 Password Hashing</span>
       </div>
+    </div>
+  )
+}
+
+function StripingToggle({
+  enabled, disabled, onChanged,
+}: { enabled: boolean; disabled: boolean; onChanged: () => Promise<void> }) {
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+
+  async function toggle() {
+    setBusy(true)
+    try {
+      await setStripingEnabled(!enabled)
+      await onChanged()
+    } catch (caught) {
+      toast.notify(caught instanceof ApiError ? caught.message : "Could not update the setting", "error")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <p id="striping-label" className="text-sm font-bold text-regal-navy">Split large files across clouds</p>
+        <p id="striping-desc" className="mt-0.5 text-xs text-muted-slate leading-relaxed">
+          Faster use of free space, but files are not backed up: losing any connected cloud loses every split file stored on it.
+        </p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        aria-labelledby="striping-label"
+        aria-describedby="striping-desc"
+        disabled={disabled || busy}
+        onClick={() => void toggle()}
+        className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full border transition-colors disabled:opacity-50 ${
+          enabled ? "border-regal-navy bg-regal-navy" : "border-border bg-[#E8E0D1]"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-xs transition-all ${enabled ? "left-5" : "left-0.5"}`}
+        />
+      </button>
     </div>
   )
 }

@@ -59,7 +59,12 @@ class UserOut(BaseModel):
     last_name: str
     email: EmailStr
     plan: str
+    striping_enabled: bool
     created_at: datetime
+
+
+class PreferencesIn(BaseModel):
+    striping_enabled: bool
 
 
 class TokenOut(BaseModel):

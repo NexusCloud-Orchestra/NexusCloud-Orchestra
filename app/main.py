@@ -109,7 +109,7 @@ async def guardrails(request: Request, call_next):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()],
-    allow_credentials=True, allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type", "x-ms-blob-type", "X-Request-ID", "X-NC-CSRF"],
     expose_headers=["X-Request-ID"],
 )

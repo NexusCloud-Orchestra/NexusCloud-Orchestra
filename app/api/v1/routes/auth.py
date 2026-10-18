@@ -14,7 +14,7 @@ from app.core.deps import audit, current_user
 from app.core.security import DUMMY_PASSWORD_HASH, digest_token, hash_password_async, parse_token, verify_password_async
 from app.db.models import AccessRevocation, AuditLog, CloudConnection, FileManifest, FileRecord, PasswordReset, Quota, RefreshSession, User
 from app.db.session import get_db
-from app.schemas import AuditOut, ChangePasswordIn, DeleteAccountIn, EmailIn, LoginIn, PlanIn, RegisterIn, ResetIn, TokenOut, UserOut
+from app.schemas import AuditOut, ChangePasswordIn, DeleteAccountIn, EmailIn, LoginIn, PlanIn, PreferencesIn, RegisterIn, ResetIn, TokenOut, UserOut
 from app.services.auth import (
     REFRESH_COOKIE, clear_refresh_cookie, create_reset, create_tokens, revoke_sessions, send_reset_email, set_refresh_cookie,
 )
@@ -180,6 +180,15 @@ async def set_plan(body: PlanIn, request: Request, user: User = Depends(current_
     audit(db, request, user.id, "PLAN_CHANGE", body.plan)
     await db.commit()
     await invalidate_quota(user.id)
+    return user
+
+
+@router.patch("/preferences", response_model=UserOut)
+async def set_preferences(body: PreferencesIn, request: Request, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    user = await db.scalar(select(User).where(User.id == user.id).with_for_update())
+    user.striping_enabled = body.striping_enabled
+    audit(db, request, user.id, "PREFERENCES_UPDATE", f"striping_enabled={body.striping_enabled}")
+    await db.commit()
     return user
 
 

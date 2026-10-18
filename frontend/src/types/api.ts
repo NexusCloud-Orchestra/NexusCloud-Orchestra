@@ -13,6 +13,7 @@ export interface User {
   last_name: string
   email: string
   plan: string
+  striping_enabled: boolean
   created_at: string
 }
 
