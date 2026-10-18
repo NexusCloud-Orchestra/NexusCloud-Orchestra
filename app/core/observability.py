@@ -38,6 +38,9 @@ def init_sentry(component: Literal["api", "worker"]) -> bool:
         environment=settings.ENVIRONMENT,
         traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
         send_default_pii=False,
+        # Frame locals and request bodies carry passwords, refresh tokens and cloud credentials.
+        include_local_variables=False,
+        max_request_body_size="never",
         before_send=scrub_event,
     )
     sentry_sdk.set_tag("component", component)

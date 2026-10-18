@@ -128,6 +128,22 @@ def test_init_sentry_noop_without_dsn(monkeypatch):
     assert init_sentry("api") is False
 
 
+def test_init_sentry_disables_locals_and_bodies(monkeypatch):
+    import sentry_sdk
+
+    from app.core.config import settings
+    from app.core.observability import init_sentry
+
+    captured = {}
+    monkeypatch.setattr(sentry_sdk, "init", lambda **kwargs: captured.update(kwargs))
+    monkeypatch.setattr(sentry_sdk, "set_tag", lambda *args: None)
+    monkeypatch.setattr(settings, "SENTRY_DSN", "https://public@sentry.example.com/1")
+    assert init_sentry("api") is True
+    assert captured["include_local_variables"] is False
+    assert captured["max_request_body_size"] == "never"
+    assert captured["send_default_pii"] is False
+
+
 def test_scrub_event_removes_secrets():
     from app.core.observability import scrub_event
 
