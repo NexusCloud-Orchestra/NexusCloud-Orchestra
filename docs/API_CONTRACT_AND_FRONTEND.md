@@ -17,18 +17,18 @@ This file is the implementation contract for the Kimi frontend agent. Source req
 | Method | Path | Request | Success |
 |---|---|---|---|
 | POST | `/auth/register` | `{first_name,last_name,email,password}` | 201 `User` |
-| POST | `/auth/login` | `{email,password}` | 200 `Tokens` |
-| POST | `/auth/refresh` | `{refresh_token}` | 200 `Tokens` (old refresh token immediately invalid) |
-| POST | `/auth/logout` | Bearer access token | 204; all refresh sessions revoked, access tokens invalidated |
+| POST | `/auth/login` | `{email,password}` | 200 `Tokens`; sets the `nc_refresh` cookie |
+| POST | `/auth/refresh` | No body (send `{}`); `nc_refresh` cookie and header `X-NC-CSRF: 1` required | 200 `Tokens` and a rotated cookie (old refresh token immediately invalid); 403 `csrf_required` without the header; 401 if invalid or reused |
+| POST | `/auth/logout` | Bearer access token | 204; all refresh sessions revoked, access tokens invalidated, cookie cleared |
 | GET | `/auth/me` | Bearer | 200 `User` |
 | POST | `/auth/forgot-password` | `{email}` | 200 generic message for existing/nonexisting email |
 | POST | `/auth/reset-password` | `{email,token,new_password}` | 200 message |
 | POST | `/auth/change-password` | Bearer + `{current_password,new_password}` | 200; sign in again |
 | POST | `/auth/plan` | Bearer + `{plan}` | 200 `User`; downgrades checked; paid upgrades currently return 403 until billing is integrated |
 | GET | `/auth/audit-logs` | Bearer | 200 array of `AuditLog`, newest first, max 100 |
-| POST | `/auth/delete-account` | Bearer + `{password}` | 204; 400 wrong password; 409 while active, pending or cleanup-failed files remain. Erases profile, connections, encrypted credentials, file metadata, sessions and audit log |
+| POST | `/auth/delete-account` | Bearer + `{password}` | 204; 400 wrong password; 409 while any file is `active`, `pending`, `deleting`, `cleanup_pending` or `cleanup_failed`. Erases profile, connections, encrypted credentials, file metadata, sessions and audit log |
 
-`User`: `{id,first_name,last_name,email,plan,created_at}`. Plans: `free`, `starter`, `pro`, `team`. Password minimum is 8 characters and maximum is 72 UTF-8 bytes. `Tokens`: `{access_token,refresh_token,token_type:"bearer"}`. Access expires in 30 minutes, refresh in 7 days. On a 401, perform a single coordinated refresh attempt and retry the original request once; otherwise clear auth and navigate to login. Store refresh tokens securely; an httpOnly cookie/BFF is preferred for production. This API currently returns the refresh token in JSON, so if using a browser-only SPA keep it in memory where possible and recognize that page reload will require login. Do not put access or refresh tokens in URLs or localStorage.
+`User`: `{id,first_name,last_name,email,plan,created_at}`. Plans: `free`, `starter`, `pro`, `team`. Password minimum is 8 characters and maximum is 72 UTF-8 bytes. `Tokens`: `{access_token,token_type:"bearer",expires_in}`. The refresh token is never in a JSON body: it travels only in the `nc_refresh` cookie (HttpOnly, SameSite=Strict, Path=`/api/v1/auth`). Access expires in 15 minutes (use `expires_in`, in seconds, rather than hard-coding it), refresh in 7 days. Keep the access token in memory only; after a page reload restore the session with `POST /auth/refresh`. Browser requests must use `credentials: "include"`, and the SPA and API must be same-site (for example `localhost` for both) for the Strict cookie to be sent; CORS allows credentials and the `X-NC-CSRF` header for configured origins. Serialize refresh across tabs (Web Locks `nc-refresh`) because every refresh rotates the token. On a 401, perform a single coordinated refresh attempt and retry the original request once; otherwise clear auth and navigate to login. Do not put access or refresh tokens in URLs or web storage.
 
 `AuditLog`: `{id,action,resource_id,ip_address,user_agent,created_at}`. The reset URL sent by email should navigate to `/reset-password?token=...&email=...`. Password recovery needs SMTP configuration on the backend; if SMTP is not configured in development, the generic endpoint response still appears but no mail is sent.
 
@@ -40,7 +40,7 @@ This file is the implementation contract for the Kimi frontend agent. Source req
 | GET | `/plans` | none | 200 plan catalog array |
 | POST | `/connections` | Bearer + `ConnectionCreate` | 201 `Connection` |
 | GET | `/connections` | Bearer | 200 `Connection[]` (active only) |
-| DELETE | `/connections/{id}` | Bearer | 204; 409 if active files remain |
+| DELETE | `/connections/{id}` | Bearer | 204; 409 while any file on it is `active`, `pending`, `deleting`, `cleanup_pending` or `cleanup_failed` |
 
 `ConnectionCreate`:
 
@@ -143,4 +143,4 @@ Do not invent live analytics, bandwidth benchmarks, AI insights, 2FA, API keys, 
 
 ## Health and development
 
-`GET /health` checks the database; `GET /redis-health` checks Redis. `/docs` provides interactive OpenAPI. With `LOCAL_STORAGE_ENABLED=true` in development only, provider connections use signed `/api/v1/local-objects/{id}` URLs so the full flow can run without real cloud credentials. This local data route must remain disabled in production and does not represent the Zero Data Touch production architecture.
+`GET /livez` is a dependency-free liveness probe; `GET /readyz` checks the database (`SELECT 1`) and Redis (`PING`) and returns 503 `Dependency unavailable` if either fails. `GET /health` remains as an alias of `/readyz`; `/redis-health` has been removed. `/docs` provides interactive OpenAPI. With `LOCAL_STORAGE_ENABLED=true` in development only, provider connections use signed `/api/v1/local-objects/{id}` URLs so the full flow can run without real cloud credentials. This local data route must remain disabled in production and does not represent the Zero Data Touch production architecture.

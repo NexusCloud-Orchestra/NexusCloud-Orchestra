@@ -48,10 +48,6 @@ class ChangePasswordIn(BaseModel):
         return RegisterIn.valid_password(value)
 
 
-class RefreshIn(BaseModel):
-    refresh_token: str
-
-
 class PlanIn(BaseModel):
     plan: Literal["free", "starter", "pro", "team"]
 
@@ -63,13 +59,18 @@ class UserOut(BaseModel):
     last_name: str
     email: EmailStr
     plan: str
+    striping_enabled: bool
     created_at: datetime
+
+
+class PreferencesIn(BaseModel):
+    striping_enabled: bool
 
 
 class TokenOut(BaseModel):
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
+    expires_in: int
 
 
 class ConnectionIn(BaseModel):

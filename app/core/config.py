@@ -1,5 +1,21 @@
+import ipaddress
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+@lru_cache
+def parse_trusted_proxies(raw: str) -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
+    """Parse the comma-separated proxy list once per distinct value."""
+    networks = []
+    for entry in (part.strip() for part in raw.split(",")):
+        if not entry:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(entry, strict=False))
+        except ValueError:
+            raise ValueError(f"TRUSTED_PROXIES contains an invalid IP or CIDR: {entry}") from None
+    return tuple(networks)
 
 
 class Settings(BaseSettings):
@@ -7,9 +23,12 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "NexusCloud"
     ENVIRONMENT: str = "development"
+    SENTRY_DSN: str = ""
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.0
     DEBUG: bool = False
     DATABASE_URL: str = "postgresql+asyncpg://nexuscloud:nexuscloud@localhost:5432/nexuscloud"
     REDIS_URL: str = "redis://localhost:6379/0"
+    TRUSTED_PROXIES: str = "127.0.0.1"
     SECRET_KEY: str = ""
     ENCRYPTION_KEY: str = ""
     PUBLIC_API_URL: str = "http://localhost:7575"
@@ -17,8 +36,11 @@ class Settings(BaseSettings):
     LOCAL_STORAGE_ENABLED: bool = False
     LOCAL_STORAGE_PATH: str = "storage"
     RESET_TOKEN_TTL_MINUTES: int = 30
-    ACCESS_TOKEN_TTL_MINUTES: int = 30
+    ACCESS_TOKEN_TTL_MINUTES: int = 15
     REFRESH_TOKEN_TTL_DAYS: int = 7
+    REFRESH_REUSE_GRACE_SECONDS: int = 30
+    COOKIE_SECURE: bool | None = None
+    COOKIE_DOMAIN: str | None = None
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USERNAME: str = ""
@@ -30,7 +52,17 @@ class Settings(BaseSettings):
     def production(self) -> bool:
         return self.ENVIRONMENT == "production"
 
+    @property
+    def cookie_secure(self) -> bool:
+        return self.production if self.COOKIE_SECURE is None else self.COOKIE_SECURE
+
+    @property
+    def trusted_networks(self) -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
+        return parse_trusted_proxies(self.TRUSTED_PROXIES)
+
     def assert_safe(self) -> None:
+        # Validate in every environment: a typo would otherwise only surface on the first proxied request.
+        parse_trusted_proxies(self.TRUSTED_PROXIES)
         if self.production:
             if len(self.SECRET_KEY) < 32 or len(self.ENCRYPTION_KEY) < 32:
                 raise ValueError("Production requires strong SECRET_KEY and ENCRYPTION_KEY")
@@ -38,6 +70,8 @@ class Settings(BaseSettings):
                 raise ValueError("Production secrets must be independent and non-placeholder")
             if self.LOCAL_STORAGE_ENABLED or self.DEBUG:
                 raise ValueError("Local storage and debug must be disabled in production")
+            if self.COOKIE_SECURE is False:
+                raise ValueError("Production requires COOKIE_SECURE to be enabled")
             if not self.PUBLIC_API_URL.startswith("https://"):
                 raise ValueError("Production PUBLIC_API_URL must use HTTPS")
             if not self.FRONTEND_URL.startswith("https://"):

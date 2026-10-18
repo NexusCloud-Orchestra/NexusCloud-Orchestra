@@ -232,6 +232,13 @@ export const PROVIDER_META: Record<ProviderId, ProviderMeta> = {
   },
 }
 
+/** Mirrors the backend catalog: only permanent free tiers may hold striped chunks. */
+const PERMANENT_PROVIDERS: ReadonlySet<ProviderId> = new Set<ProviderId>(["r2", "b2", "gcp", "oracle", "ibm"])
+
+export function isPermanentProvider(id: ProviderId): boolean {
+  return PERMANENT_PROVIDERS.has(id)
+}
+
 export const PROVIDER_IDS = Object.keys(PROVIDER_META) as ProviderId[]
 
 /**

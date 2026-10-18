@@ -6,12 +6,17 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
-from app.db.models import CloudConnection, FileRecord, Quota, User
+from app.core import redis as shared_redis
+from app.db.models import CloudConnection, FileRecord, User
 from app.schemas import QuotaSummaryOut
 from app.services.catalog import PLANS, PROVIDERS
 
 logger = logging.getLogger(__name__)
+
+# Files still holding a cloud object or reservation; disconnect and account deletion must wait for them.
+BLOCKING_FILE_STATUSES = ("active", "pending", "deleting", "cleanup_pending", "cleanup_failed")
+# A deleting file's object is still in the cloud until the provider delete succeeds.
+ACTIVE_FILE_STATUSES = ("active", "deleting")
 
 
 @dataclass(frozen=True)
@@ -34,35 +39,27 @@ class QuotaUsage:
 async def quota_usage(db: AsyncSession, user_id: UUID) -> QuotaUsage:
     rows = (await db.execute(
         select(FileRecord.connection_id, FileRecord.status, func.sum(FileRecord.size_bytes))
-        .where(FileRecord.user_id == user_id, FileRecord.status.in_(("active", "pending")))
+        .where(FileRecord.user_id == user_id, FileRecord.status.in_((*ACTIVE_FILE_STATUSES, "pending")))
         .group_by(FileRecord.connection_id, FileRecord.status)
     )).all()
     active: dict[UUID, int] = {}
     pending: dict[UUID, int] = {}
     for connection_id, status, amount in rows:
-        (active if status == "active" else pending)[connection_id] = amount
+        bucket = active if status in ACTIVE_FILE_STATUSES else pending
+        bucket[connection_id] = bucket.get(connection_id, 0) + int(amount)
     return QuotaUsage(active, pending)
 
 
-def redis_client():
-    from redis.asyncio import Redis
-    return Redis.from_url(settings.REDIS_URL, socket_connect_timeout=0.2, socket_timeout=0.2)
-
-
 async def invalidate_quota(user_id: UUID) -> None:
-    client = redis_client()
     try:
-        await client.delete(f"quota:{user_id}")
+        await shared_redis.get_redis().delete(f"quota:{user_id}")
     except Exception:
         logger.warning("Quota cache unavailable")
-    finally:
-        await client.aclose()
 
 
 async def quota_summary(db: AsyncSession, user: User) -> dict:
-    client = redis_client()
     try:
-        cached = await client.get(f"quota:{user.id}")
+        cached = await shared_redis.get_redis().get(f"quota:{user.id}")
         if cached:
             try:
                 result = json.loads(cached)
@@ -72,10 +69,7 @@ async def quota_summary(db: AsyncSession, user: User) -> dict:
                 logger.warning("Invalid quota cache entry for user %s", user.id)
     except Exception:
         logger.warning("Quota cache unavailable")
-    finally:
-        await client.aclose()
     connections = (await db.scalars(select(CloudConnection).where(CloudConnection.user_id == user.id, CloudConnection.is_active.is_(True)))).all()
-    quota = await db.scalar(select(Quota).where(Quota.user_id == user.id))
     usage = await quota_usage(db, user.id)
     by_connection = []
     available_total = 0
@@ -96,18 +90,16 @@ async def quota_summary(db: AsyncSession, user: User) -> dict:
         })
     plan_limit = PLANS[user.plan].max_bytes
     total_limit = min(provider_limit_total, plan_limit) if plan_limit is not None else provider_limit_total
-    total_free = min(available_total, max(0, total_limit - quota.used_bytes - reserved_total))
+    used_total = usage.total_active
+    total_free = min(available_total, max(0, total_limit - used_total - reserved_total))
     result = {
-        "total_used_bytes": quota.used_bytes, "total_free_bytes": total_free,
-        "total_limit_bytes": total_limit, "usage_percentage": round(100 * quota.used_bytes / total_limit, 2) if total_limit else 0,
+        "total_used_bytes": used_total, "total_free_bytes": total_free,
+        "total_limit_bytes": total_limit, "usage_percentage": round(100 * used_total / total_limit, 2) if total_limit else 0,
         "total_reserved_bytes": reserved_total, "plan": user.plan, "plan_limit_bytes": plan_limit,
         "by_connection": by_connection,
     }
-    client = redis_client()
     try:
-        await client.set(f"quota:{user.id}", json.dumps(result), ex=900)
+        await shared_redis.get_redis().set(f"quota:{user.id}", json.dumps(result), ex=900)
     except Exception:
         logger.warning("Quota cache unavailable")
-    finally:
-        await client.aclose()
     return result

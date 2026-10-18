@@ -40,16 +40,25 @@ Run the API on port 7575 and the web image on port 8080 behind HTTPS. Supply run
 - Set `SMTP_HOST` and `SMTP_FROM` so password recovery works in production.
 - Leave `LOCAL_STORAGE_ENABLED=false`; make each cloud bucket allow the browser's signed PUT headers through CORS.
 
+## Production checklist
+
+- **Client IPs behind a load balancer.** Set `TRUSTED_PROXIES` to the load balancer's IP or CIDR range (comma-separated). Set uvicorn's `FORWARDED_ALLOW_IPS` environment variable to the same value: uvicorn's proxy-headers handling rewrites `request.client` from `X-Forwarded-For` before the app sees the request, so both lists must agree or rate limits and audit rows record the wrong address. The API refuses to start if any `TRUSTED_PROXIES` entry is not a valid IP or CIDR.
+- **Same-site SPA and API.** Serve the SPA and the API from the same registrable domain, for example `app.example.com` and `api.example.com`. The refresh cookie is `SameSite=Strict`, so a browser never sends it from a different site and every page reload would sign the user out.
+- **`COOKIE_DOMAIN`.** Leave unset to scope the refresh cookie to the API host, or set it to the parent domain only if another subdomain must receive it.
+- **`COOKIE_SECURE`.** Leave unset (production defaults to secure) or set `true`; the API refuses to start in production with `COOKIE_SECURE=false`.
+- **`SENTRY_DSN`.** Set it to receive API and worker errors. Events are scrubbed, and frame locals and request bodies are never sent.
+- **`CSP_CONNECT_SRC` for the web image.** Defaults to `'self' https:`, which allows the API and browser PUTs to cloud storage over HTTPS. Override it only to tighten or extend `connect-src`, and keep the API origin and every storage endpoint in it.
+
 ## Cross-cloud striping
 
 Files larger than 16 MiB are striped when the account has at least two active, different provider types. The browser hashes 16 MiB chunks, requests placement, uploads each chunk directly to its assigned BYOC bucket, and confirms the manifest. Upload and retrieval share a versioned index that commits to ordered content and cloud placement; see [the stripe index specification](STRIPING.md). The API stores placement metadata and hashes, not file bytes.
 
 This is striping, not replication or erasure coding: losing any chunk makes the file unavailable. Supported browsers save verified chunks incrementally; other browsers can download up to 512 MiB through a bounded in-memory fallback. Cloud providers can honor an issued signed PUT URL until its 15-minute expiry. Cancelling a striped upload releases its quota reservation immediately but blocks disconnect/account deletion until the cleanup worker sweeps the chunks after that window. Keep Celery beat and workers healthy; alert on `cleanup_failed` rows. The API verifies object existence and size at confirmation, but cannot independently verify the client-asserted content hash without reading the object.
 
-Run `alembic upgrade head` once with the API image and the production database settings before starting API replicas.
+In `docker-compose.yml` the one-shot `migrate` service runs `alembic upgrade head`; `api` and `worker` start only after it completes successfully. Outside compose, run `alembic upgrade head` once with the API image and the production database settings before starting API replicas.
 The current baseline is for a new database; installations on either legacy Alembic lineage need a planned data migration first.
 
-Run Celery workers from the same API image. Keep exactly one beat scheduler (`worker -B` on a single worker or a separate beat process).
+Run Celery workers from the same API image. Run exactly one `beat` scheduler as its own process (the compose `beat` service); workers are started without `-B` and can be scaled freely. Worker tasks open database sessions with `NullPool` because each task runs in a fresh asyncio event loop.
 The frontend's `/health` and API's `/health` endpoints can be used for service health checks.
 The workflow publishes images; deploying them to a cloud environment still requires the target account's credentials and rollout configuration.
 

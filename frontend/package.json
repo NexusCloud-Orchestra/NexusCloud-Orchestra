@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test:striping": "node scripts/test-striping.mjs",
     "typecheck": "tsc -b --force",
-    "lint": "eslint src --max-warnings 0"
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run"
   },
   "dependencies": {
     "@fontsource/instrument-sans": "^5.3.0",
@@ -24,6 +25,7 @@
     "@radix-ui/react-switch": "^1.4.0",
     "@radix-ui/react-tabs": "^1.2.0",
     "@radix-ui/react-tooltip": "^1.4.0",
+    "@sentry/react": "^10.76.2",
     "@tanstack/react-query": "^5.62.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -44,9 +46,11 @@
     "eslint": "^8.57.1",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.16",
+    "jsdom": "^25.0.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.6.3",
-    "vite": "^5.4.21"
+    "vite": "^5.4.21",
+    "vitest": "^3.2.7"
   }
 }

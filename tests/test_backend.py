@@ -1,6 +1,7 @@
 import os
 import base64
 import hashlib
+import ipaddress
 import uuid
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -13,11 +14,12 @@ import pytest
 import pytest_asyncio
 import fakeredis.aioredis
 import jwt
-from redis.asyncio import Redis
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config import Settings, settings
+import app.core.redis as redis_module
 from app.core.security import issue_token, parse_token
 from app.db.base import Base
 from app.db.session import get_db
@@ -29,43 +31,9 @@ from app.services.striping import CHUNK_BYTES, index_hash, manifest_index_hash, 
 from app.services.catalog import PROVIDERS
 from app.services.providers import AzureProvider, GCPProvider, S3Provider
 from app.services.providers import LocalProvider
-from app.db.models import FileManifest, FileRecord
+from app.db.models import FileManifest, FileRecord, Quota
 import app.workers.tasks as worker_tasks
-
-
-@pytest_asyncio.fixture
-async def client(tmp_path, monkeypatch):
-    redis_server = fakeredis.FakeServer()
-    monkeypatch.setattr(Redis, "from_url", lambda *args, **kwargs: fakeredis.aioredis.FakeRedis(server=redis_server))
-    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'test.db'}")
-    factory = async_sessionmaker(engine, expire_on_commit=False)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    async def override_db():
-        async with factory() as db:
-            yield db
-
-    app.dependency_overrides[get_db] = override_db
-    monkeypatch.setattr(main_module, "SessionLocal", factory)
-    monkeypatch.setattr(settings, "LOCAL_STORAGE_ENABLED", True)
-    monkeypatch.setattr(settings, "LOCAL_STORAGE_PATH", str(tmp_path / "storage"))
-    monkeypatch.setattr(settings, "PUBLIC_API_URL", "http://testserver")
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as test_client:
-        test_client.test_session_factory = factory
-        yield test_client
-    app.dependency_overrides.clear()
-    await engine.dispose()
-
-
-async def signup(client, email):
-    response = await client.post("/api/v1/auth/register", json={
-        "first_name": "Test", "last_name": "User", "email": email, "password": "SecurePassword123!"
-    })
-    assert response.status_code == 201, response.text
-    response = await client.post("/api/v1/auth/login", json={"email": email, "password": "SecurePassword123!"})
-    assert response.status_code == 200, response.text
-    return response.json()
+from tests.conftest import enable_striping, signup
 
 
 @pytest.mark.asyncio
@@ -115,16 +83,13 @@ async def test_quota_summary_recovers_from_invalid_cache(client):
     tokens = await signup(client, "quota-cache@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
     user_id = (await client.get("/api/v1/auth/me", headers=headers)).json()["id"]
-    redis = Redis.from_url(settings.REDIS_URL)
-    try:
-        for malformed in ("not json", '{"by_connection": []}'):
-            await redis.set(f"quota:{user_id}", malformed)
-            response = await client.get("/api/v1/quota/summary", headers=headers)
-            assert response.status_code == 200, response.text
-            assert response.json()["total_used_bytes"] == 0
-            assert response.json()["plan"] == "free"
-    finally:
-        await redis.aclose()
+    redis = redis_module.get_redis()
+    for malformed in ("not json", '{"by_connection": []}'):
+        await redis.set(f"quota:{user_id}", malformed)
+        response = await client.get("/api/v1/quota/summary", headers=headers)
+        assert response.status_code == 200, response.text
+        assert response.json()["total_used_bytes"] == 0
+        assert response.json()["plan"] == "free"
 
 
 @pytest.mark.asyncio
@@ -132,13 +97,18 @@ async def test_refresh_rotation_logout_and_plan_guard(client):
     tokens = await signup(client, "auth@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
     assert (await client.post("/api/v1/auth/plan", headers=headers, json={"plan": "pro"})).status_code == 403
-    rotated = await client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
+    original = client.cookies.get("nc_refresh")
+    rotated = await client.post("/api/v1/auth/refresh", headers={"X-NC-CSRF": "1"})
     assert rotated.status_code == 200, rotated.text
-    assert (await client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})).status_code == 401
+    current = client.cookies.get("nc_refresh")
+    assert current != original
+    old = await client.post("/api/v1/auth/refresh", headers={"X-NC-CSRF": "1", "Cookie": f"nc_refresh={original}"})
+    assert old.status_code == 401
     new_headers = {"Authorization": f"Bearer {rotated.json()['access_token']}"}
     assert (await client.post("/api/v1/auth/logout", headers=new_headers)).status_code == 204
     assert (await client.get("/api/v1/auth/me", headers=new_headers)).status_code == 401
-    assert (await client.post("/api/v1/auth/refresh", json={"refresh_token": rotated.json()["refresh_token"]})).status_code == 401
+    after = await client.post("/api/v1/auth/refresh", headers={"X-NC-CSRF": "1", "Cookie": f"nc_refresh={current}"})
+    assert after.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -214,16 +184,16 @@ def test_router_prefers_free_egress():
 
 
 def test_stripe_placement_uses_tail_on_small_secondary_cloud():
-    aws = SimpleNamespace(provider="aws", id=uuid.uuid4())
+    b2 = SimpleNamespace(provider="b2", id=uuid.uuid4())
     r2 = SimpleNamespace(provider="r2", id=uuid.uuid4())
     free = {
-        aws.id: 3 * CHUNK_BYTES + 1,
+        b2.id: 3 * CHUNK_BYTES + 1,
         r2.id: 1,
     }
-    used = {connection.id: PROVIDERS[connection.provider].free_bytes - free[connection.id] for connection in (aws, r2)}
-    chosen = place_chunks([aws, r2], used, [CHUNK_BYTES, CHUNK_BYTES, 1])
+    used = {connection.id: PROVIDERS[connection.provider].free_bytes - free[connection.id] for connection in (b2, r2)}
+    chosen = place_chunks([b2, r2], used, [CHUNK_BYTES, CHUNK_BYTES, 1])
     assert chosen is not None
-    assert [connection.provider for connection in chosen] == ["aws", "aws", "r2"]
+    assert [connection.provider for connection in chosen] == ["b2", "b2", "r2"]
 
 
 def test_tokens_require_expiry_signature_and_type():
@@ -279,6 +249,21 @@ def test_production_rejects_insecure_configuration():
     safe.assert_safe()
 
 
+def test_invalid_trusted_proxies_rejected_at_startup():
+    for environment in ("development", "production"):
+        unsafe = Settings(
+            _env_file=None, ENVIRONMENT=environment, SECRET_KEY="a" * 40, ENCRYPTION_KEY="b" * 40,
+            PUBLIC_API_URL="https://api.example.com", FRONTEND_URL="https://app.example.com",
+            CORS_ORIGINS="https://app.example.com", SMTP_HOST="smtp.example.com", SMTP_FROM="security@example.com",
+            TRUSTED_PROXIES="10.0.0.0/8, 10.0.0.300",
+        )
+        with pytest.raises(ValueError, match="^TRUSTED_PROXIES contains an invalid IP or CIDR: 10.0.0.300$"):
+            unsafe.assert_safe()
+    assert Settings(_env_file=None, TRUSTED_PROXIES=" 10.0.0.0/8 ,::1,").trusted_networks == (
+        ipaddress.ip_network("10.0.0.0/8"), ipaddress.ip_network("::1"),
+    )
+
+
 async def connect(client, headers, provider, name, **extra):
     credentials = {"aws_access_key_id": "test", "aws_secret_access_key": "secret"}
     if provider == "r2":
@@ -323,7 +308,7 @@ async def test_route_preview_explains_decision_without_reserving(client):
 
 
 @pytest.mark.asyncio
-async def test_cancel_upload_releases_reservation(client):
+async def test_cancel_upload_releases_reservation(client, monkeypatch):
     tokens = await signup(client, "cancel@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
     other = await signup(client, "cancel-other@example.com")
@@ -341,6 +326,17 @@ async def test_cancel_upload_releases_reservation(client):
     assert (await client.post(f"/api/v1/files/cancel-upload/{ticket['file_id']}", headers=headers)).status_code == 409
     assert (await client.post(f"/api/v1/files/confirm-upload/{ticket['file_id']}", headers=headers)).status_code == 409
     assert (await client.get("/api/v1/quota/summary", headers=headers)).json()["total_reserved_bytes"] == 0
+    async with client.test_session_factory() as db:
+        file = await db.get(FileRecord, uuid.UUID(ticket["file_id"]))
+        assert file.status == "cleanup_pending"
+    # The signed URL is still live, so disconnect waits for the worker to clean up after expiry.
+    assert (await client.delete(f"/api/v1/connections/{connection_id}", headers=headers)).status_code == 409
+    async with client.test_session_factory() as db:
+        file = await db.get(FileRecord, uuid.UUID(ticket["file_id"]))
+        file.upload_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        await db.commit()
+    monkeypatch.setattr(worker_tasks, "worker_session", client.test_session_factory)
+    assert await worker_tasks._cleanup() == 1
     assert (await client.delete(f"/api/v1/connections/{connection_id}", headers=headers)).status_code == 204
 
 
@@ -348,9 +344,10 @@ async def test_cancel_upload_releases_reservation(client):
 async def test_striped_file_lifecycle_and_hash_index(client):
     tokens = await signup(client, "stripe@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    await enable_striping(client, headers)
     other = await signup(client, "stripe-other@example.com")
     other_headers = {"Authorization": f"Bearer {other['access_token']}"}
-    aws = await connect(client, headers, "aws", "S3")
+    b2 = await connect(client, headers, "b2", "B2")
     r2 = await connect(client, headers, "r2", "R2")
     pieces = [b"a" * CHUNK_BYTES, b"last chunk"]
     sizes_and_hashes = [(len(piece), hashlib.sha256(piece).hexdigest()) for piece in pieces]
@@ -367,7 +364,7 @@ async def test_striped_file_lifecycle_and_hash_index(client):
          uuid.UUID(chunk["connection_id"]), chunk["provider"])
         for chunk in ticket["chunks"]
     ])
-    assert {chunk["connection_id"] for chunk in ticket["chunks"]} == {aws, r2}
+    assert {chunk["connection_id"] for chunk in ticket["chunks"]} == {b2, r2}
     assert (await client.get("/api/v1/quota/summary", headers=headers)).json()["total_reserved_bytes"] == sum(map(len, pieces))
     assert (await client.post(f"/api/v1/files/striped/{ticket['file_id']}/confirm", headers=headers, json={})).status_code == 409
     assert (await client.get(f"/api/v1/files/striped/{ticket['file_id']}/manifest", headers=other_headers)).status_code == 404
@@ -395,15 +392,64 @@ async def test_striped_file_lifecycle_and_hash_index(client):
     assert (await client.delete(f"/api/v1/files/striped/{ticket['file_id']}", headers=headers)).status_code == 204
     assert (await client.get("/api/v1/quota/summary", headers=headers)).json()["total_used_bytes"] == 0
     assert (await client.get("/api/v1/files", headers=headers)).json() == []
-    assert (await client.delete(f"/api/v1/connections/{aws}", headers=headers)).status_code == 204
+    assert (await client.delete(f"/api/v1/connections/{b2}", headers=headers)).status_code == 204
     assert (await client.delete(f"/api/v1/connections/{r2}", headers=headers)).status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_striped_delete_finished_by_worker_is_not_charged_twice(client, monkeypatch):
+    tokens = await signup(client, "stripe-race@example.com")
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    await enable_striping(client, headers)
+    await connect(client, headers, "b2", "B2")
+    await connect(client, headers, "r2", "R2")
+    pieces = [b"a" * CHUNK_BYTES, b"b"]
+    ticket = (await client.post("/api/v1/files/striped-upload-request", headers=headers, json={
+        "original_name": "race.bin", "size_bytes": sum(map(len, pieces)),
+        "mime_type": "application/octet-stream",
+        "chunks": [{"size_bytes": len(piece), "sha256": hashlib.sha256(piece).hexdigest()} for piece in pieces],
+    })).json()
+    for index, piece in enumerate(pieces):
+        signed = (await client.get(f"/api/v1/files/striped/{ticket['file_id']}/chunks/{index}/upload-url", headers=headers)).json()
+        assert (await client.put(signed["url"], content=piece, headers=signed["required_headers"])).status_code == 200
+    assert (await client.post(f"/api/v1/files/striped/{ticket['file_id']}/confirm", headers=headers, json={})).status_code == 200
+    manifest_id = uuid.UUID(ticket["file_id"])
+    async with client.test_session_factory() as db:
+        manifest = await db.get(FileManifest, manifest_id)
+        user_id = manifest.user_id
+        # Bytes charged for other files, so a second decrement is not hidden by the clamp at zero.
+        quota = await db.scalar(select(Quota).where(Quota.user_id == user_id))
+        quota.used_bytes += 1000
+        await db.commit()
+
+    original = LocalProvider.delete
+    raced = False
+
+    async def slow_delete(self, connection, credentials, object_key, object_id):
+        # The API delete outlives its 15-minute intent window and the worker sweeps the manifest meanwhile.
+        nonlocal raced
+        if not raced:
+            raced = True
+            async with client.test_session_factory() as db:
+                (await db.get(FileManifest, manifest_id)).upload_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+                await db.commit()
+            assert await worker_tasks._cleanup() == 1
+        return await original(self, connection, credentials, object_key, object_id)
+
+    monkeypatch.setattr(LocalProvider, "delete", slow_delete)
+    monkeypatch.setattr(worker_tasks, "worker_session", client.test_session_factory)
+    assert (await client.delete(f"/api/v1/files/striped/{ticket['file_id']}", headers=headers)).status_code == 204
+    async with client.test_session_factory() as db:
+        assert (await db.get(FileManifest, manifest_id)).status == "deleted"
+        assert (await db.scalar(select(Quota).where(Quota.user_id == user_id))).used_bytes == 1000
 
 
 @pytest.mark.asyncio
 async def test_striped_index_rejects_changed_placement(client):
     tokens = await signup(client, "stripe-index@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
-    aws = await connect(client, headers, "aws", "S3")
+    await enable_striping(client, headers)
+    b2 = await connect(client, headers, "b2", "B2")
     r2 = await connect(client, headers, "r2", "R2")
     ticket = (await client.post("/api/v1/files/striped-upload-request", headers=headers, json={
         "original_name": "index.bin", "size_bytes": CHUNK_BYTES + 1,
@@ -416,7 +462,7 @@ async def test_striped_index_rejects_changed_placement(client):
     assert (await client.get(f"/api/v1/files/striped/{ticket['file_id']}/chunks/0/upload-url", headers=headers)).status_code == 200
     async with client.test_session_factory() as db:
         chunk = await db.get(FileRecord, uuid.UUID(ticket["chunks"][0]["chunk_id"]))
-        chunk.connection_id = uuid.UUID(r2 if ticket["chunks"][0]["connection_id"] == aws else aws)
+        chunk.connection_id = uuid.UUID(r2 if ticket["chunks"][0]["connection_id"] == b2 else b2)
         await db.commit()
     assert (await client.get(f"/api/v1/files/striped/{ticket['file_id']}/manifest", headers=headers)).status_code == 503
     assert (await client.get(f"/api/v1/files/striped/{ticket['file_id']}/chunks/0/upload-url", headers=headers)).status_code == 503
@@ -426,7 +472,8 @@ async def test_striped_index_rejects_changed_placement(client):
 async def test_legacy_stripe_index_remains_readable(client):
     tokens = await signup(client, "stripe-v1@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
-    await connect(client, headers, "aws", "S3")
+    await enable_striping(client, headers)
+    await connect(client, headers, "b2", "B2")
     await connect(client, headers, "r2", "R2")
     pieces = [b"a" * CHUNK_BYTES, b"b"]
     ticket = (await client.post("/api/v1/files/striped-upload-request", headers=headers, json={
@@ -455,7 +502,8 @@ async def test_legacy_stripe_index_remains_readable(client):
 async def test_striped_cancel_after_partial_upload_blocks_old_url_and_releases_quota(client, monkeypatch):
     tokens = await signup(client, "stripe-cancel@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
-    aws = await connect(client, headers, "aws", "S3")
+    await enable_striping(client, headers)
+    b2 = await connect(client, headers, "b2", "B2")
     r2 = await connect(client, headers, "r2", "R2")
     pieces = [b"a" * CHUNK_BYTES, b"tail"]
     ticket = (await client.post("/api/v1/files/striped-upload-request", headers=headers, json={
@@ -471,14 +519,14 @@ async def test_striped_cancel_after_partial_upload_blocks_old_url_and_releases_q
     assert (await client.put(url["url"], content=pieces[0], headers=url["required_headers"])).status_code == 404
     assert (await client.post(f"/api/v1/files/striped/{ticket['file_id']}/confirm", headers=headers)).status_code == 409
     assert (await client.get("/api/v1/quota/summary", headers=headers)).json()["total_reserved_bytes"] == 0
-    assert (await client.delete(f"/api/v1/connections/{aws}", headers=headers)).status_code == 409
+    assert (await client.delete(f"/api/v1/connections/{b2}", headers=headers)).status_code == 409
     async with client.test_session_factory() as db:
         manifest = await db.get(FileManifest, uuid.UUID(ticket["file_id"]))
         manifest.upload_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
         await db.commit()
-    monkeypatch.setattr(worker_tasks, "SessionLocal", client.test_session_factory)
+    monkeypatch.setattr(worker_tasks, "worker_session", client.test_session_factory)
     assert await worker_tasks._cleanup() == 1
-    assert (await client.delete(f"/api/v1/connections/{aws}", headers=headers)).status_code == 204
+    assert (await client.delete(f"/api/v1/connections/{b2}", headers=headers)).status_code == 204
     assert (await client.delete(f"/api/v1/connections/{r2}", headers=headers)).status_code == 204
 
 
@@ -486,7 +534,8 @@ async def test_striped_cancel_after_partial_upload_blocks_old_url_and_releases_q
 async def test_striped_partial_delete_is_retried_by_worker(client, monkeypatch):
     tokens = await signup(client, "stripe-retry@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
-    await connect(client, headers, "aws", "S3")
+    await enable_striping(client, headers)
+    await connect(client, headers, "b2", "B2")
     await connect(client, headers, "r2", "R2")
     pieces = [b"a" * CHUNK_BYTES, b"tail"]
     ticket = (await client.post("/api/v1/files/striped-upload-request", headers=headers, json={
@@ -517,7 +566,7 @@ async def test_striped_partial_delete_is_retried_by_worker(client, monkeypatch):
     assert (await client.get("/api/v1/files", headers=headers)).json() == []
     assert (await client.get("/api/v1/quota/summary", headers=headers)).json()["total_used_bytes"] == sum(map(len, pieces))
     monkeypatch.setattr(LocalProvider, "delete", original_delete)
-    monkeypatch.setattr(worker_tasks, "SessionLocal", client.test_session_factory)
+    monkeypatch.setattr(worker_tasks, "worker_session", client.test_session_factory)
     async with client.test_session_factory() as db:
         manifest = await db.get(FileManifest, uuid.UUID(ticket["file_id"]))
         manifest.upload_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
@@ -530,7 +579,8 @@ async def test_striped_partial_delete_is_retried_by_worker(client, monkeypatch):
 async def test_striped_rejects_malformed_manifest_without_reserving_quota(client):
     tokens = await signup(client, "stripe-invalid@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
-    await connect(client, headers, "aws", "S3")
+    await enable_striping(client, headers)
+    await connect(client, headers, "b2", "B2")
     await connect(client, headers, "r2", "R2")
     valid_hash = hashlib.sha256(b"a").hexdigest()
     base = {
@@ -569,7 +619,7 @@ async def test_file_listing_includes_provider(client):
 
 
 @pytest.mark.asyncio
-async def test_delete_account_requires_password_and_empty_storage(client):
+async def test_delete_account_requires_password_and_empty_storage(client, monkeypatch):
     tokens = await signup(client, "erase@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
     connection_id = await connect(client, headers, "aws", "S3")
@@ -581,10 +631,20 @@ async def test_delete_account_requires_password_and_empty_storage(client):
     blocked = await client.post("/api/v1/auth/delete-account", headers=headers, json={"password": "SecurePassword123!"})
     assert blocked.status_code == 409
     await client.post(f"/api/v1/files/cancel-upload/{ticket['file_id']}", headers=headers)
+    # Cancelled uploads keep blocking erasure until the worker removes them after URL expiry.
+    blocked = await client.post("/api/v1/auth/delete-account", headers=headers, json={"password": "SecurePassword123!"})
+    assert blocked.status_code == 409
+    async with client.test_session_factory() as db:
+        file = await db.get(FileRecord, uuid.UUID(ticket["file_id"]))
+        file.upload_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        await db.commit()
+    monkeypatch.setattr(worker_tasks, "worker_session", client.test_session_factory)
+    assert await worker_tasks._cleanup() == 1
+    refresh_token = client.cookies.get("nc_refresh")
     erased = await client.post("/api/v1/auth/delete-account", headers=headers, json={"password": "SecurePassword123!"})
     assert erased.status_code == 204, erased.text
     assert (await client.get("/api/v1/auth/me", headers=headers)).status_code == 401
-    assert (await client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})).status_code == 401
+    assert (await client.post("/api/v1/auth/refresh", headers={"X-NC-CSRF": "1", "Cookie": f"nc_refresh={refresh_token}"})).status_code == 401
     assert (await client.post("/api/v1/auth/login", json={
         "email": "erase@example.com", "password": "SecurePassword123!"
     })).status_code == 401
@@ -599,8 +659,8 @@ async def test_worker_purges_expired_tokens(client, monkeypatch):
     import app.workers.tasks as tasks
     from app.db.models import RefreshSession
     from sqlalchemy import func, select
-    monkeypatch.setattr(tasks, "SessionLocal", main_module.SessionLocal)
-    tokens = await signup(client, "purge@example.com")
+    monkeypatch.setattr(tasks, "worker_session", client.test_session_factory)
+    await signup(client, "purge@example.com")
     async with main_module.SessionLocal() as db:
         session = await db.scalar(select(RefreshSession))
         session.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
@@ -608,4 +668,4 @@ async def test_worker_purges_expired_tokens(client, monkeypatch):
     assert await tasks._purge_expired_tokens() == 1
     async with main_module.SessionLocal() as db:
         assert await db.scalar(select(func.count()).select_from(RefreshSession)) == 0
-    assert (await client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})).status_code == 401
+    assert (await client.post("/api/v1/auth/refresh", headers={"X-NC-CSRF": "1"})).status_code == 401

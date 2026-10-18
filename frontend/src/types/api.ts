@@ -13,13 +13,14 @@ export interface User {
   last_name: string
   email: string
   plan: string
+  striping_enabled: boolean
   created_at: string
 }
 
 export interface Tokens {
   access_token: string
-  refresh_token: string
   token_type: "bearer"
+  expires_in: number
 }
 
 export interface AuditLog {

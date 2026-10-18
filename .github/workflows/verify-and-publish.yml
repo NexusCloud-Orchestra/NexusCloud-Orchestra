@@ -12,6 +12,25 @@ permissions:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: pg
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -28,13 +47,18 @@ jobs:
           uvx pip-audit==2.10.1 --no-deps --progress-spinner off \
             -r "$RUNNER_TEMP/requirements-audit.txt"
       - name: Test API
-        run: uv run --frozen pytest tests/test_backend.py -q
+        env:
+          TEST_DATABASE_URL: postgresql+asyncpg://postgres:pg@localhost:5432/postgres
+          TEST_REDIS_URL: redis://localhost:6379/15
+        run: uv run --frozen pytest -q
       - name: Check fresh database migration
         env:
-          DATABASE_URL: sqlite+aiosqlite:///./ci-migration.db
+          DATABASE_URL: postgresql+asyncpg://postgres:pg@localhost:5432/nc_migrations
+          PGPASSWORD: pg
           SECRET_KEY: ci-access-secret-0123456789abcdef0123456789
           ENCRYPTION_KEY: ci-encryption-secret-0123456789abcdef
         run: |
+          psql -h localhost -U postgres -c 'CREATE DATABASE nc_migrations'
           uv run --frozen alembic upgrade head
           uv run --frozen alembic check
       - name: Build wheel
@@ -52,6 +76,12 @@ jobs:
       - name: Install locked dependencies
         working-directory: frontend
         run: npm ci
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+      - name: Unit tests
+        working-directory: frontend
+        run: npm test
       - name: Check cross-language stripe index
         working-directory: frontend
         run: npm run test:striping
@@ -97,20 +127,30 @@ jobs:
               echo "=== nexuscloud-web-smoke logs ==="
               docker logs nexuscloud-web-smoke || true
             fi
-            docker rm -f nexuscloud-api-smoke nexuscloud-web-smoke >/dev/null 2>&1 || true
+            docker rm -f nexuscloud-api-smoke nexuscloud-web-smoke nexuscloud-redis-smoke >/dev/null 2>&1 || true
+            docker network rm nexuscloud-smoke >/dev/null 2>&1 || true
             exit $status
           }
           trap cleanup EXIT
-          docker run -d --name nexuscloud-api-smoke -p 7575:7575 \
+          docker network create nexuscloud-smoke
+          docker run -d --name nexuscloud-redis-smoke --network nexuscloud-smoke redis:7-alpine
+          docker run -d --name nexuscloud-api-smoke --network nexuscloud-smoke -p 7575:7575 \
+            -e REDIS_URL=redis://nexuscloud-redis-smoke:6379/0 \
             -e DATABASE_URL=sqlite+aiosqlite:////tmp/nexuscloud-smoke.db \
             -e SECRET_KEY=ci-access-secret-0123456789abcdef0123456789 \
             -e ENCRYPTION_KEY=ci-encryption-secret-0123456789abcdef \
             nexuscloud-api:smoke \
             sh -c 'alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 7575 --no-access-log'
           docker run -d --name nexuscloud-web-smoke -p 8080:8080 nexuscloud-web:smoke
-          curl --fail --retry 30 --retry-delay 1 --retry-connrefused --retry-all-errors http://127.0.0.1:7575/health
+          curl --fail --retry 30 --retry-delay 1 --retry-connrefused --retry-all-errors http://127.0.0.1:7575/livez
+          curl --fail --retry 30 --retry-delay 1 --retry-connrefused --retry-all-errors http://127.0.0.1:7575/readyz
           curl --fail --retry 30 --retry-delay 1 --retry-connrefused --retry-all-errors http://127.0.0.1:8080/health
           curl --fail http://127.0.0.1:8080/app/files | grep -q '<div id="root">'
+          for path in /app/files /landing/index.html /health "/assets/$(curl -s http://127.0.0.1:8080/app/files | grep -o 'assets/index-[^"]*\.js' | head -1 | cut -d/ -f2)"; do
+            headers=$(curl -sI "http://127.0.0.1:8080$path")
+            echo "$headers" | grep -qi '^content-security-policy:.*frame-ancestors' || { echo "missing CSP on $path"; exit 1; }
+            echo "$headers" | grep -qi '^x-frame-options: DENY' || { echo "missing XFO on $path"; exit 1; }
+          done
 
   publish:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')

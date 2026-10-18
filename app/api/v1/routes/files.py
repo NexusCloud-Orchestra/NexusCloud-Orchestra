@@ -48,7 +48,7 @@ async def _file(db: AsyncSession, user_id: UUID, file_id: UUID, lock: bool = Fal
         FileRecord.manifest_id.is_(None),
     )
     if lock:
-        statement = statement.with_for_update()
+        statement = statement.with_for_update().execution_options(populate_existing=True)
     result = (await db.execute(statement)).first()
     if not result:
         raise HTTPException(404, "File not found")
@@ -150,19 +150,12 @@ async def upload_request(body: UploadIn, request: Request, user: User = Depends(
 async def cancel_upload(file_id: UUID, request: Request, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
     """Release a pending reservation after a failed or abandoned browser PUT."""
     await db.scalar(select(User).where(User.id == user.id).with_for_update())
-    file, connection = await _file(db, user.id, file_id, True)
+    file, _ = await _file(db, user.id, file_id, True)
     if file.status != "pending":
         raise HTTPException(409, "Only pending uploads can be cancelled")
-    try:
-        provider = provider_for(connection.provider)
-        credentials = decrypt_credentials(connection.encrypted_creds)
-        if await provider.exists(connection, credentials, file.object_key, file.id):
-            await provider.delete(connection, credentials, file.object_key, file.id)
-        file.status = "cancelled"
-    except Exception:
-        # The cleanup worker retries cleanup_failed records; disconnect stays blocked until it succeeds.
-        file.status = "cleanup_failed"
-        file.upload_expires_at = datetime.now(timezone.utc)
+    # The signed PUT URL stays valid until upload_expires_at, so deleting now could leave a later PUT orphaned.
+    # The cleanup worker removes the object once the URL has expired; disconnect stays blocked until then.
+    file.status = "cleanup_pending"
     audit(db, request, user.id, "UPLOAD_CANCEL", str(file.id))
     await db.commit()
     await invalidate_quota(user.id)
@@ -170,21 +163,23 @@ async def cancel_upload(file_id: UUID, request: Request, user: User = Depends(cu
 
 @router.post("/confirm-upload/{file_id}", response_model=FileOut)
 async def confirm_upload(file_id: UUID, request: Request, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
-    await db.scalar(select(User).where(User.id == user.id).with_for_update())
-    file, connection = await _file(db, user.id, file_id, True)
+    user_id = user.id
+    # Verify with the provider before taking row locks: cloud round-trips must not hold the user row.
+    file, connection = await _file(db, user_id, file_id)
     if file.status == "active":
         return file
     if file.status != "pending" or file.upload_expires_at.replace(tzinfo=timezone.utc) <= datetime.now(timezone.utc):
         raise HTTPException(409, "Upload request has expired")
+    # Detach the loaded rows so the rollback cannot expire them, and hold no transaction or connection during cloud I/O.
+    db.expunge_all()
+    await db.rollback()
+    provider = provider_for(connection.provider)
     try:
-        exists = await provider_for(connection.provider).exists(
-            connection, decrypt_credentials(connection.encrypted_creds), file.object_key, file.id
-        )
+        exists = await provider.exists(connection, decrypt_credentials(connection.encrypted_creds), file.object_key, file.id)
     except Exception:
         raise HTTPException(502, "Could not verify cloud upload")
     if not exists:
         raise HTTPException(409, "Upload has not completed")
-    provider = provider_for(connection.provider)
     if not isinstance(provider, LocalProvider):
         try:
             actual_size = await provider.size(connection, decrypt_credentials(connection.encrypted_creds), file.object_key, file.id)
@@ -192,13 +187,20 @@ async def confirm_upload(file_id: UUID, request: Request, user: User = Depends(c
             raise HTTPException(502, "Could not verify cloud object size")
         if actual_size != file.size_bytes:
             raise HTTPException(409, "Uploaded size differs from the declared size")
-    quota = await db.scalar(select(Quota).where(Quota.user_id == user.id).with_for_update())
+    # A cancel or another confirm may have won while we were talking to the provider.
+    await db.scalar(select(User).where(User.id == user_id).with_for_update())
+    file, _ = await _file(db, user_id, file_id, True)
+    if file.status == "active":
+        return file
+    if file.status != "pending" or file.upload_expires_at.replace(tzinfo=timezone.utc) <= datetime.now(timezone.utc):
+        raise HTTPException(409, "Upload is no longer pending")
+    quota = await db.scalar(select(Quota).where(Quota.user_id == user_id).with_for_update())
     quota.used_bytes += file.size_bytes
     file.status = "active"
     file.uploaded_at = datetime.now(timezone.utc)
-    audit(db, request, user.id, "UPLOAD", str(file.id))
+    audit(db, request, user_id, "UPLOAD", str(file.id))
     await db.commit()
-    await invalidate_quota(user.id)
+    await invalidate_quota(user_id)
     return file
 
 
@@ -238,15 +240,26 @@ async def delete_file(file_id: UUID, request: Request, user: User = Depends(curr
     file, connection = await _file(db, user.id, file_id, True)
     if file.status != "active":
         raise HTTPException(404, "File not found")
+    # Persist delete intent before touching the cloud so a crash or provider failure is retried by the worker.
+    file.status = "deleting"
+    file.upload_expires_at = datetime.now(timezone.utc)
+    audit(db, request, user.id, "DELETE", str(file.id))
+    await db.commit()
+    await invalidate_quota(user.id)
     try:
         await provider_for(connection.provider).delete(
             connection, decrypt_credentials(connection.encrypted_creds), file.object_key, file.id
         )
     except Exception:
-        raise HTTPException(502, "Could not delete cloud object")
+        raise HTTPException(502, "Could not delete cloud object; cleanup will retry")
+    await db.scalar(select(User).where(User.id == user.id).with_for_update())
+    file = await db.scalar(
+        select(FileRecord).where(FileRecord.id == file_id).with_for_update().execution_options(populate_existing=True)
+    )
+    if file.status != "deleting":
+        return  # The cleanup worker finished this delete first.
     quota = await db.scalar(select(Quota).where(Quota.user_id == user.id).with_for_update())
     quota.used_bytes = max(0, quota.used_bytes - file.size_bytes)
     file.status = "deleted"
-    audit(db, request, user.id, "DELETE", str(file.id))
     await db.commit()
     await invalidate_quota(user.id)

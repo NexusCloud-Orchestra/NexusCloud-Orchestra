@@ -17,6 +17,7 @@ from google.oauth2 import service_account
 
 from app.core.config import settings
 from app.core.security import issue_token
+from app.services.client_cache import client_key, provider_clients
 
 
 class StorageProvider(ABC):
@@ -58,21 +59,26 @@ class S3Provider(StorageProvider):
     def endpoint(self, connection, credentials: dict) -> str | None:
         return None
 
-    def client(self, connection, credentials: dict):
-        return boto3.client(
-            "s3",
-            aws_access_key_id=credentials["aws_access_key_id"],
-            aws_secret_access_key=credentials["aws_secret_access_key"],
-            region_name=connection.region or "us-east-1",
-            endpoint_url=self.endpoint(connection, credentials),
-            config=Config(signature_version="s3v4"),
+    async def client(self, connection, credentials: dict):
+        return await asyncio.to_thread(
+            provider_clients.get_or_create,
+            client_key(type(self).__name__, connection, credentials),
+            lambda: boto3.client(
+                "s3",
+                aws_access_key_id=credentials["aws_access_key_id"],
+                aws_secret_access_key=credentials["aws_secret_access_key"],
+                region_name=connection.region or "us-east-1",
+                endpoint_url=self.endpoint(connection, credentials),
+                config=Config(signature_version="s3v4"),
+            ),
         )
 
     async def verify_connection(self, connection, credentials):
-        await asyncio.to_thread(self.client(connection, credentials).head_bucket, Bucket=connection.bucket_name)
+        await asyncio.to_thread((await self.client(connection, credentials)).head_bucket, Bucket=connection.bucket_name)
 
     async def upload_url(self, connection, credentials, object_key, mime_type, file_id):
-        url = self.client(connection, credentials).generate_presigned_url(
+        url = await asyncio.to_thread(
+            (await self.client(connection, credentials)).generate_presigned_url,
             "put_object",
             Params={"Bucket": connection.bucket_name, "Key": object_key, "ContentType": mime_type},
             ExpiresIn=900,
@@ -81,13 +87,14 @@ class S3Provider(StorageProvider):
         return url, {"Content-Type": mime_type}
 
     async def download_url(self, connection, credentials, object_key, file_id):
-        return self.client(connection, credentials).generate_presigned_url(
+        return await asyncio.to_thread(
+            (await self.client(connection, credentials)).generate_presigned_url,
             "get_object", Params={"Bucket": connection.bucket_name, "Key": object_key}, ExpiresIn=3600
         )
 
     async def exists(self, connection, credentials, object_key, file_id):
         try:
-            await asyncio.to_thread(self.client(connection, credentials).head_object, Bucket=connection.bucket_name, Key=object_key)
+            await asyncio.to_thread((await self.client(connection, credentials)).head_object, Bucket=connection.bucket_name, Key=object_key)
             return True
         except ClientError as exc:
             if exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode") == 404:
@@ -95,11 +102,11 @@ class S3Provider(StorageProvider):
             raise
 
     async def size(self, connection, credentials, object_key, file_id):
-        result = await asyncio.to_thread(self.client(connection, credentials).head_object, Bucket=connection.bucket_name, Key=object_key)
+        result = await asyncio.to_thread((await self.client(connection, credentials)).head_object, Bucket=connection.bucket_name, Key=object_key)
         return result["ContentLength"]
 
     async def delete(self, connection, credentials, object_key, file_id):
-        await asyncio.to_thread(self.client(connection, credentials).delete_object, Bucket=connection.bucket_name, Key=object_key)
+        await asyncio.to_thread((await self.client(connection, credentials)).delete_object, Bucket=connection.bucket_name, Key=object_key)
 
 
 class R2Provider(S3Provider):
@@ -133,9 +140,10 @@ class AzureProvider(StorageProvider):
         if not re.fullmatch(r"[a-z0-9]{3,24}", credentials["account_name"]):
             raise ValueError("Invalid Azure account_name")
 
-    def _url(self, connection, credentials, object_key, read):
+    async def _url(self, connection, credentials, object_key, read):
         expiry = datetime.now(timezone.utc) + timedelta(seconds=3600 if read else 900)
-        sas = generate_blob_sas(
+        sas = await asyncio.to_thread(
+            generate_blob_sas,
             account_name=credentials["account_name"], container_name=connection.bucket_name,
             blob_name=object_key, account_key=credentials["account_key"],
             permission=BlobSasPermissions(read=True) if read else BlobSasPermissions(write=True, create=True),
@@ -143,21 +151,27 @@ class AzureProvider(StorageProvider):
         )
         return f"https://{credentials['account_name']}.blob.core.windows.net/{quote(connection.bucket_name)}/{quote(object_key)}?{sas}"
 
-    async def verify_connection(self, connection, credentials):
+    async def _client(self, connection, credentials):
         from azure.storage.blob import BlobServiceClient
-        client = BlobServiceClient(account_url=f"https://{credentials['account_name']}.blob.core.windows.net", credential=credentials["account_key"])
+        return await asyncio.to_thread(
+            provider_clients.get_or_create,
+            client_key("AzureProvider", connection, credentials),
+            lambda: BlobServiceClient(account_url=f"https://{credentials['account_name']}.blob.core.windows.net", credential=credentials["account_key"]),
+        )
+
+    async def verify_connection(self, connection, credentials):
+        client = await self._client(connection, credentials)
         await asyncio.to_thread(client.get_container_client(connection.bucket_name).get_container_properties)
 
     async def upload_url(self, connection, credentials, object_key, mime_type, file_id):
-        return self._url(connection, credentials, object_key, False), {"x-ms-blob-type": "BlockBlob", "Content-Type": mime_type}
+        return await self._url(connection, credentials, object_key, False), {"x-ms-blob-type": "BlockBlob", "Content-Type": mime_type}
 
     async def download_url(self, connection, credentials, object_key, file_id):
-        return self._url(connection, credentials, object_key, True)
+        return await self._url(connection, credentials, object_key, True)
 
     async def exists(self, connection, credentials, object_key, file_id):
-        from azure.storage.blob import BlobServiceClient
         from azure.core.exceptions import ResourceNotFoundError
-        client = BlobServiceClient(account_url=f"https://{credentials['account_name']}.blob.core.windows.net", credential=credentials["account_key"])
+        client = await self._client(connection, credentials)
         try:
             await asyncio.to_thread(client.get_blob_client(connection.bucket_name, object_key).get_blob_properties)
             return True
@@ -165,15 +179,13 @@ class AzureProvider(StorageProvider):
             return False
 
     async def size(self, connection, credentials, object_key, file_id):
-        from azure.storage.blob import BlobServiceClient
-        client = BlobServiceClient(account_url=f"https://{credentials['account_name']}.blob.core.windows.net", credential=credentials["account_key"])
+        client = await self._client(connection, credentials)
         result = await asyncio.to_thread(client.get_blob_client(connection.bucket_name, object_key).get_blob_properties)
         return result.size
 
     async def delete(self, connection, credentials, object_key, file_id):
-        from azure.storage.blob import BlobServiceClient
         from azure.core.exceptions import ResourceNotFoundError
-        client = BlobServiceClient(account_url=f"https://{credentials['account_name']}.blob.core.windows.net", credential=credentials["account_key"])
+        client = await self._client(connection, credentials)
         try:
             await asyncio.to_thread(client.get_blob_client(connection.bucket_name, object_key).delete_blob)
         except ResourceNotFoundError:
@@ -196,36 +208,40 @@ class GCPProvider(StorageProvider):
         ):
             raise ValueError("Invalid GCP service account fields")
 
-    def _client(self, credentials):
-        info = json.loads(credentials["service_account_json"])
-        creds = service_account.Credentials.from_service_account_info(info)
-        return storage.Client(project=info["project_id"], credentials=creds)
+    async def _client(self, connection, credentials):
+        def build():
+            info = json.loads(credentials["service_account_json"])
+            creds = service_account.Credentials.from_service_account_info(info)
+            return storage.Client(project=info["project_id"], credentials=creds)
+        return await asyncio.to_thread(
+            provider_clients.get_or_create, client_key("GCPProvider", connection, credentials), build)
 
     async def verify_connection(self, connection, credentials):
-        exists = await asyncio.to_thread(self._client(credentials).bucket(connection.bucket_name).exists)
+        exists = await asyncio.to_thread((await self._client(connection, credentials)).bucket(connection.bucket_name).exists)
         if not exists:
             raise ValueError("Bucket not found or inaccessible")
 
     async def upload_url(self, connection, credentials, object_key, mime_type, file_id):
-        blob = self._client(credentials).bucket(connection.bucket_name).blob(object_key)
-        return blob.generate_signed_url(version="v4", expiration=timedelta(minutes=15), method="PUT", content_type=mime_type), {"Content-Type": mime_type}
+        blob = (await self._client(connection, credentials)).bucket(connection.bucket_name).blob(object_key)
+        url = await asyncio.to_thread(blob.generate_signed_url, version="v4", expiration=timedelta(minutes=15), method="PUT", content_type=mime_type)
+        return url, {"Content-Type": mime_type}
 
     async def download_url(self, connection, credentials, object_key, file_id):
-        blob = self._client(credentials).bucket(connection.bucket_name).blob(object_key)
-        return blob.generate_signed_url(version="v4", expiration=timedelta(minutes=60), method="GET")
+        blob = (await self._client(connection, credentials)).bucket(connection.bucket_name).blob(object_key)
+        return await asyncio.to_thread(blob.generate_signed_url, version="v4", expiration=timedelta(minutes=60), method="GET")
 
     async def exists(self, connection, credentials, object_key, file_id):
-        return await asyncio.to_thread(self._client(credentials).bucket(connection.bucket_name).blob(object_key).exists)
+        return await asyncio.to_thread((await self._client(connection, credentials)).bucket(connection.bucket_name).blob(object_key).exists)
 
     async def size(self, connection, credentials, object_key, file_id):
-        blob = self._client(credentials).bucket(connection.bucket_name).blob(object_key)
+        blob = (await self._client(connection, credentials)).bucket(connection.bucket_name).blob(object_key)
         await asyncio.to_thread(blob.reload)
         return blob.size
 
     async def delete(self, connection, credentials, object_key, file_id):
         from google.api_core.exceptions import NotFound
         try:
-            await asyncio.to_thread(self._client(credentials).bucket(connection.bucket_name).blob(object_key).delete)
+            await asyncio.to_thread((await self._client(connection, credentials)).bucket(connection.bucket_name).blob(object_key).delete)
         except NotFound:
             pass
 
@@ -233,21 +249,25 @@ class GCPProvider(StorageProvider):
 class OracleProvider(StorageProvider):
     required = ("tenancy_id", "user_id", "fingerprint", "private_key", "namespace")
 
-    def _client(self, connection, credentials):
+    async def _client(self, connection, credentials):
         import oci
         config = {
             "user": credentials["user_id"], "key_content": credentials["private_key"],
             "fingerprint": credentials["fingerprint"], "tenancy": credentials["tenancy_id"],
             "region": connection.region,
         }
-        return oci.object_storage.ObjectStorageClient(config)
+        return await asyncio.to_thread(
+            provider_clients.get_or_create,
+            client_key("OracleProvider", connection, credentials),
+            lambda: oci.object_storage.ObjectStorageClient(config),
+        )
 
     async def verify_connection(self, connection, credentials):
-        await asyncio.to_thread(self._client(connection, credentials).head_bucket, credentials["namespace"], connection.bucket_name)
+        await asyncio.to_thread((await self._client(connection, credentials)).head_bucket, credentials["namespace"], connection.bucket_name)
 
     async def _par(self, connection, credentials, object_key, access):
         import oci
-        client = self._client(connection, credentials)
+        client = await self._client(connection, credentials)
         details = oci.object_storage.models.CreatePreauthenticatedRequestDetails(
             name=f"nexuscloud-{object_key.rsplit('/', 1)[-1]}",
             access_type=access, object_name=object_key,
@@ -266,7 +286,7 @@ class OracleProvider(StorageProvider):
     async def exists(self, connection, credentials, object_key, file_id):
         import oci
         try:
-            await asyncio.to_thread(self._client(connection, credentials).head_object, credentials["namespace"], connection.bucket_name, object_key)
+            await asyncio.to_thread((await self._client(connection, credentials)).head_object, credentials["namespace"], connection.bucket_name, object_key)
             return True
         except oci.exceptions.ServiceError as exc:
             if exc.status == 404:
@@ -274,13 +294,13 @@ class OracleProvider(StorageProvider):
             raise
 
     async def size(self, connection, credentials, object_key, file_id):
-        result = await asyncio.to_thread(self._client(connection, credentials).head_object, credentials["namespace"], connection.bucket_name, object_key)
+        result = await asyncio.to_thread((await self._client(connection, credentials)).head_object, credentials["namespace"], connection.bucket_name, object_key)
         return int(result.headers["content-length"])
 
     async def delete(self, connection, credentials, object_key, file_id):
         import oci
         try:
-            await asyncio.to_thread(self._client(connection, credentials).delete_object, credentials["namespace"], connection.bucket_name, object_key)
+            await asyncio.to_thread((await self._client(connection, credentials)).delete_object, credentials["namespace"], connection.bucket_name, object_key)
         except oci.exceptions.ServiceError as exc:
             if exc.status != 404:
                 raise
