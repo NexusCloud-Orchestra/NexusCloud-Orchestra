@@ -1,5 +1,21 @@
+import ipaddress
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+@lru_cache
+def parse_trusted_proxies(raw: str) -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
+    """Parse the comma-separated proxy list once per distinct value."""
+    networks = []
+    for entry in (part.strip() for part in raw.split(",")):
+        if not entry:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(entry, strict=False))
+        except ValueError:
+            raise ValueError(f"TRUSTED_PROXIES contains an invalid IP or CIDR: {entry}") from None
+    return tuple(networks)
 
 
 class Settings(BaseSettings):
@@ -40,7 +56,13 @@ class Settings(BaseSettings):
     def cookie_secure(self) -> bool:
         return self.production if self.COOKIE_SECURE is None else self.COOKIE_SECURE
 
+    @property
+    def trusted_networks(self) -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
+        return parse_trusted_proxies(self.TRUSTED_PROXIES)
+
     def assert_safe(self) -> None:
+        # Validate in every environment: a typo would otherwise only surface on the first proxied request.
+        parse_trusted_proxies(self.TRUSTED_PROXIES)
         if self.production:
             if len(self.SECRET_KEY) < 32 or len(self.ENCRYPTION_KEY) < 32:
                 raise ValueError("Production requires strong SECRET_KEY and ENCRYPTION_KEY")

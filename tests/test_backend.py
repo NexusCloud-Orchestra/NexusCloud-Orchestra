@@ -1,6 +1,7 @@
 import os
 import base64
 import hashlib
+import ipaddress
 import uuid
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -245,6 +246,21 @@ def test_production_rejects_insecure_configuration():
         CORS_ORIGINS="https://app.example.com", SMTP_HOST="smtp.example.com", SMTP_FROM="security@example.com",
     )
     safe.assert_safe()
+
+
+def test_invalid_trusted_proxies_rejected_at_startup():
+    for environment in ("development", "production"):
+        unsafe = Settings(
+            _env_file=None, ENVIRONMENT=environment, SECRET_KEY="a" * 40, ENCRYPTION_KEY="b" * 40,
+            PUBLIC_API_URL="https://api.example.com", FRONTEND_URL="https://app.example.com",
+            CORS_ORIGINS="https://app.example.com", SMTP_HOST="smtp.example.com", SMTP_FROM="security@example.com",
+            TRUSTED_PROXIES="10.0.0.0/8, 10.0.0.300",
+        )
+        with pytest.raises(ValueError, match="^TRUSTED_PROXIES contains an invalid IP or CIDR: 10.0.0.300$"):
+            unsafe.assert_safe()
+    assert Settings(_env_file=None, TRUSTED_PROXIES=" 10.0.0.0/8 ,::1,").trusted_networks == (
+        ipaddress.ip_network("10.0.0.0/8"), ipaddress.ip_network("::1"),
+    )
 
 
 async def connect(client, headers, provider, name, **extra):
