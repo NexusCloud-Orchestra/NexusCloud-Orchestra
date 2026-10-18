@@ -7,6 +7,7 @@ import fakeredis.aioredis
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config import settings
@@ -22,6 +23,24 @@ AWS_CONNECTION = {
     "provider": "aws", "display_name": "Test AWS", "bucket_name": "test-bucket", "region": "us-east-1",
     "credentials": {"aws_access_key_id": "test", "aws_secret_access_key": "secret"}
 }
+
+
+def _assert_disposable_database(url: str) -> None:
+    """drop_all wipes every table: only run it on a test database or the local/CI container default."""
+    parsed = make_url(url)
+    database = parsed.database or ""
+    if "test" in database or (database == "postgres" and parsed.host in ("localhost", "127.0.0.1")):
+        return
+    pytest.exit(
+        f"Refusing to drop tables on non-test database {parsed.render_as_string(hide_password=True)}; "
+        "use a database whose name contains 'test' or the local postgres container"
+    )
+
+
+def pytest_sessionstart(session):
+    # Checked before any test runs: the client fixture drops all tables on TEST_DATABASE_URL.
+    if TEST_DATABASE_URL:
+        _assert_disposable_database(TEST_DATABASE_URL)
 
 
 def pytest_collection_modifyitems(config, items):
