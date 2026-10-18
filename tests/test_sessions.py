@@ -109,7 +109,7 @@ async def test_replaying_dead_family_token_does_not_log_out_new_sessions(client)
     async with client.test_session_factory() as db:
         assert await db.scalar(select(User.token_version).where(User.email == "dead@example.com")) == version
         audits = (await db.scalars(select(AuditLog.id).where(AuditLog.action == "SESSION_REUSE_DETECTED"))).all()
-        assert len(audits) == 2
+        assert len(audits) == 1  # only the replay that killed a live family is audited
     me = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {login.json()['access_token']}"})
     assert me.status_code == 200
     assert (await replay(client, second_family)).status_code == 200

@@ -88,10 +88,11 @@ async def refresh(request: Request, response: Response, db: AsyncSession = Depen
             for member in live:
                 member.revoked_at = now
                 member.revoked_reason = "reuse"
-            # Only a live family kills outstanding access tokens, so replaying a dead token cannot log the user out repeatedly.
+            # Only a live family kills outstanding access tokens and is audited, so replaying a dead token
+            # cannot log the user out repeatedly or flood the audit log.
             if live:
                 user.token_version += 1
-            audit(db, request, user.id, "SESSION_REUSE_DETECTED", str(session.family_id))
+                audit(db, request, user.id, "SESSION_REUSE_DETECTED", str(session.family_id))
             await db.commit()
         raise HTTPException(401, "Invalid or expired token")
     if not user.is_active or user.token_version != claims["ver"]:
