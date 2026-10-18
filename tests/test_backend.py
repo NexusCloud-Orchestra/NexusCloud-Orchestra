@@ -15,6 +15,7 @@ import pytest_asyncio
 import fakeredis.aioredis
 import jwt
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config import Settings, settings
@@ -30,7 +31,7 @@ from app.services.striping import CHUNK_BYTES, index_hash, manifest_index_hash, 
 from app.services.catalog import PROVIDERS
 from app.services.providers import AzureProvider, GCPProvider, S3Provider
 from app.services.providers import LocalProvider
-from app.db.models import FileManifest, FileRecord
+from app.db.models import FileManifest, FileRecord, Quota
 import app.workers.tasks as worker_tasks
 from tests.conftest import enable_striping, signup
 
@@ -393,6 +394,54 @@ async def test_striped_file_lifecycle_and_hash_index(client):
     assert (await client.get("/api/v1/files", headers=headers)).json() == []
     assert (await client.delete(f"/api/v1/connections/{b2}", headers=headers)).status_code == 204
     assert (await client.delete(f"/api/v1/connections/{r2}", headers=headers)).status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_striped_delete_finished_by_worker_is_not_charged_twice(client, monkeypatch):
+    tokens = await signup(client, "stripe-race@example.com")
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    await enable_striping(client, headers)
+    await connect(client, headers, "b2", "B2")
+    await connect(client, headers, "r2", "R2")
+    pieces = [b"a" * CHUNK_BYTES, b"b"]
+    ticket = (await client.post("/api/v1/files/striped-upload-request", headers=headers, json={
+        "original_name": "race.bin", "size_bytes": sum(map(len, pieces)),
+        "mime_type": "application/octet-stream",
+        "chunks": [{"size_bytes": len(piece), "sha256": hashlib.sha256(piece).hexdigest()} for piece in pieces],
+    })).json()
+    for index, piece in enumerate(pieces):
+        signed = (await client.get(f"/api/v1/files/striped/{ticket['file_id']}/chunks/{index}/upload-url", headers=headers)).json()
+        assert (await client.put(signed["url"], content=piece, headers=signed["required_headers"])).status_code == 200
+    assert (await client.post(f"/api/v1/files/striped/{ticket['file_id']}/confirm", headers=headers, json={})).status_code == 200
+    manifest_id = uuid.UUID(ticket["file_id"])
+    async with client.test_session_factory() as db:
+        manifest = await db.get(FileManifest, manifest_id)
+        user_id = manifest.user_id
+        # Bytes charged for other files, so a second decrement is not hidden by the clamp at zero.
+        quota = await db.scalar(select(Quota).where(Quota.user_id == user_id))
+        quota.used_bytes += 1000
+        await db.commit()
+
+    original = LocalProvider.delete
+    raced = False
+
+    async def slow_delete(self, connection, credentials, object_key, object_id):
+        # The API delete outlives its 15-minute intent window and the worker sweeps the manifest meanwhile.
+        nonlocal raced
+        if not raced:
+            raced = True
+            async with client.test_session_factory() as db:
+                (await db.get(FileManifest, manifest_id)).upload_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+                await db.commit()
+            assert await worker_tasks._cleanup() == 1
+        return await original(self, connection, credentials, object_key, object_id)
+
+    monkeypatch.setattr(LocalProvider, "delete", slow_delete)
+    monkeypatch.setattr(worker_tasks, "worker_session", client.test_session_factory)
+    assert (await client.delete(f"/api/v1/files/striped/{ticket['file_id']}", headers=headers)).status_code == 204
+    async with client.test_session_factory() as db:
+        assert (await db.get(FileManifest, manifest_id)).status == "deleted"
+        assert (await db.scalar(select(Quota).where(Quota.user_id == user_id))).used_bytes == 1000
 
 
 @pytest.mark.asyncio
