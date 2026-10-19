@@ -1,6 +1,6 @@
 # Backend runbook
 
-Copy `.env.example` to `.env` and replace both secrets with independent random values. For local development, start PostgreSQL and Redis and set `DATABASE_URL` and `REDIS_URL` accordingly. `LOCAL_STORAGE_ENABLED=true` enables a local signed data-plane emulator for the repository's `tests/test_flow.py`; leave it false for real providers. In production set `ENVIRONMENT=production`, HTTPS `PUBLIC_API_URL` and `FRONTEND_URL`, `SMTP_HOST`/`SMTP_FROM`, and explicit HTTPS `CORS_ORIGINS`.
+Copy `.env.example` to `.env` and replace both secrets with independent random values. For local development, start PostgreSQL and Redis and set `DATABASE_URL` and `REDIS_URL` accordingly. `LOCAL_STORAGE_ENABLED=true` enables a local signed data-plane emulator for the repository's `scripts/e2e_smoke.py`; leave it false for real providers. In production set `ENVIRONMENT=production`, HTTPS `PUBLIC_API_URL` and `FRONTEND_URL`, `SMTP_HOST`/`SMTP_FROM`, and explicit HTTPS `CORS_ORIGINS`.
 
 Run:
 

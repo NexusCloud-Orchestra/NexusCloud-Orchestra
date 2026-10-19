@@ -344,3 +344,27 @@ You may not use this file except in compliance with the License.
 *If this project helped you, drop a ⭐ — it means everything to a student team.*
 
 </div>
+
+---
+
+## 📅 Recent Updates / Changes Done So Far
+
+We are actively hardening the infrastructure and preparing for a secure, stable production release. Here is a summary of the recent work completed across the stack:
+
+### Security & Hardening (Phase 0)
+- **Dependency & Build Security:** Locked Python runtime and frontend dependencies. Cleared frontend production dependency advisories by upgrading to React Router v7. Dependency audits are now integrated into the CI pipeline.
+- **Robust Access Controls:** Implemented HTTP-Only, Strict, and Secure cookies for refresh tokens. Added CSRF headers (`X-NC-CSRF: 1`) on sensitive routes and instituted a 30-second refresh-token reuse grace window to support simultaneous tab reloads securely.
+- **Security Headers & CSP:** Introduced Nginx configuration templates to enforce strict Content Security Policy (`CSP`), `X-Content-Type-Options: nosniff`, and `X-Frame-Options: DENY` on every response, mitigating XSS and clickjacking risks.
+- **Rate Limiting Guardrails:** Addressed proxy IP spoofing risks to ensure untrusted `X-Forwarded-For` headers cannot bypass rate limits. Rate limiting now uniformly protects sensitive endpoints like `/change-password` and `/delete-account`.
+- **Sentry Integration & Data Scrubbing:** Added `/livez` and `/readyz` probes. Integrated Sentry with a custom `scrub_event` function that proactively redacts PII, cookies, authorization headers, and signed URL tokens before telemetry transmission.
+
+### Cross-Cloud Striping (Phase 12)
+- **Opt-in Storage Striping:** Cross-cloud striping is now an opt-in feature restricted to permanent-tier providers (e.g., Cloudflare R2, Backblaze B2, Oracle, IBM). It requires at least two distinct provider types.
+- **Transparent Labelling:** Files utilizing striping display a "Not backed up" badge in the UI, informing users that losing any single connected cloud will result in the loss of the file.
+- **Version 2 Common Index:** Rolled out deterministic SHA-256 chunking (v2 index) committing to both content and BYOC placement, maintaining backwards read compatibility for v1 legacy files.
+- **Streamed Chunk Downloads:** Enabled incremental, verified downloads directly to browser file-save streams where supported, gracefully falling back to memory-capped transfers otherwise.
+
+### Test Automation & CI Refactoring
+- **Integration Tests:** Completed robust backend test suites running against a real PostgreSQL instance to validate concurrency and `SELECT ... FOR UPDATE` row locks.
+- **E2E Smoke Tests Relocated:** The end-to-end integration flow script has been refactored and moved from `tests/test_flow.py` to `scripts/e2e_smoke.py`, clarifying its purpose as a manual smoke script rather than a standard pytest test.
+- **Lifecycle & Cleanup:** The backend now safely defers quota release and credentials purge during upload cancellation to avoid orphaned cloud objects, supported by an hourly worker purging expired tokens.
