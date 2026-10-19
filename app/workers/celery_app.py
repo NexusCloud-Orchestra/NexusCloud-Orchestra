@@ -1,5 +1,8 @@
 from celery import Celery
+from celery.signals import worker_process_init
+
 from app.core.config import settings
+from app.core.observability import init_sentry
 
 celery_app = Celery("nexuscloud", broker=settings.REDIS_URL, include=["app.workers.tasks"])
 celery_app.conf.update(
@@ -9,3 +12,8 @@ celery_app.conf.update(
         "purge-expired-tokens": {"task": "app.workers.tasks.purge_expired_tokens", "schedule": 3600.0},
     },
 )
+
+
+@worker_process_init.connect
+def _init_worker_sentry(**_):
+    init_sentry("worker")

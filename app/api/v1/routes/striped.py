@@ -15,7 +15,7 @@ from app.schemas import FileOut, SignedChunkOut, StripedChunkOut, StripedManifes
 from app.services.catalog import PLANS, PROVIDERS
 from app.services.providers import provider_for
 from app.services.quota import invalidate_quota, quota_usage
-from app.services.striping import manifest_index_hash, place_chunks, validate_manifest
+from app.services.striping import eligible_for_striping, manifest_index_hash, place_chunks, validate_manifest
 
 router = APIRouter(prefix="/files", tags=["files"])
 SESSION_HOURS = 24
@@ -28,7 +28,7 @@ async def _manifest(db: AsyncSession, user_id: UUID, manifest_id: UUID, lock: bo
         .where(FileManifest.id == manifest_id, FileManifest.user_id == user_id)
     )
     if lock:
-        query = query.with_for_update()
+        query = query.with_for_update().execution_options(populate_existing=True)
     manifest = await db.scalar(query)
     if manifest is None:
         raise HTTPException(404, "File not found")
@@ -62,11 +62,14 @@ async def request_striped_upload(
     user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
 ):
     user = await db.scalar(select(User).where(User.id == user.id).with_for_update())
+    if not user.striping_enabled:
+        raise HTTPException(403, "Striping is disabled. Enable it in Settings to split large files across clouds.")
     connections = (await db.scalars(select(CloudConnection).where(
         CloudConnection.user_id == user.id, CloudConnection.is_active.is_(True)
     ).order_by(CloudConnection.created_at))).all()
+    connections = [connection for connection in connections if eligible_for_striping(connection)]
     if len({connection.provider for connection in connections}) < 2:
-        raise HTTPException(400, "Connect two different cloud providers to stripe a file")
+        raise HTTPException(400, "Striping needs two permanent-tier providers (R2, B2, GCS, Oracle, IBM)")
     usage = await quota_usage(db, user.id)
     plan_limit = PLANS[user.plan].max_bytes
     if plan_limit is not None and usage.total_active + usage.total_pending + body.size_bytes > plan_limit:
@@ -108,16 +111,33 @@ async def request_striped_upload(
     )
 
 
+def _is_pending(manifest: FileManifest) -> bool:
+    return manifest.status == "pending" and manifest.upload_expires_at.replace(tzinfo=timezone.utc) > datetime.now(timezone.utc)
+
+
+async def _end_read(db: AsyncSession) -> None:
+    """Detach the loaded rows so the rollback cannot expire them, and hold no transaction or connection during cloud I/O."""
+    db.expunge_all()
+    await db.rollback()
+
+
+async def _relock(db: AsyncSession, user_id: UUID, manifest_id: UUID) -> FileManifest:
+    """Lock user row + manifest to re-check state after a provider call."""
+    await db.scalar(select(User).where(User.id == user_id).with_for_update())
+    return await _manifest(db, user_id, manifest_id, lock=True)
+
+
 @router.get("/striped/{manifest_id}/chunks/{index}/upload-url", response_model=SignedChunkOut)
 async def chunk_upload_url(
     manifest_id: UUID, index: int,
     user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
 ):
-    await db.scalar(select(User).where(User.id == user.id).with_for_update())
-    manifest = await _manifest(db, user.id, manifest_id, lock=True)
-    if manifest.status != "pending" or manifest.upload_expires_at.replace(tzinfo=timezone.utc) <= datetime.now(timezone.utc):
+    user_id = user.id
+    manifest = await _manifest(db, user_id, manifest_id)
+    if not _is_pending(manifest):
         raise HTTPException(409, "Striped upload has expired")
     chunk = _chunk(manifest, index)
+    await _end_read(db)
     try:
         url, headers = await provider_for(chunk.connection.provider).upload_url(
             chunk.connection, decrypt_credentials(chunk.connection.encrypted_creds),
@@ -125,8 +145,9 @@ async def chunk_upload_url(
         )
     except Exception:
         raise HTTPException(502, "Could not create cloud upload URL")
-    # Hold the user lock through URL issuance so cancellation's 15-minute
-    # cleanup delay starts after the last URL can have been issued.
+    # A cancel committed after this re-check still waits a full URL lifetime before cleanup.
+    if not _is_pending(await _relock(db, user_id, manifest_id)):
+        raise HTTPException(409, "Upload is no longer pending")
     await db.commit()
     return SignedChunkOut(url=url, required_headers=headers, expires_in_seconds=900)
 
@@ -136,12 +157,14 @@ async def confirm_striped_upload(
     manifest_id: UUID, request: Request,
     user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
 ):
-    await db.scalar(select(User).where(User.id == user.id).with_for_update())
-    manifest = await _manifest(db, user.id, manifest_id, lock=True)
+    user_id = user.id
+    # Verify every chunk before taking row locks: up to hundreds of HEADs must not hold the user row.
+    manifest = await _manifest(db, user_id, manifest_id)
     if manifest.status == "active":
         return manifest
-    if manifest.status != "pending" or manifest.upload_expires_at.replace(tzinfo=timezone.utc) <= datetime.now(timezone.utc):
+    if not _is_pending(manifest):
         raise HTTPException(409, "Striped upload has expired")
+    await _end_read(db)
     semaphore = asyncio.Semaphore(8)
 
     async def verify(chunk: FileRecord) -> bool:
@@ -158,7 +181,12 @@ async def confirm_striped_upload(
         raise HTTPException(502, "Could not verify cloud chunks")
     if not all(verified):
         raise HTTPException(409, "One or more chunks are missing or have the wrong size")
-    quota = await db.scalar(select(Quota).where(Quota.user_id == user.id).with_for_update())
+    manifest = await _relock(db, user_id, manifest_id)
+    if manifest.status == "active":
+        return manifest
+    if not _is_pending(manifest):
+        raise HTTPException(409, "Upload is no longer pending")
+    quota = await db.scalar(select(Quota).where(Quota.user_id == user_id).with_for_update())
     quota.used_bytes += manifest.size_bytes
     uploaded = datetime.now(timezone.utc)
     manifest.status = "active"
@@ -166,9 +194,9 @@ async def confirm_striped_upload(
     for chunk in manifest.chunks:
         chunk.status = "active"
         chunk.uploaded_at = uploaded
-    audit(db, request, user.id, "STRIPED_UPLOAD", str(manifest.id))
+    audit(db, request, user_id, "STRIPED_UPLOAD", str(manifest.id))
     await db.commit()
-    await invalidate_quota(user.id)
+    await invalidate_quota(user_id)
     return manifest
 
 
@@ -227,6 +255,8 @@ async def _remove_striped(
         raise HTTPException(502, "Could not remove all cloud chunks; cleanup will retry")
     await db.scalar(select(User).where(User.id == user.id).with_for_update())
     manifest = await _manifest(db, user.id, manifest_id, lock=True)
+    if manifest.status != "cleanup_failed":
+        return  # The cleanup worker finished this delete first and already released its quota.
     charged = sum(chunk.size_bytes for chunk in manifest.chunks if chunk.status == "active")
     if charged:
         quota = await db.scalar(select(Quota).where(Quota.user_id == user.id).with_for_update())

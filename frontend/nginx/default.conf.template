@@ -7,14 +7,14 @@ server {
   root /usr/share/nginx/html;
   index index.html;
 
-  # Security headers mirroring the API's guardrails where meaningful for the SPA.
-  add_header X-Content-Type-Options "nosniff" always;
-  add_header X-Frame-Options "DENY" always;
-  add_header Referrer-Policy "no-referrer" always;
+  # Security headers + CSP. nginx drops server-level add_header in any location
+  # with its own add_header, so every such location re-includes this file.
+  include /etc/nginx/conf.d/snippets/security-headers.conf;
 
   # Hashed assets are immutable.
   location /assets/ {
     add_header Cache-Control "public, max-age=31536000, immutable";
+    include /etc/nginx/conf.d/snippets/security-headers.conf;
     try_files $uri =404;
   }
 
@@ -23,6 +23,7 @@ server {
     access_log off;
     return 200 'ok';
     add_header Content-Type "text/plain" always;
+    include /etc/nginx/conf.d/snippets/security-headers.conf;
   }
 
   # Root is the static parallax landing page (public/landing); skip loading the SPA bundle.
@@ -33,12 +34,14 @@ server {
   # Landing page and its 270 animation frames.
   location /landing/ {
     add_header Cache-Control "public, max-age=86400";
+    include /etc/nginx/conf.d/snippets/security-headers.conf;
     try_files $uri =404;
   }
 
   # SPA fallback: every unknown path renders the app shell.
   location / {
     add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+    include /etc/nginx/conf.d/snippets/security-headers.conf;
     try_files $uri $uri/ /index.html;
   }
 }

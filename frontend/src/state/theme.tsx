@@ -35,13 +35,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       try {
         localStorage.removeItem(THEME_STORAGE_KEY)
         localStorage.setItem(THEME_STORAGE_KEY, "light")
-      } catch (_) {}
+      } catch { /* noop */ }
     } else if (status === "authenticated" && prevStatusRef.current === "anonymous") {
       setThemeState("light")
       try {
         localStorage.removeItem(THEME_STORAGE_KEY)
         localStorage.setItem(THEME_STORAGE_KEY, "light")
-      } catch (_) {}
+      } catch { /* noop */ }
     }
     prevStatusRef.current = status
   }, [status])
@@ -68,7 +68,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     try {
       localStorage.setItem(THEME_STORAGE_KEY, theme)
-    } catch (_) {
+    } catch {
       // Ignore private mode storage quota errors
     }
   }, [theme])

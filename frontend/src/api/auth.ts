@@ -1,7 +1,6 @@
 import {
   api,
-  clearPersistedSession,
-  persistRefreshToken,
+  clearSession,
   setAccessToken,
 } from "./client"
 import type { AuditLog, Tokens, User } from "../types/api"
@@ -32,7 +31,6 @@ export async function login(email: string, password: string): Promise<Tokens> {
     allowRefresh: false,
   })
   setAccessToken(tokens.access_token)
-  persistRefreshToken(tokens.refresh_token)
   return tokens
 }
 
@@ -40,13 +38,16 @@ export async function logout(): Promise<void> {
   try {
     await api<null>({ method: "POST", path: "/api/v1/auth/logout" })
   } finally {
-    setAccessToken(null)
-    clearPersistedSession()
+    clearSession()
   }
 }
 
 export async function me(): Promise<User> {
   return api<User>({ method: "GET", path: "/api/v1/auth/me" })
+}
+
+export async function setStripingEnabled(enabled: boolean): Promise<User> {
+  return api<User>({ method: "PATCH", path: "/api/v1/auth/preferences", body: { striping_enabled: enabled } })
 }
 
 export async function auditLogs(): Promise<AuditLog[]> {
@@ -98,7 +99,6 @@ export async function deleteAccount(password: string): Promise<null> {
     path: "/api/v1/auth/delete-account",
     body: { password },
   })
-  setAccessToken(null)
-  clearPersistedSession()
+  clearSession()
   return result
 }

@@ -67,7 +67,7 @@ export function AuthLayout({
     try {
       localStorage.removeItem(THEME_STORAGE_KEY)
       localStorage.setItem(THEME_STORAGE_KEY, "light")
-    } catch (_) {}
+    } catch { /* noop */ }
   }, [setTheme])
 
   return (

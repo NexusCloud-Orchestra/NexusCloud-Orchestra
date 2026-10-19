@@ -219,7 +219,7 @@ function AccountDropdown() {
                   try {
                     localStorage.removeItem(THEME_STORAGE_KEY)
                     localStorage.setItem(THEME_STORAGE_KEY, "light")
-                  } catch (_) {}
+                  } catch { /* noop */ }
                   void signOut()
                 }}
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[#EF5350] transition-colors hover:bg-[#EF5350]/15 cursor-pointer"

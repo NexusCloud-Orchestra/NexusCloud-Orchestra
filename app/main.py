@@ -14,7 +14,10 @@ from sqlalchemy import select, text
 
 from app.api.v1.routes import auth, connections, files, quota, striped
 from app.core.config import settings
+from app.core.observability import init_sentry
+from app.core.client_ip import client_ip
 from app.core.ratelimit import limiter
+from app.core import redis as shared_redis
 from app.core.security import parse_token
 from app.db.models import FileRecord
 from app.db.session import SessionLocal, engine
@@ -48,6 +51,7 @@ logger = logging.getLogger("nexuscloud")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings.assert_safe()
+    init_sentry("api")
     yield
     await engine.dispose()
 
@@ -81,12 +85,12 @@ async def guardrails(request: Request, call_next):
                 response = JSONResponse({"error": {"code": "request_too_large", "message": "Request body exceeds 64 KiB", "request_id": request_id}}, status_code=413)
                 return _secure_response(response, request_id)
         if request.url.path in (
-            "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/refresh",
+            "/api/v1/auth/register", "/api/v1/auth/login",
             "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password",
             "/api/v1/auth/change-password", "/api/v1/auth/delete-account",
         ):
             try:
-                await limiter.check(f"auth:{request.client.host if request.client else 'unknown'}", 10)
+                await limiter.check(f"auth:{client_ip(request)}", 10)
             except HTTPException as exc:
                 response = JSONResponse({"error": {"code": "rate_limited", "message": exc.detail, "request_id": request_id}}, status_code=429)
                 response.headers["Retry-After"] = "60"
@@ -105,8 +109,8 @@ async def guardrails(request: Request, call_next):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()],
-    allow_credentials=False, allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["Authorization", "Content-Type", "x-ms-blob-type", "X-Request-ID"],
+    allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type", "x-ms-blob-type", "X-Request-ID", "X-NC-CSRF"],
     expose_headers=["X-Request-ID"],
 )
 
@@ -141,27 +145,27 @@ async def root():
     return {"name": settings.APP_NAME, "api": "/api/v1", "docs": "/docs"}
 
 
+@app.get("/livez")
+async def livez():
+    # Liveness must not touch dependencies, or an outage would restart healthy processes.
+    return {"status": "ok"}
+
+
+@app.get("/readyz")
 @app.get("/health")
-async def health():
+async def readyz():
     try:
         async with SessionLocal() as db:
             await db.execute(text("SELECT 1"))
-        return {"status": "ok"}
     except Exception:
-        raise HTTPException(503, "Database unavailable")
-
-
-@app.get("/redis-health")
-async def redis_health():
-    from app.services.quota import redis_client
-    client = redis_client()
+        logger.warning("Readiness check failed: %s unavailable", "database", exc_info=True)
+        raise HTTPException(503, "Dependency unavailable")
     try:
-        await client.ping()
-        return {"status": "ok"}
+        await shared_redis.get_redis().ping()
     except Exception:
-        raise HTTPException(503, "Redis unavailable")
-    finally:
-        await client.aclose()
+        logger.warning("Readiness check failed: %s unavailable", "redis", exc_info=True)
+        raise HTTPException(503, "Dependency unavailable")
+    return {"status": "ok"}
 
 
 @app.get("/api/v1/providers")

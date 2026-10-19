@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         localStorage.removeItem("nexuscloud-theme")
         localStorage.setItem("nexuscloud-theme", "light")
-      } catch (_) {}
+      } catch { /* noop */ }
     })
     return () => {
       cancelled = true
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         localStorage.removeItem("nexuscloud-theme")
         localStorage.setItem("nexuscloud-theme", "light")
-      } catch (_) {}
+      } catch { /* noop */ }
     },
     [],
   )
@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.removeItem("nexuscloud-theme")
       localStorage.setItem("nexuscloud-theme", "light")
-    } catch (_) {}
+    } catch { /* noop */ }
   }, [queryClient])
 
   const refreshUser = useCallback(async () => {

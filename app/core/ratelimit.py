@@ -3,8 +3,7 @@ import time
 from collections import defaultdict
 
 from fastapi import HTTPException
-from redis.asyncio import Redis
-from app.core.config import settings
+from app.core import redis as shared_redis
 
 
 class RateLimiter:
@@ -13,8 +12,8 @@ class RateLimiter:
         self._lock = asyncio.Lock()
 
     async def check(self, key: str, limit: int, window: int = 60):
-        client = Redis.from_url(settings.REDIS_URL, socket_connect_timeout=0.2, socket_timeout=0.2)
         try:
+            client = shared_redis.get_redis()
             count = await client.incr(key)
             if count == 1:
                 await client.expire(key, window)
@@ -27,8 +26,6 @@ class RateLimiter:
                 self._entries[key] = (count, until)
                 if len(self._entries) > 10000:
                     self._entries = {k: v for k, v in self._entries.items() if v[1] > time.monotonic()}
-        finally:
-            await client.aclose()
         if count > limit:
             raise HTTPException(429, "Too many requests. Try again shortly.")
 

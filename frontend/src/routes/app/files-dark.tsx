@@ -214,7 +214,7 @@ export function FilesDark() {
             </div>
             <p className="text-sm font-bold text-[#F5F0E6]">Your storage is empty</p>
             <p className="mt-1 text-xs text-[#887D6B] leading-relaxed">
-              Upload files to test multi-cloud placement. Files over 16 MiB are automatically striped across providers.
+              Upload files to test multi-cloud placement. Large files can be split across clouds if you enable it in Settings; split files are not backed up.
             </p>
             <button
               type="button"
@@ -322,6 +322,10 @@ function FileRowDark({
             Standard
           </span>
         )}
+        {/* Phase 0 keeps one copy of every file, single-cloud or striped, so every row is non-redundant. */}
+        <span className="ml-1.5 inline-flex items-center rounded-md border border-[#5C4727] bg-[#211D15] px-2 py-0.5 text-xs font-mono font-semibold text-[#F5A623]">
+          Not backed up
+        </span>
       </td>
       <td className="px-4 py-3.5 text-right font-mono text-sm font-semibold text-[#F5F0E6]">
         {formatBytes(file.size_bytes)}
@@ -401,7 +405,7 @@ function FileDetailDark({
     ["Size", formatBytes(file.size_bytes)],
     ["MIME Type", file.mime_type || "application/octet-stream"],
     ["Cloud Destination", providerName(file.provider)],
-    ["Storage Mode", file.storage_mode === "striped" ? "Multi-cloud striped chunk mesh" : "Single cloud container"],
+    ["Storage Mode", file.storage_mode === "striped" ? "Multi-cloud striped chunk mesh (not backed up)" : "Single cloud container"],
     ["Status", file.status],
     ["Bucket / Container", connection ? `${connection.display_name} (${connection.bucket_name})` : "Multi-bucket index"],
     ["Region", connection?.region ?? "global"],

@@ -1,22 +1,25 @@
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.deps import audit, current_user
-from app.core.security import digest_token, hash_password, parse_token, verify_password
+from app.core.security import DUMMY_PASSWORD_HASH, digest_token, hash_password_async, parse_token, verify_password_async
 from app.db.models import AccessRevocation, AuditLog, CloudConnection, FileManifest, FileRecord, PasswordReset, Quota, RefreshSession, User
 from app.db.session import get_db
-from app.schemas import AuditOut, ChangePasswordIn, DeleteAccountIn, EmailIn, LoginIn, PlanIn, RefreshIn, RegisterIn, ResetIn, TokenOut, UserOut
-from app.services.auth import create_reset, create_tokens, revoke_sessions, send_reset_email
+from app.schemas import AuditOut, ChangePasswordIn, DeleteAccountIn, EmailIn, LoginIn, PlanIn, PreferencesIn, RegisterIn, ResetIn, TokenOut, UserOut
+from app.services.auth import (
+    REFRESH_COOKIE, clear_refresh_cookie, create_reset, create_tokens, revoke_sessions, send_reset_email, set_refresh_cookie,
+)
 from app.services.catalog import PLANS
-from app.services.quota import invalidate_quota
+from app.services.quota import BLOCKING_FILE_STATUSES, invalidate_quota
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -27,7 +30,7 @@ async def register(body: RegisterIn, request: Request, db: AsyncSession = Depend
     email = body.email.lower()
     if await db.scalar(select(User.id).where(User.email == email)):
         raise HTTPException(409, "Email already registered")
-    user = User(first_name=body.first_name.strip(), last_name=body.last_name.strip(), email=email, password_hash=hash_password(body.password))
+    user = User(first_name=body.first_name.strip(), last_name=body.last_name.strip(), email=email, password_hash=await hash_password_async(body.password))
     db.add(user)
     await db.flush()
     db.add(Quota(user_id=user.id, used_bytes=0))
@@ -41,44 +44,79 @@ async def register(body: RegisterIn, request: Request, db: AsyncSession = Depend
 
 
 @router.post("/login", response_model=TokenOut)
-async def login(body: LoginIn, request: Request, db: AsyncSession = Depends(get_db)):
+async def login(body: LoginIn, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     user = await db.scalar(select(User).where(User.email == body.email.lower()))
-    if user is None or not user.is_active or not verify_password(body.password, user.password_hash):
+    usable = user is not None and user.is_active
+    # Always run one bcrypt check so unknown/inactive accounts are indistinguishable by timing.
+    password_ok = await verify_password_async(body.password, user.password_hash if usable else DUMMY_PASSWORD_HASH)
+    if not usable or not password_ok:
         raise HTTPException(401, "Invalid email or password")
-    tokens = await create_tokens(db, user)
+    tokens, refresh_token = await create_tokens(db, user)
     audit(db, request, user.id, "LOGIN")
     await db.commit()
+    set_refresh_cookie(response, refresh_token)
     return tokens
 
 
 @router.post("/refresh", response_model=TokenOut)
-async def refresh(body: RefreshIn, db: AsyncSession = Depends(get_db)):
+async def refresh(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    # SameSite=Strict plus a custom header a cross-site form cannot set.
+    if request.headers.get("x-nc-csrf") != "1":
+        return JSONResponse({"error": {
+            "code": "csrf_required", "message": "Missing X-NC-CSRF header", "request_id": getattr(request.state, "request_id", None),
+        }}, status_code=403)
+    token = request.cookies.get(REFRESH_COOKIE)
+    if not token:
+        raise HTTPException(401, "Invalid or expired token")
     try:
-        claims = parse_token(body.refresh_token, "refresh")
+        claims = parse_token(token, "refresh")
         user_id = uuid.UUID(claims["sub"])
     except (ValueError, KeyError):
         raise HTTPException(401, "Invalid or expired token")
     user = await db.get(User, user_id, with_for_update=True)
-    session = await db.scalar(select(RefreshSession).where(RefreshSession.token_hash == digest_token(body.refresh_token)).with_for_update())
-    if user is None or not user.is_active or user.token_version != claims["ver"] or session is None or session.revoked_at is not None:
+    session = await db.scalar(select(RefreshSession).where(RefreshSession.token_hash == digest_token(token)).with_for_update())
+    if user is None or session is None or session.user_id != user.id:
         raise HTTPException(401, "Invalid or expired token")
-    session.revoked_at = datetime.now(timezone.utc)
-    tokens = await create_tokens(db, user)
+    now = datetime.now(timezone.utc)
+    if session.revoked_at is not None:
+        revoked_at = session.revoked_at.replace(tzinfo=session.revoked_at.tzinfo or timezone.utc)
+        # Inside the grace window a replay is a benign race (two tabs); after it, the token was stolen.
+        if session.revoked_reason == "rotated" and now - revoked_at > timedelta(seconds=settings.REFRESH_REUSE_GRACE_SECONDS):
+            live = (await db.scalars(select(RefreshSession).where(
+                RefreshSession.family_id == session.family_id, RefreshSession.revoked_at.is_(None)
+            ).with_for_update())).all()
+            for member in live:
+                member.revoked_at = now
+                member.revoked_reason = "reuse"
+            # Only a live family kills outstanding access tokens and is audited, so replaying a dead token
+            # cannot log the user out repeatedly or flood the audit log.
+            if live:
+                user.token_version += 1
+                audit(db, request, user.id, "SESSION_REUSE_DETECTED", str(session.family_id))
+            await db.commit()
+        raise HTTPException(401, "Invalid or expired token")
+    if not user.is_active or user.token_version != claims["ver"]:
+        raise HTTPException(401, "Invalid or expired token")
+    session.revoked_at = now
+    session.revoked_reason = "rotated"
+    tokens, refresh_token = await create_tokens(db, user, session.family_id)
     await db.commit()
+    set_refresh_cookie(response, refresh_token)
     return tokens
 
 
 @router.post("/logout", status_code=204)
-async def logout(request: Request, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
+async def logout(request: Request, response: Response, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
     token = request.headers["authorization"].split(" ", 1)[1]
     claims = parse_token(token, "access")
     db.add(AccessRevocation(
         user_id=user.id, jti_hash=digest_token(claims["jti"]),
         expires_at=datetime.fromtimestamp(claims["exp"], tz=timezone.utc),
     ))
-    await revoke_sessions(db, user)
+    await revoke_sessions(db, user, "logout")
     audit(db, request, user.id, "LOGOUT")
     await db.commit()
+    clear_refresh_cookie(response)
 
 
 @router.get("/me", response_model=UserOut)
@@ -100,27 +138,29 @@ async def forgot_password(body: EmailIn, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/reset-password")
-async def reset_password(body: ResetIn, request: Request, db: AsyncSession = Depends(get_db)):
+async def reset_password(body: ResetIn, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     user = await db.scalar(select(User).where(User.email == body.email.lower()).with_for_update())
     reset = await db.scalar(select(PasswordReset).where(PasswordReset.token_hash == digest_token(body.token)).with_for_update())
     if not user or not reset or reset.user_id != user.id or reset.used_at is not None or reset.expires_at.replace(tzinfo=timezone.utc) <= datetime.now(timezone.utc):
         raise HTTPException(400, "Invalid or expired reset token")
     reset.used_at = datetime.now(timezone.utc)
-    user.password_hash = hash_password(body.new_password)
-    await revoke_sessions(db, user)
+    user.password_hash = await hash_password_async(body.new_password)
+    await revoke_sessions(db, user, "password")
     audit(db, request, user.id, "PASSWORD_RESET")
     await db.commit()
+    clear_refresh_cookie(response)
     return {"message": "Password updated"}
 
 
 @router.post("/change-password")
-async def change_password(body: ChangePasswordIn, request: Request, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
-    if not verify_password(body.current_password, user.password_hash):
+async def change_password(body: ChangePasswordIn, request: Request, response: Response, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    if not await verify_password_async(body.current_password, user.password_hash):
         raise HTTPException(400, "Current password is incorrect")
-    user.password_hash = hash_password(body.new_password)
-    await revoke_sessions(db, user)
+    user.password_hash = await hash_password_async(body.new_password)
+    await revoke_sessions(db, user, "password")
     audit(db, request, user.id, "PASSWORD_CHANGE")
     await db.commit()
+    clear_refresh_cookie(response)
     return {"message": "Password updated. Sign in again."}
 
 
@@ -144,6 +184,15 @@ async def set_plan(body: PlanIn, request: Request, user: User = Depends(current_
     return user
 
 
+@router.patch("/preferences", response_model=UserOut)
+async def set_preferences(body: PreferencesIn, request: Request, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    user = await db.scalar(select(User).where(User.id == user.id).with_for_update())
+    user.striping_enabled = body.striping_enabled
+    audit(db, request, user.id, "PREFERENCES_UPDATE", f"striping_enabled={body.striping_enabled}")
+    await db.commit()
+    return user
+
+
 @router.get("/audit-logs", response_model=list[AuditOut])
 async def audit_logs(user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
     return (await db.scalars(select(AuditLog).where(AuditLog.user_id == user.id).order_by(AuditLog.created_at.desc()).limit(100))).all()
@@ -153,10 +202,10 @@ async def audit_logs(user: User = Depends(current_user), db: AsyncSession = Depe
 async def delete_account(body: DeleteAccountIn, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
     """Erase the account and all metadata (BRD 11.1). Cloud objects must be deleted first so none are orphaned."""
     user = await db.scalar(select(User).where(User.id == user.id).with_for_update())
-    if not verify_password(body.password, user.password_hash):
+    if not await verify_password_async(body.password, user.password_hash):
         raise HTTPException(400, "Password is incorrect")
     remaining = await db.scalar(select(func.count()).select_from(FileRecord).where(
-        FileRecord.user_id == user.id, FileRecord.status.in_(("active", "pending", "cleanup_pending", "cleanup_failed"))
+        FileRecord.user_id == user.id, FileRecord.status.in_(BLOCKING_FILE_STATUSES)
     ))
     if remaining:
         raise HTTPException(409, "Delete your files or wait for pending upload cleanup before deleting the account")

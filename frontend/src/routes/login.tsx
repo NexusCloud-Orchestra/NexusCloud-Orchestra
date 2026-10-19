@@ -33,7 +33,7 @@ export function LoginPage() {
       try {
         localStorage.removeItem(THEME_STORAGE_KEY)
         localStorage.setItem(THEME_STORAGE_KEY, "light")
-      } catch (_) {}
+      } catch { /* noop */ }
       navigate("/app", { replace: true })
     } catch (caught) {
       if (caught instanceof ApiError) {

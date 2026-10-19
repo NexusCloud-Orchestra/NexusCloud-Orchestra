@@ -1,9 +1,11 @@
 import secrets
 import smtplib
+import uuid
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from urllib.parse import urlencode
 
+from fastapi import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,18 +15,40 @@ from app.db.models import PasswordReset, RefreshSession, User
 from app.schemas import TokenOut
 
 
-async def create_tokens(db: AsyncSession, user: User) -> TokenOut:
+REFRESH_COOKIE = "nc_refresh"
+REFRESH_COOKIE_PATH = "/api/v1/auth"
+
+
+async def create_tokens(db: AsyncSession, user: User, family_id: uuid.UUID | None = None) -> tuple[TokenOut, str]:
+    """Issue an access token and a refresh token; a new login starts a new refresh family."""
     access, _, _ = issue_token(user.id, user.token_version, "access", timedelta(minutes=settings.ACCESS_TOKEN_TTL_MINUTES))
     refresh, _, expires = issue_token(user.id, user.token_version, "refresh", timedelta(days=settings.REFRESH_TOKEN_TTL_DAYS))
-    db.add(RefreshSession(user_id=user.id, token_hash=digest_token(refresh), expires_at=expires))
-    return TokenOut(access_token=access, refresh_token=refresh)
+    db.add(RefreshSession(
+        user_id=user.id, family_id=family_id or uuid.uuid4(), token_hash=digest_token(refresh), expires_at=expires,
+    ))
+    return TokenOut(access_token=access, expires_in=settings.ACCESS_TOKEN_TTL_MINUTES * 60), refresh
 
 
-async def revoke_sessions(db: AsyncSession, user: User) -> None:
+async def revoke_sessions(db: AsyncSession, user: User, reason: str) -> None:
     sessions = (await db.scalars(select(RefreshSession).where(RefreshSession.user_id == user.id, RefreshSession.revoked_at.is_(None)))).all()
     for session in sessions:
         session.revoked_at = datetime.now(timezone.utc)
+        session.revoked_reason = reason
     user.token_version += 1
+
+
+def set_refresh_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        REFRESH_COOKIE, token, max_age=settings.REFRESH_TOKEN_TTL_DAYS * 86400, path=REFRESH_COOKIE_PATH,
+        domain=settings.COOKIE_DOMAIN, secure=settings.cookie_secure, httponly=True, samesite="strict",
+    )
+
+
+def clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(
+        REFRESH_COOKIE, path=REFRESH_COOKIE_PATH, domain=settings.COOKIE_DOMAIN,
+        secure=settings.cookie_secure, httponly=True, samesite="strict",
+    )
 
 
 async def create_reset(db: AsyncSession, user: User) -> str:

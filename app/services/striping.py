@@ -85,8 +85,14 @@ def validate_manifest(manifest) -> list:
     return ordered
 
 
+def eligible_for_striping(connection) -> bool:
+    """Striped files have no redundancy, so only permanent free tiers may hold chunks."""
+    return PROVIDERS[connection.provider].permanent
+
+
 def place_chunks(connections: list, used_bytes: dict[UUID, int], sizes: list[int]) -> list | None:
-    """Round-robin among distinct providers, using router scores within each provider."""
+    """Round-robin among distinct permanent-tier providers, using router scores within each provider."""
+    connections = [connection for connection in connections if eligible_for_striping(connection)]
     free = {
         connection.id: max(0, PROVIDERS[connection.provider].free_bytes - used_bytes.get(connection.id, 0))
         for connection in connections

@@ -2,18 +2,25 @@ import { createContext, useCallback, useContext, useMemo, useReducer, useRef } f
 import type { ReactNode } from "react"
 import { nanoid } from "../lib/nanoid"
 import { formatBytes } from "../lib/format"
-import { providerName } from "../lib/providers"
+import { isPermanentProvider, providerName } from "../lib/providers"
 import { CHUNK_BYTES, sha256, verifyStripeIndex } from "../lib/striping"
 import * as filesApi from "../api/files"
 import { listConnections } from "../api/connections"
 import { ApiError } from "../api/client"
+import { useAuth } from "./auth"
 import { useToast } from "./toast"
 import { queryKeys } from "./query"
 import type { QueryClient } from "@tanstack/react-query"
-import type { ProviderId, UploadTicket } from "../types/api"
+import type { ProviderId, UploadTicket, User } from "../types/api"
 
 export const MAX_UPLOAD_BYTES = 5 * 1024 ** 3
 const MAX_CONFIRM_RETRIES = 2
+
+/** Striping has no redundancy, so it is opt-in and limited to permanent free tiers. */
+export function shouldStripe(fileSize: number, user: Pick<User, "striping_enabled">, providers: ProviderId[]): boolean {
+  if (!user.striping_enabled || fileSize <= CHUNK_BYTES) return false
+  return new Set(providers.filter(isPermanentProvider)).size >= 2
+}
 
 export type UploadStatus = "queued" | "requesting" | "uploading" | "confirming" | "done" | "failed" | "cancelled"
 
@@ -77,6 +84,7 @@ export function UploadProvider({ children, queryClient }: { children: ReactNode;
   const requests = useRef(new Map<string, XMLHttpRequest>())
   const cancelled = useRef(new Set<string>())
   const toast = useToast()
+  const { user } = useAuth()
 
   // A ref mirror keeps callbacks stable without re-binding XHR handlers.
   const itemsRef = useRef<UploadItem[]>(items)
@@ -241,7 +249,7 @@ export function UploadProvider({ children, queryClient }: { children: ReactNode;
         return
       }
       dispatch({ type: "patch", id, patch: { status: "requesting", progress: null } })
-      if (file.size > CHUNK_BYTES) {
+      if (user?.striping_enabled && file.size > CHUNK_BYTES) {
         try {
           const connections = await queryClient.fetchQuery({
             queryKey: queryKeys.connections, queryFn: listConnections,
@@ -250,7 +258,7 @@ export function UploadProvider({ children, queryClient }: { children: ReactNode;
             cancelled.current.delete(id)
             return
           }
-          if (new Set(connections.map((connection) => connection.provider)).size >= 2) {
+          if (user && shouldStripe(file.size, user, connections.map((connection) => connection.provider))) {
             await startStripedUpload(id, file)
             return
           }
@@ -320,7 +328,7 @@ export function UploadProvider({ children, queryClient }: { children: ReactNode;
       }
       xhr.send(file)
     },
-    [confirmWithRetry, finish, queryClient, startStripedUpload, toast],
+    [confirmWithRetry, finish, queryClient, startStripedUpload, toast, user],
   )
 
   const enqueue = useCallback(
