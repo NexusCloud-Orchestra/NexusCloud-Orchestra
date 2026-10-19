@@ -70,7 +70,7 @@
 **Files:**
 - Create: `tests/conftest.py`, `tests/integration/__init__.py`, `tests/integration/test_postgres_concurrency.py`
 - Modify: `tests/test_backend.py` (remove `client` fixture and `signup`, import nothing they need from conftest — pytest injects fixtures; `signup` becomes a conftest-level function imported as `from tests.conftest import signup`), `pyproject.toml` (pytest config), `.github/workflows/verify-and-publish.yml`
-- Move: `tests/test_flow.py` → `scripts/e2e_smoke.py` (it is a manual script against a running server, not a pytest test)
+- Move: `scripts/e2e_smoke.py` → `scripts/e2e_smoke.py` (it is a manual script against a running server, not a pytest test)
 
 **Interfaces:**
 - Produces: fixture `client` (an `httpx.AsyncClient` with attribute `test_session_factory: async_sessionmaker`); `async def signup(client, email: str) -> dict` (returns login JSON); marker `postgres`; env `TEST_DATABASE_URL` (asyncpg URL to a disposable DB).

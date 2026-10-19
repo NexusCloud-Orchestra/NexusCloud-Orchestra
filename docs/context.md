@@ -283,7 +283,7 @@ NexusCloud/
 ├── Dockerfile                   # Production container (placeholder)
 ├── .env.example                 # Environment variable template
 ├── tests/
-│   └── test_flow.py             # End-to-end integration tests
+│   └── e2e_smoke.py             # End-to-end integration tests
 ├── frontend/                    # React SPA
 │   ├── package.json             # Node dependencies
 │   ├── vite.config.js           # Vite dev server config

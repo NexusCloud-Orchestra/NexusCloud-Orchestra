@@ -686,13 +686,13 @@ class Quota(Base):
 |---|---|---|---|
 | **Unit Tests** | Service layer, utility functions, validators | pytest | ≥80% |
 | **Integration Tests** | API endpoints, DB operations, Redis caching | pytest + httpx | Full API surface |
-| **End-to-End Tests** | Complete user flows (register → upload → download → delete) | Custom test_flow.py | All critical paths |
+| **End-to-End Tests** | Complete user flows (register → upload → download → delete) | Custom e2e_smoke.py | All critical paths |
 | **Security Tests** | Auth bypass, injection, privilege escalation | Manual + automated | All auth endpoints |
 | **Performance Tests** | API latency, cache performance, concurrent load | locust / k6 | P95 targets met |
 
 ### 12.2 Required E2E Test Flow
 
-The existing `tests/test_flow.py` validates the complete lifecycle:
+The existing `scripts/e2e_smoke.py` validates the complete lifecycle:
 
 1. Register user → 2. Login → 3. Verify profile → 4. Connect cloud → 5. Verify connection → 6. Check initial quota → 7. Request upload → 8. Upload to presigned URL → 9. Confirm upload → 10. Verify quota decremented → 11. List files → 12. Download via presigned URL → 13. Verify byte equality → 14. Delete file → 15. Verify file removed → 16. Verify quota reclaimed → 17. Test password reset
 
