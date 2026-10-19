@@ -4,11 +4,13 @@ import { Link, useNavigate } from "react-router-dom"
 import { Eye, EyeOff } from "lucide-react"
 import { AuthLayout } from "./auth-layout"
 import { useAuth } from "../state/auth"
+import { useTheme, THEME_STORAGE_KEY } from "../state/theme"
 import { ApiError } from "../api/client"
 import { cn } from "../lib/utils"
 
 export function LoginPage() {
   const { signIn } = useAuth()
+  const { setTheme } = useTheme()
   const navigate = useNavigate()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -27,6 +29,11 @@ export function LoginPage() {
     setBusy(true)
     try {
       await signIn(email, password)
+      setTheme("light")
+      try {
+        localStorage.removeItem(THEME_STORAGE_KEY)
+        localStorage.setItem(THEME_STORAGE_KEY, "light")
+      } catch { /* noop */ }
       navigate("/app", { replace: true })
     } catch (caught) {
       if (caught instanceof ApiError) {

@@ -18,6 +18,7 @@ const colors = {
 
 export default {
   ...base,
+  darkMode: "class",
   theme: {
     ...base.theme,
     extend: {

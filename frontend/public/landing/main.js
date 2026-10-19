@@ -505,6 +505,11 @@
     });
   }
 
+  // Landing page maintains original light theme as usual
+  document.documentElement.classList.remove("dark");
+  document.documentElement.setAttribute("data-theme", "light");
+  if (document.body) document.body.classList.remove("dark-theme");
+
   // ---------------- Boot ----------------
   window.addEventListener("scroll", readScroll, { passive: true });
   window.addEventListener("resize", () => { resize(); readScroll(); });

@@ -46,6 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null)
       setStatus("anonymous")
       queryClient.clear()
+      try {
+        localStorage.removeItem("nexuscloud-theme")
+        localStorage.setItem("nexuscloud-theme", "light")
+      } catch { /* noop */ }
     })
     return () => {
       cancelled = true
@@ -59,6 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const current = await authApi.me()
       setUser(current)
       setStatus("authenticated")
+      try {
+        localStorage.removeItem("nexuscloud-theme")
+        localStorage.setItem("nexuscloud-theme", "light")
+      } catch { /* noop */ }
     },
     [],
   )
@@ -72,6 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     setStatus("anonymous")
     queryClient.clear()
+    try {
+      localStorage.removeItem("nexuscloud-theme")
+      localStorage.setItem("nexuscloud-theme", "light")
+    } catch { /* noop */ }
   }, [queryClient])
 
   const refreshUser = useCallback(async () => {

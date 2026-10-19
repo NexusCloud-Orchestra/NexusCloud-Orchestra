@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom"
 import { Eye, EyeOff } from "lucide-react"
 import { AuthLayout } from "./auth-layout"
 import { useAuth } from "../state/auth"
+import { useTheme, THEME_STORAGE_KEY } from "../state/theme"
 import { ApiError } from "../api/client"
 import { cn } from "../lib/utils"
 
@@ -16,6 +17,7 @@ interface FieldErrors {
 
 export function RegisterPage() {
   const { signUp, signIn } = useAuth()
+  const { setTheme } = useTheme()
   const navigate = useNavigate()
   const [values, setValues] = useState({ first_name: "", last_name: "", email: "", password: "" })
   const [showPassword, setShowPassword] = useState(false)
@@ -48,6 +50,11 @@ export function RegisterPage() {
     try {
       await signUp(values)
       await signIn(values.email, values.password)
+      setTheme("light")
+      try {
+        localStorage.removeItem(THEME_STORAGE_KEY)
+        localStorage.setItem(THEME_STORAGE_KEY, "light")
+      } catch { /* noop */ }
       navigate("/app", { replace: true })
     } catch (caught) {
       if (caught instanceof ApiError) {

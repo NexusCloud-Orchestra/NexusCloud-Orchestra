@@ -1,6 +1,9 @@
+import { useEffect } from "react"
 import type { ReactNode } from "react"
 import { Link } from "react-router-dom"
 import { motion } from "framer-motion"
+import { ArrowLeft } from "lucide-react"
+import { useTheme, THEME_STORAGE_KEY } from "../state/theme"
 import cloudImage from "../assets/auth-clouds.webp"
 
 /** The Dual Chevron Brand Logo Mark with Royal Gold Dot matching the reference image */
@@ -50,8 +53,35 @@ export function AuthLayout({
   children: ReactNode
   footer?: ReactNode
 }) {
+  const { setTheme } = useTheme()
+
+  useEffect(() => {
+    setTheme("light")
+    document.documentElement.classList.remove("dark")
+    document.documentElement.setAttribute("data-theme", "light")
+    document.documentElement.style.colorScheme = "light"
+    if (document.body) {
+      document.body.classList.remove("dark")
+      document.body.setAttribute("data-theme", "light")
+    }
+    try {
+      localStorage.removeItem(THEME_STORAGE_KEY)
+      localStorage.setItem(THEME_STORAGE_KEY, "light")
+    } catch { /* noop */ }
+  }, [setTheme])
+
   return (
     <div className="fixed inset-0 h-full w-full bg-[#F7F2E7] flex flex-col items-center justify-center p-3 sm:p-5 lg:p-6 font-sans antialiased text-slate-900 selection:bg-[#C59B27]/25 selection:text-[#16213E] overflow-hidden select-none">
+      {/* ── Prominent Top-Left Back Arrow to Landing ── */}
+      <Link
+        to="/"
+        className="fixed top-3.5 left-3.5 sm:top-5 sm:left-6 z-50 inline-flex items-center gap-2 rounded-full border border-[#E7DFCE] bg-[#FAF6EB]/95 backdrop-blur-md px-3.5 py-1.5 text-xs font-bold text-[#0F172A] shadow-xs hover:border-[#C59B27] hover:bg-white hover:shadow-md transition-all group cursor-pointer"
+        aria-label="Back to landing page"
+      >
+        <ArrowLeft size={15} className="text-[#C59B27] transition-transform group-hover:-translate-x-1" />
+        <span>BACK</span>
+      </Link>
+
       {/* ── Centered Auth Card Matching Reference Image (150% Scale Presence) ── */}
       <div className="relative w-full max-w-[1080px] lg:max-w-[1180px] xl:max-w-[1280px] 2xl:max-w-[1360px] h-full max-h-[660px] sm:max-h-[700px] lg:max-h-[740px] xl:max-h-[780px] bg-[#FAF6EB] rounded-[28px] sm:rounded-[36px] border border-[#E7DFCE] shadow-[0_24px_70px_-15px_rgba(22,33,62,0.11)] flex flex-col md:flex-row overflow-hidden shrink-0">
         {/* ── Left Story Column (Warm Corn Silk with Clouds) ── */}
@@ -101,8 +131,8 @@ export function AuthLayout({
           id="main-content"
           className="relative flex-1 bg-white border-t md:border-t-0 md:border-l border-[#E7DFCE] shadow-[-14px_0_40px_rgba(22,33,62,0.04)] p-6 sm:p-8 lg:p-10 xl:p-12 flex flex-col justify-between h-full z-10 overflow-hidden"
         >
-          {/* Top Kicker in Crisp Dark Slate */}
-          <div className="flex justify-end items-center gap-4 shrink-0">
+          {/* Top Bar with Kicker */}
+          <div className="flex justify-end items-center shrink-0">
             <span className="text-[10px] sm:text-[11px] font-extrabold tracking-[0.24em] text-[#334155] uppercase">
               BRING YOUR OWN CLOUD
             </span>

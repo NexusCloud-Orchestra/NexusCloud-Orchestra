@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useId } from "react"
 import type { ComponentPropsWithoutRef, ReactNode } from "react"
 import { motion, useSpring, useTransform } from "framer-motion"
+import { useTheme } from "../../state/theme"
 import { cn } from "../../lib/utils"
 
 /**
@@ -17,12 +18,18 @@ interface SpotlightCardProps extends ComponentPropsWithoutRef<"div"> {
 export function SpotlightCard({
   children,
   className = "",
-  spotlightColor = "rgba(196, 154, 58, 0.08)",
+  spotlightColor,
   ...props
 }: SpotlightCardProps) {
   const divRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [opacity, setOpacity] = useState(0)
+  const { isDark } = useTheme()
+
+  const defaultSpotlight = isDark
+    ? "rgba(198, 160, 82, 0.10)"
+    : "rgba(196, 154, 58, 0.08)"
+  const activeSpotlight = spotlightColor ?? defaultSpotlight
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!divRef.current) return
@@ -48,7 +55,7 @@ export function SpotlightCard({
         className="pointer-events-none absolute -inset-px opacity-0 transition-opacity duration-300 z-0"
         style={{
           opacity,
-          background: `radial-gradient(320px circle at ${position.x}px ${position.y}px, ${spotlightColor}, transparent 80%)`,
+          background: `radial-gradient(320px circle at ${position.x}px ${position.y}px, ${activeSpotlight}, transparent 80%)`,
         }}
       />
       <div className="relative z-1">{children}</div>
@@ -160,10 +167,16 @@ export function ShinyText({
   className?: string
   shimmerWidth?: number
 }) {
+  const { isDark } = useTheme()
+
+  const gradient = isDark
+    ? "linear-gradient(120deg, #F5F0E6 0%, #F5F0E6 35%, #E0C078 50%, #F5F0E6 65%, #F5F0E6 100%)"
+    : "linear-gradient(120deg, rgba(20,43,74,1) 0%, rgba(20,43,74,1) 35%, rgba(196,154,58,0.9) 50%, rgba(20,43,74,1) 65%, rgba(20,43,74,1) 100%)"
+
   return (
     <span
       style={{
-        backgroundImage: `linear-gradient(120deg, rgba(20,43,74,1) 0%, rgba(20,43,74,1) 35%, rgba(196,154,58,0.9) 50%, rgba(20,43,74,1) 65%, rgba(20,43,74,1) 100%)`,
+        backgroundImage: gradient,
         backgroundSize: `${shimmerWidth * 2}% 100%`,
       }}
       className={cn(
@@ -225,22 +238,38 @@ export function PulsingStatusDot({
  * ── 6. GridBeams (Aceternity UI inspired) ──
  * Subtle geometric grid pattern with celestial beam pulses for dashboard hero backgrounds.
  */
-export function GridBeams({ className = "" }: { className?: string }) {
+export function GridBeams({
+  className = "",
+  variant = "auto",
+}: {
+  className?: string
+  variant?: "light" | "dark" | "auto"
+}) {
+  const patternId = useId()
+  const fadeId = useId()
+  const { isDark: themeIsDark } = useTheme()
+  const isDark = variant === "dark" || (variant === "auto" && themeIsDark)
+
+  const strokeColor = isDark ? "#5C4727" : "#E8E0D1"
+  const stopColor = isDark ? "#0B0A08" : "#FAF6ED"
+  const strokeOpacity = isDark ? 0.35 : 0.4
+  const containerOpacity = isDark ? "opacity-35" : "opacity-40"
+
   return (
-    <div className={cn("absolute inset-0 pointer-events-none overflow-hidden select-none opacity-40", className)}>
+    <div className={cn("absolute inset-0 pointer-events-none overflow-hidden select-none", containerOpacity, className)}>
       <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <pattern id="grid-pattern" width="32" height="32" patternUnits="userSpaceOnUse">
-            <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#E8E0D1" strokeWidth="0.8" opacity="0.4" />
+          <pattern id={patternId} width="32" height="32" patternUnits="userSpaceOnUse">
+            <path d="M 32 0 L 0 0 0 32" fill="none" stroke={strokeColor} strokeWidth="0.8" opacity={strokeOpacity} />
           </pattern>
-          <linearGradient id="grid-fade" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#FAF6ED" stopOpacity="0" />
-            <stop offset="50%" stopColor="#FAF6ED" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="#FAF6ED" stopOpacity="1" />
+          <linearGradient id={fadeId} x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor={stopColor} stopOpacity="0" />
+            <stop offset="50%" stopColor={stopColor} stopOpacity={isDark ? "0.6" : "0.8"} />
+            <stop offset="100%" stopColor={stopColor} stopOpacity="1" />
           </linearGradient>
         </defs>
-        <rect width="100%" height="100%" fill="url(#grid-pattern)" />
-        <rect width="100%" height="100%" fill="url(#grid-fade)" />
+        <rect width="100%" height="100%" fill={`url(#${patternId})`} />
+        <rect width="100%" height="100%" fill={`url(#${fadeId})`} />
       </svg>
     </div>
   )
