@@ -17,7 +17,7 @@ import {
 import { useAuth } from "../../state/auth"
 import { useToast } from "../../state/toast"
 import { useTheme } from "../../state/theme"
-import { ShinyCloudIcon, RainyCloudIcon, ThemeToggle } from "../../components/ui/theme-toggle"
+import { ShinyCloudIcon, MoonCloudIcon, ThemeToggle } from "../../components/ui/theme-toggle"
 import { cn } from "../../lib/utils"
 import { queryKeys } from "../../state/query"
 import { changePassword, deleteAccount, setPlan, setStripingEnabled } from "../../api/auth"
@@ -553,7 +553,7 @@ function AppearancePanel() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1C1C1A] border border-[#2D2D2A] shadow-xs">
-                    <RainyCloudIcon className="w-6 h-6 text-[#DDA049]" />
+                    <MoonCloudIcon className="w-6 h-6 text-[#DDA049]" />
                   </div>
                   <div>
                     <h4 className="font-palatino text-sm font-bold text-ink">Dark Theme</h4>

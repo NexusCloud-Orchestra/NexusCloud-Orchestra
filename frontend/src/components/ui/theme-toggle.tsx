@@ -44,58 +44,61 @@ export function ShinyCloudIcon({ className = "w-5 h-5" }: { className?: string }
 }
 
 /**
- * ── Rainy Cloud Icon ──
- * Night / Dark Mode: A sleek obsidian cloud with animated golden & cornsilk falling raindrops.
+ * ── Moon Cloud Icon ──
+ * Night / Dark Mode: A crescent moon peeking behind a dark cloud with twinkling gold stars.
  */
-export function RainyCloudIcon({ className = "w-5 h-5" }: { className?: string }) {
+export function MoonCloudIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={cn("shrink-0", className)}>
-      {/* Dark Cloud Body with Golden Rim */}
+      {/* Twinkling Star 1 */}
+      <motion.circle
+        cx="4.5"
+        cy="5"
+        r="0.9"
+        fill="#E0C078"
+        animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.2, 0.8] }}
+        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: 0 }}
+        style={{ transformOrigin: "4.5px 5px" }}
+      />
+      {/* Twinkling Star 2 */}
+      <motion.circle
+        cx="19.5"
+        cy="4"
+        r="0.75"
+        fill="#C6A052"
+        animate={{ opacity: [0.2, 1, 0.2], scale: [0.7, 1.3, 0.7] }}
+        transition={{ duration: 2.1, repeat: Infinity, ease: "easeInOut", delay: 0.7 }}
+        style={{ transformOrigin: "19.5px 4px" }}
+      />
+      {/* Twinkling Star 3 */}
+      <motion.circle
+        cx="7"
+        cy="9.5"
+        r="0.6"
+        fill="#F5F0E6"
+        animate={{ opacity: [0.1, 0.9, 0.1], scale: [0.6, 1.4, 0.6] }}
+        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 1.1 }}
+        style={{ transformOrigin: "7px 9.5px" }}
+      />
+
+      {/* Crescent Moon — clipped by an offset circle to create the crescent shape */}
+      <circle cx="15.5" cy="8.5" r="5" fill="#C6A052" opacity="0.18" />
       <path
-        d="M17.5 14.5a4.5 4.5 0 0 0 .5-8.97A6 6 0 0 0 6.5 7.5 4 4 0 0 0 7 14.5h10.5z"
+        d="M15 4a5 5 0 0 0 0 9 5.5 5.5 0 0 1 0-9z"
+        fill="#E0C078"
+      />
+      <path
+        d="M14.6 4.2a5 5 0 1 0 4.7 7.5A5 5 0 0 1 14.6 4.2z"
+        fill="#C6A052"
+      />
+
+      {/* Dark Cloud Body with Champagne Gold rim — overlaps moon base */}
+      <path
+        d="M16 18a4 4 0 0 0 .5-7.97A5.5 5.5 0 0 0 5.5 11.5 3.5 3.5 0 0 0 6 18H16z"
         fill="#181610"
         stroke="#C6A052"
-        strokeWidth="1.4"
+        strokeWidth="1.3"
         strokeLinejoin="round"
-      />
-
-      {/* Falling Raindrop 1 (Primary Gold) */}
-      <motion.line
-        x1="8"
-        y1="16.5"
-        x2="7"
-        y2="20.5"
-        stroke="#C6A052"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        animate={{ y: [0, 2.5, 0], opacity: [0.35, 1, 0.35] }}
-        transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut", delay: 0 }}
-      />
-
-      {/* Falling Raindrop 2 (Champagne Gold) */}
-      <motion.line
-        x1="12"
-        y1="16.5"
-        x2="11"
-        y2="21.5"
-        stroke="#E0C078"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        animate={{ y: [0, 3, 0], opacity: [0.5, 1, 0.5] }}
-        transition={{ duration: 1.0, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
-      />
-
-      {/* Falling Raindrop 3 (Warm Off-White) */}
-      <motion.line
-        x1="16"
-        y1="16.5"
-        x2="15"
-        y2="20.5"
-        stroke="#F5F0E6"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        animate={{ y: [0, 2.5, 0], opacity: [0.4, 1, 0.4] }}
-        transition={{ duration: 1.25, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
       />
     </svg>
   )
@@ -118,8 +121,8 @@ export function ThemeToggle({
   const { theme, isDark, toggleTheme } = useTheme()
 
   const title = isDark
-    ? "Rainy Cloud (Dark Mode) — Click for Shiny Cloud (Light Mode)"
-    : "Shiny Cloud (Light Mode) — Click for Rainy Cloud (Dark Mode)"
+    ? "Moon Cloud (Dark Mode) — Click for Sunny Cloud (Light Mode)"
+    : "Sunny Cloud (Light Mode) — Click for Moon Cloud (Dark Mode)"
 
   return (
     <motion.button
@@ -141,14 +144,14 @@ export function ThemeToggle({
       <AnimatePresence mode="wait" initial={false}>
         {isDark ? (
           <motion.div
-            key="dark-rainy"
+            key="dark-moon"
             initial={{ opacity: 0, rotate: -35, scale: 0.7 }}
             animate={{ opacity: 1, rotate: 0, scale: 1 }}
             exit={{ opacity: 0, rotate: 35, scale: 0.7 }}
             transition={{ duration: 0.24, ease: "easeOut" }}
             className="flex items-center justify-center"
           >
-            <RainyCloudIcon className="w-5 h-5 text-[#C6A052]" />
+            <MoonCloudIcon className="w-5 h-5 text-[#C6A052]" />
           </motion.div>
         ) : (
           <motion.div
@@ -166,7 +169,7 @@ export function ThemeToggle({
 
       {showLabel && (
         <span className="font-mono text-xs font-semibold tracking-wider capitalize">
-          {theme === "dark" ? "Dark (Rainy Cloud)" : "Light (Shiny Cloud)"}
+          {theme === "dark" ? "Dark (Moon Cloud)" : "Light (Sunny Cloud)"}
         </span>
       )}
     </motion.button>
