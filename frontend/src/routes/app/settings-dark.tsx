@@ -503,7 +503,7 @@ function AppearancePanel() {
                   </div>
                   <div>
                     <h4 className="font-palatino text-sm font-bold text-[#F5F0E6]">Dark Theme</h4>
-                    <p className="font-mono text-[10.5px] text-[#887D6B] uppercase tracking-wider">Rainy Cloud · Obsidian Night</p>
+                    <p className="font-mono text-[10.5px] text-[#887D6B] uppercase tracking-wider">Moon Cloud · Obsidian Night</p>
                   </div>
                 </div>
                 {isDark && (

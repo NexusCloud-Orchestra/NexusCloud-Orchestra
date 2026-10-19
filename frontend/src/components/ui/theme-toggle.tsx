@@ -4,100 +4,113 @@ import { cn } from "../../lib/utils"
 
 /**
  * ── Shiny Cloud Icon ──
- * Day / Light Mode: A pure sculpted cloud with radiant rotating golden sunbeams and sparkles.
+ * Day / Light Mode: A pure sculpted cloud with radiant rotating golden sunbeams.
  */
 export function ShinyCloudIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={cn("shrink-0", className)}>
-      {/* Rotating Solar Rays behind Cloud */}
+      <defs>
+        <linearGradient id="nc-sun-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#FFF6D9" />
+          <stop offset="100%" stopColor="#E5C37A" />
+        </linearGradient>
+      </defs>
+
+      {/* Rotating Solar Sunbeams */}
       <motion.g
         animate={{ rotate: 360 }}
-        transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
-        style={{ transformOrigin: "15px 9px" }}
+        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+        style={{ transformOrigin: "16px 7px" }}
+        stroke="#C6A052"
+        strokeWidth="1.5"
+        strokeLinecap="round"
       >
-        <line x1="15" y1="2" x2="15" y2="4.5" stroke="#C6A052" strokeWidth="1.8" strokeLinecap="round" />
-        <line x1="15" y1="13.5" x2="15" y2="16" stroke="#C6A052" strokeWidth="1.8" strokeLinecap="round" />
-        <line x1="8" y1="9" x2="10.5" y2="9" stroke="#C6A052" strokeWidth="1.8" strokeLinecap="round" />
-        <line x1="19.5" y1="9" x2="22" y2="9" stroke="#C6A052" strokeWidth="1.8" strokeLinecap="round" />
-        <line x1="10" y1="4" x2="11.8" y2="5.8" stroke="#E0C078" strokeWidth="1.6" strokeLinecap="round" />
-        <line x1="18.2" y1="12.2" x2="20" y2="14" stroke="#E0C078" strokeWidth="1.6" strokeLinecap="round" />
-        <line x1="10" y1="14" x2="11.8" y2="12.2" stroke="#E0C078" strokeWidth="1.6" strokeLinecap="round" />
-        <line x1="18.2" y1="5.8" x2="20" y2="4" stroke="#E0C078" strokeWidth="1.6" strokeLinecap="round" />
+        <line x1="16" y1="1.8" x2="16" y2="3.8" />
+        <line x1="21.2" y1="7" x2="23.2" y2="7" />
+        <line x1="19.7" y1="3.3" x2="21.2" y2="1.8" />
+        <line x1="19.7" y1="10.7" x2="21.2" y2="12.2" />
+        <line x1="16" y1="10.2" x2="16" y2="12.2" />
+        <line x1="10.8" y1="7" x2="12.8" y2="7" />
+        <line x1="12.3" y1="3.3" x2="10.8" y2="1.8" />
+        <line x1="12.3" y1="10.7" x2="10.8" y2="12.2" />
       </motion.g>
 
       {/* Radiant Golden Sun Orb */}
-      <circle cx="15" cy="9" r="4.2" fill="#E0C078" />
+      <circle cx="16" cy="7" r="3.8" fill="url(#nc-sun-grad)" stroke="#C6A052" strokeWidth="1.2" />
 
-      {/* Sculpted Foreground Cloud */}
+      {/* Sculpted Ivory White Foreground Cloud */}
       <path
-        d="M17.5 18a4.5 4.5 0 0 0 .5-8.97A6 6 0 0 0 6.5 11 4 4 0 0 0 7 18h10.5z"
+        d="M13 16a3 3 0 1 1 0 6H7a5 5 0 1 1 4.9-6Z"
         fill="#FFFFFF"
         stroke="#C6A052"
-        strokeWidth="1.4"
+        strokeWidth="1.5"
         strokeLinejoin="round"
       />
-
-      {/* Luminous Core Glow Spark */}
-      <circle cx="12" cy="14" r="1.2" fill="#C6A052" opacity="0.8" />
     </svg>
   )
 }
 
 /**
  * ── Moon Cloud Icon ──
- * Night / Dark Mode: A crescent moon peeking behind a dark cloud with twinkling gold stars.
+ * Night / Dark Mode: A luminous crescent moon rising behind a dark cloud with twinkling celestial stars.
  */
 export function MoonCloudIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={cn("shrink-0", className)}>
-      {/* Twinkling Star 1 */}
-      <motion.circle
-        cx="4.5"
-        cy="5"
-        r="0.9"
-        fill="#E0C078"
-        animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.2, 0.8] }}
-        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: 0 }}
-        style={{ transformOrigin: "4.5px 5px" }}
+      <defs>
+        <linearGradient id="nc-moon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#FFF6D9" />
+          <stop offset="50%" stopColor="#E5C37A" />
+          <stop offset="100%" stopColor="#BF9744" />
+        </linearGradient>
+        <linearGradient id="nc-moon-cloud-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#241F16" />
+          <stop offset="100%" stopColor="#18150F" />
+        </linearGradient>
+      </defs>
+
+      {/* Twinkling 4-point Celestial Star in upper left sky */}
+      <motion.path
+        d="M 3.8 2.2 Q 3.8 4 2 4 Q 3.8 4 3.8 5.8 Q 3.8 4 5.6 4 Q 3.8 4 3.8 2.2 Z"
+        fill="#E5C37A"
+        animate={{ scale: [0.8, 1.25, 0.8], opacity: [0.5, 1, 0.5] }}
+        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+        style={{ transformOrigin: "3.8px 4px" }}
       />
-      {/* Twinkling Star 2 */}
-      <motion.circle
-        cx="19.5"
-        cy="4"
-        r="0.75"
-        fill="#C6A052"
-        animate={{ opacity: [0.2, 1, 0.2], scale: [0.7, 1.3, 0.7] }}
-        transition={{ duration: 2.1, repeat: Infinity, ease: "easeInOut", delay: 0.7 }}
-        style={{ transformOrigin: "19.5px 4px" }}
-      />
-      {/* Twinkling Star 3 */}
+
+      {/* Distant Micro Star */}
       <motion.circle
         cx="7"
-        cy="9.5"
-        r="0.6"
-        fill="#F5F0E6"
-        animate={{ opacity: [0.1, 0.9, 0.1], scale: [0.6, 1.4, 0.6] }}
-        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 1.1 }}
-        style={{ transformOrigin: "7px 9.5px" }}
+        cy="2.8"
+        r="0.55"
+        fill="#FFFFFF"
+        animate={{ opacity: [0.2, 0.9, 0.2] }}
+        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
+        style={{ transformOrigin: "7px 2.8px" }}
       />
 
-      {/* Crescent Moon — clipped by an offset circle to create the crescent shape */}
-      <circle cx="15.5" cy="8.5" r="5" fill="#C6A052" opacity="0.18" />
-      <path
-        d="M15 4a5 5 0 0 0 0 9 5.5 5.5 0 0 1 0-9z"
-        fill="#E0C078"
-      />
-      <path
-        d="M14.6 4.2a5 5 0 1 0 4.7 7.5A5 5 0 0 1 14.6 4.2z"
-        fill="#C6A052"
-      />
+      {/* Classic Luminous Crescent Moon — rising behind cloud */}
+      <motion.g
+        transform="translate(3.8, 0.3) scale(0.72)"
+        animate={{ rotate: [0, -2, 0] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        style={{ transformOrigin: "16px 8px" }}
+      >
+        <path
+          d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"
+          fill="url(#nc-moon-grad)"
+          stroke="#E5C37A"
+          strokeWidth="1.1"
+          strokeLinejoin="round"
+        />
+      </motion.g>
 
-      {/* Dark Cloud Body with Champagne Gold rim — overlaps moon base */}
+      {/* Foreground Cloud with Obsidian / Warm Charcoal fill and Champagne Gold contour */}
       <path
-        d="M16 18a4 4 0 0 0 .5-7.97A5.5 5.5 0 0 0 5.5 11.5 3.5 3.5 0 0 0 6 18H16z"
-        fill="#181610"
+        d="M13 16a3 3 0 1 1 0 6H7a5 5 0 1 1 4.9-6Z"
+        fill="url(#nc-moon-cloud-grad)"
         stroke="#C6A052"
-        strokeWidth="1.3"
+        strokeWidth="1.5"
         strokeLinejoin="round"
       />
     </svg>
