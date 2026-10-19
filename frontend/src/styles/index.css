@@ -107,6 +107,101 @@
     --color-donut-track:    232 224 209;
   }
 
+  /* ===== DAZZLE CENTURY DASHBOARD DARK THEME TOKENS (Black + Champagne Gold + Bronze) ===== */
+  html.dark,
+  :root[data-theme="dark"],
+  .dashboard-dark,
+  .dark {
+    color-scheme: dark;
+
+    /* Dazzle Century Reference Palette:
+       - Dashboard background: #0B0A08 (Deep, warm black) -> 11 10 8
+       - Primary surface: #11100D (Charcoal & espresso) -> 17 16 13
+       - Elevated surface: #181610 (Elevated warm surface) -> 24 22 16
+       - Interactive surface: #211D15 (Interactive/hover) -> 33 29 21
+       - Primary text: #F5F0E6 (Warm off-white) -> 245 240 230
+       - Secondary text: #B8AE9B (Muted warm sand) -> 184 174 155
+       - Muted text: #887D6B (Muted bronze/gray) -> 136 125 107
+       - Primary gold: #C6A052 (Restrained metallic gold) -> 198 160 82
+       - Champagne gold: #E0C078 (Champagne-gold highlight) -> 224 192 120
+       - Muted bronze: #80612C (Muted bronze accent) -> 128 97 44
+       - Subtle border: #332A1B (Subtle low-contrast border) -> 51 42 27
+       - Emphasized border: #5C4727 (Emphasized bronze border) -> 92 71 39
+    */
+
+    --regal-navy:      198 160 82;    /* #C6A052 Primary Gold */
+    --deep-navy:       11 10 8;       /* #0B0A08 Dashboard Background */
+    --corn-silk:       17 16 13;      /* #11100D Primary Surface */
+    --royal-gold:      198 160 82;    /* #C6A052 Primary Gold */
+    --antique-gold:    224 192 120;   /* #E0C078 Champagne Gold */
+    --warm-white:      11 10 8;       /* #0B0A08 Dashboard Background */
+    --ivory:           24 22 16;      /* #181610 Elevated Surface */
+    --slate-text:      184 174 155;   /* #B8AE9B Secondary Text */
+    --muted-slate:     136 125 107;   /* #887D6B Muted Text */
+    --border:          51 42 27;      /* #332A1B Subtle Border */
+    --border-strong:   92 71 39;      /* #5C4727 Emphasized Border */
+    --success:         46 196 150;    /* #2EC496 Emerald */
+    --warning:         245 166 35;    /* #F5A623 Amber */
+    --danger:          239 83 80;     /* #EF5350 Coral */
+
+    /* Semantic mappings */
+    --bg-base:         11 10 8;       /* #0B0A08 Deep Warm Black */
+    --bg-panel:        17 16 13;      /* #11100D Primary Surface */
+    --bg-card:         24 22 16;      /* #181610 Elevated Surface */
+    --bg-raise:        33 29 21;      /* #211D15 Interactive Surface */
+    --bg-hover:        33 29 21;      /* #211D15 */
+
+    --text-1:          245 240 230;   /* #F5F0E6 Primary Warm Off-White */
+    --text-2:          184 174 155;   /* #B8AE9B Secondary Text */
+    --text-3:          136 125 107;   /* #887D6B Muted Text */
+
+    --accent:          198 160 82;    /* #C6A052 Primary Gold */
+    --accent-2:        224 192 120;   /* #E0C078 Champagne Gold */
+    --accent-3:        128 97 44;     /* #80612C Muted Bronze */
+    --accent-soft:     198 160 82 / 0.16;
+    --accent-border:   198 160 82 / 0.40;
+
+    --navy:            11 10 8;
+    --gold:            198 160 82;
+    --gold-soft:       198 160 82 / 0.16;
+
+    --ok:              46 196 150;
+    --ok-soft:         46 196 150 / 0.15;
+    --warn:            245 166 35;
+    --warn-soft:       245 166 35 / 0.15;
+    --bad:             239 83 80;
+    --bad-soft:        239 83 80 / 0.15;
+
+    /* TailWind config bridge: --color-* */
+    --color-background:     11 10 8;       /* #0B0A08 Dashboard Background */
+    --color-brand-strong:   17 16 13;      /* #11100D Primary Surface */
+    --color-brand-ink:      245 240 230;   /* #F5F0E6 Primary Text */
+    --color-surface:        17 16 13;      /* #11100D Primary Surface */
+    --color-surface-muted:  24 22 16;      /* #181610 Elevated Surface */
+    --color-border:         51 42 27;      /* #332A1B Subtle Border */
+    --color-border-strong:  92 71 39;      /* #5C4727 Emphasized Border */
+    --color-text-primary:   245 240 230;   /* #F5F0E6 Primary Text */
+    --color-text-secondary: 184 174 155;   /* #B8AE9B Secondary Text */
+    --color-text-muted:     136 125 107;   /* #887D6B Muted Text */
+    --color-accent-text:    198 160 82;    /* #C6A052 Primary Gold */
+    --color-accent-strong:  224 192 120;   /* #E0C078 Champagne Gold */
+    --color-accent-soft:    198 160 82 / 0.16;
+    --color-accent-border:  198 160 82 / 0.40;
+    --color-success:        46 196 150;
+    --color-success-soft:   46 196 150 / 0.15;
+    --color-success-border: 46 196 150 / 0.40;
+    --color-warning:        245 166 35;
+    --color-warning-soft:   245 166 35 / 0.15;
+    --color-warning-border: 245 166 35 / 0.40;
+    --color-danger:         239 83 80;
+    --color-danger-soft:    239 83 80 / 0.15;
+    --color-danger-border:  239 83 80 / 0.40;
+    --color-brand-primary:  198 160 82;
+    --color-accent-gold:    198 160 82;
+    --color-divider-sand:   51 42 27;
+    --color-donut-track:    51 42 27;
+  }
+
   html, body, #root {
     height: 100% !important;
     width: 100% !important;
@@ -591,6 +686,110 @@
 
   .tnum { font-variant-numeric: tabular-nums; }
   .text-sheen { color: rgb(var(--gold)); }
+}
+
+/* ===== COMPLETE SEPARATION: SENIOR PRINCIPAL DESIGNER DARK THEME SYSTEM =====
+   Tokens:
+   - Main Page Background: #070706 (Deep Charcoal Obsidian)
+   - Cards & Containers: #1C1C1A (Elevated Dark Espresso)
+   - Inset Panels & Table Heads: #252522 (Raised Espresso)
+   - Deep Nested Boxes: #141412 (Obsidian Panel)
+   - Primary Text: #EEEEED (Warm Cornsilk White) — 100% visible, high contrast
+   - Secondary Text: #D4D4D0 (Light Cornsilk Slate)
+   - Muted/Caption Text: #A0A0A0 (Muted Gray)
+   - Main Action CTAs: #DDA049 (Royal Gold) with text #070706
+   - Button Hover: #F2BD72 (Light Gold) with text #070706
+   - Dividers & Borders: #2D2D2A (Dark Gray)
+   ============================================================================= */
+
+html.dark,
+:root[data-theme="dark"] {
+  scrollbar-color: #2D2D2A #070706;
+}
+
+/* Master Page Background in Light Theme */
+html:not(.dark) body:not(:has(.auth-story)),
+html:not(.dark) #root:not(:has(.auth-story)),
+html:not(.dark) .app-shell,
+html[data-theme="light"] body:not(:has(.auth-story)),
+html[data-theme="light"] #root:not(:has(.auth-story)),
+html[data-theme="light"] .app-shell {
+  background-color: #FFFDF8 !important;
+  color: #142B4A !important;
+}
+
+/* Master Page Background in Dark Theme */
+html.dark body:not(:has(.auth-story)),
+html.dark #root:not(:has(.auth-story)),
+html.dark .app-shell,
+html[data-theme="dark"] body:not(:has(.auth-story)),
+html[data-theme="dark"] #root:not(:has(.auth-story)),
+html[data-theme="dark"] .app-shell {
+  background-color: #070706 !important;
+  color: #EEEEED !important;
+}
+
+/* Seamless Atmospheric Theme Transition Engine */
+html body:not(:has(.auth-story)),
+html #root:not(:has(.auth-story)),
+html .app-shell,
+html header,
+html main,
+html section,
+html article,
+html nav,
+html .nc-card,
+html .stat-card,
+html .nc-panel,
+html .nc-input,
+html .topbar,
+html [class*="bg-"],
+html [class*="border-"],
+html [class*="text-"] {
+  transition: background-color 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+              fill 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+              stroke 0.32s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Dedicated dark mode styling for modals and menus rendered in portals */
+html.dark [role="dialog"],
+html.dark .nc-dialog,
+html.dark .nc-menu,
+html.dark .nc-drawer {
+  background-color: #1C1C1A !important;
+  border-color: #2D2D2A !important;
+  color: #EEEEED !important;
+}
+
+html.dark [role="dialog"] h1,
+html.dark [role="dialog"] h2,
+html.dark [role="dialog"] h3,
+html.dark [role="dialog"] h4,
+html.dark .nc-dialog h1,
+html.dark .nc-dialog h2,
+html.dark .nc-dialog h3,
+html.dark .nc-dialog h4 {
+  color: #EEEEED !important;
+}
+
+html.dark [role="dialog"] p,
+html.dark .nc-dialog p {
+  color: #A0A0A0 !important;
+}
+
+html.dark .nc-menu [role="menuitem"],
+html.dark .nc-menu button,
+html.dark .nc-menu a {
+  color: #EEEEED !important;
+}
+html.dark .nc-menu [role="menuitem"]:hover,
+html.dark .nc-menu button:hover,
+html.dark .nc-menu a:hover {
+  background-color: #252522 !important;
+  color: #DDA049 !important;
 }
 
 /* ===== KEYFRAMES ===== */

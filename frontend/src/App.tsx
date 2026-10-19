@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query"
 import { createQueryClient, queryKeys } from "./state/query"
 import { AuthProvider, useAuth } from "./state/auth"
 import { ToastProvider } from "./state/toast"
+import { ThemeProvider } from "./state/theme"
 import { quotaSummary } from "./api/quota"
 import { UploadProvider } from "./state/uploads"
 import { ErrorBoundary } from "./components/layout/error-boundary"
@@ -183,7 +184,9 @@ export function App() {
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           <AuthProvider>
-            <RouterProvider router={router} />
+            <ThemeProvider>
+              <RouterProvider router={router} />
+            </ThemeProvider>
           </AuthProvider>
         </ToastProvider>
       </QueryClientProvider>

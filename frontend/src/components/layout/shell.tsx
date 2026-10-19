@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom"
 import {
   Menu as MenuIcon,
   ChevronRight,
+  ArrowLeft,
   Search,
   Settings,
   LogOut,
@@ -16,7 +17,9 @@ import type { ReactNode } from "react"
 import { useEffect, useRef, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Drawer } from "../ui/drawer"
+import { ThemeToggle } from "../ui/theme-toggle"
 import { useAuth } from "../../state/auth"
+import { useTheme, THEME_STORAGE_KEY } from "../../state/theme"
 import { initialsOf } from "../../lib/format"
 import { usePresence, MENU_EXIT_MS } from "../../hooks/use-presence"
 import { cn } from "../../lib/utils"
@@ -62,30 +65,32 @@ export function getRouteIndex(pathname: string) {
 
 /** Dual Chevron Brand Mark with Royal Gold Dot */
 export function BrandGlyph({ className = "h-8 w-8" }: { className?: string }) {
+  const { isDark } = useTheme()
   return (
     <svg viewBox="0 0 32 32" className={className} fill="none" aria-hidden>
       <path
         d="M5 20 L16 7 L27 20"
-        stroke="#142B4A"
+        stroke={isDark ? "#EEEEED" : "#142B4A"}
         strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
         d="M10 20 L16 13 L22 20"
-        stroke="#142B4A"
+        stroke={isDark ? "#EEEEED" : "#142B4A"}
         strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="16" cy="25" r="2.2" fill="#C49A3A" />
+      <circle cx="16" cy="25" r="2.2" fill={isDark ? "#DDA049" : "#C49A3A"} />
     </svg>
   )
 }
 
 export function Wordmark({ to = "/app", compact = false }: { to?: string; compact?: boolean }) {
+  const { isDark } = useTheme()
   return (
-    <Link to={to} className="group inline-flex items-center gap-2 text-[#142B4A]" aria-label="NexusCloud Home">
+    <Link to={to} className="group inline-flex items-center gap-2" aria-label="NexusCloud Home">
       <motion.div
         whileHover={{ scale: 1.08, rotate: -2, y: -1 }}
         whileTap={{ scale: 0.94 }}
@@ -96,11 +101,11 @@ export function Wordmark({ to = "/app", compact = false }: { to?: string; compac
       </motion.div>
       <div className="flex flex-col leading-none">
         <div className="flex items-center gap-1 font-blackops text-[18px] sm:text-[19px] tracking-wide">
-          <span className="text-[#142B4A]">NEXUS</span>
-          <span className="text-[#C49A3A]">CLOUD</span>
+          <span className={isDark ? "text-[#EEEEED]" : "text-[#142B4A]"}>NEXUS</span>
+          <span className={isDark ? "text-[#DDA049]" : "text-[#C49A3A]"}>CLOUD</span>
         </div>
         {!compact && (
-          <span className="mt-0.5 font-mono text-[9.5px] sm:text-[10px] font-bold tracking-[0.22em] text-[#68768A] uppercase">
+          <span className={cn("mt-0.5 font-mono text-[9.5px] sm:text-[10px] font-bold tracking-[0.22em] uppercase", isDark ? "text-[#A0A0A0]" : "text-[#68768A]")}>
             ORCHESTRA
           </span>
         )}
@@ -111,6 +116,7 @@ export function Wordmark({ to = "/app", compact = false }: { to?: string; compac
 
 function AccountDropdown() {
   const { user, signOut } = useAuth()
+  const { isDark, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const { mounted } = usePresence(open, MENU_EXIT_MS)
@@ -144,9 +150,14 @@ function AccountDropdown() {
         aria-expanded={open}
         aria-label="Account menu"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E8E0D1] bg-[#0B1B32] text-white transition-all duration-150 hover:border-[#C49A3A] hover:shadow-md shrink-0 cursor-pointer"
+        className={cn(
+          "flex h-9 w-9 items-center justify-center rounded-full transition-all duration-150 shrink-0 cursor-pointer shadow-xs",
+          isDark
+            ? "border border-[#332A1B] bg-[#181610] text-[#F5F0E6] hover:border-[#C6A052] hover:shadow-[0_0_12px_rgba(198,160,82,0.3)]"
+            : "border border-[#E8E0D1] bg-[#0B1B32] text-white hover:border-[#C49A3A]"
+        )}
       >
-        <span className="font-mono text-xs sm:text-[13px] font-bold text-[#FFF8E7]">
+        <span className={cn("font-mono text-xs sm:text-[13px] font-bold", isDark ? "text-[#C6A052]" : "text-[#FFF8E7]")}>
           {initials}
         </span>
       </motion.button>
@@ -159,18 +170,28 @@ function AccountDropdown() {
             exit={{ opacity: 0, y: 6, scale: 0.98 }}
             transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
             role="menu"
-            className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-[#E8E0D1] bg-white p-2 shadow-lg"
+            className={cn(
+              "absolute right-0 top-full z-50 mt-2 w-64 rounded-xl p-2 shadow-2xl backdrop-blur-xl",
+              isDark
+                ? "border border-[#332A1B] bg-[#181610]/95 text-[#F5F0E6] shadow-[0_12px_40px_rgba(0,0,0,0.7)]"
+                : "border border-[#E8E0D1] bg-white text-[#142B4A]"
+            )}
           >
             {user ? (
-              <div className="border-b border-[#E8E0D1]/60 px-3 py-2.5">
-                <p className="truncate text-sm font-bold text-[#142B4A]">
+              <div className={cn("border-b px-3 py-2.5", isDark ? "border-[#332A1B]" : "border-[#E8E0D1]/60")}>
+                <p className={cn("truncate text-sm font-bold", isDark ? "text-[#F5F0E6]" : "text-[#142B4A]")}>
                   {user.first_name} {user.last_name}
                 </p>
-                <p className="truncate font-mono text-xs text-[#68768A]">
+                <p className={cn("truncate font-mono text-xs", isDark ? "text-[#887D6B]" : "text-[#68768A]")}>
                   {user.email}
                 </p>
                 {user.plan && (
-                  <span className="mt-1.5 inline-block rounded-xs border border-[#C49A3A]/40 bg-[#FFF8E7] px-2 py-0.5 font-mono text-xs font-semibold uppercase tracking-wider text-[#A77B26]">
+                  <span className={cn(
+                    "mt-1.5 inline-block rounded-xs px-2 py-0.5 font-mono text-xs font-semibold uppercase tracking-wider border",
+                    isDark
+                      ? "border-[#C6A052]/40 bg-[#C6A052]/15 text-[#C6A052]"
+                      : "border-[#C49A3A]/40 bg-[#FFF8E7] text-[#A77B26]"
+                  )}>
                     Plan: {user.plan}
                   </span>
                 )}
@@ -180,18 +201,28 @@ function AccountDropdown() {
               <Link
                 to="/app/settings"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[#344256] transition-colors hover:bg-[#FAF6ED] hover:text-[#142B4A]"
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  isDark
+                    ? "text-[#F5F0E6] hover:bg-[#211D15]"
+                    : "text-[#344256] hover:bg-[#FAF6ED] hover:text-[#142B4A]"
+                )}
               >
-                <Settings size={15} className="text-[#C49A3A]" />
+                <Settings size={15} className={isDark ? "text-[#C6A052]" : "text-[#C49A3A]"} />
                 Account Settings
               </Link>
               <button
                 type="button"
                 onClick={() => {
                   setOpen(false)
+                  setTheme("light")
+                  try {
+                    localStorage.removeItem(THEME_STORAGE_KEY)
+                    localStorage.setItem(THEME_STORAGE_KEY, "light")
+                  } catch (_) {}
                   void signOut()
                 }}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[#C43D4B] transition-colors hover:bg-[#C43D4B]/10"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[#EF5350] transition-colors hover:bg-[#EF5350]/15 cursor-pointer"
               >
                 <LogOut size={15} />
                 Sign Out
@@ -204,16 +235,22 @@ function AccountDropdown() {
   )
 }
 
-/** Primary Navigation Bar with Regal Navy background and Royal Gold active indicator */
+/** Primary Navigation Bar with separated light and dark theme styling */
 function PrimaryNavBar() {
   const location = useLocation()
+  const { isDark } = useTheme()
   const [hoveredTo, setHoveredTo] = useState<string | null>(null)
 
   return (
     <nav
       aria-label="Primary navigation"
       onMouseLeave={() => setHoveredTo(null)}
-      className="hidden md:flex items-center gap-1 rounded-full bg-[#0B1B32] p-1 shadow-sm border border-[#142B4A] shrink-0 relative"
+      className={cn(
+        "hidden md:flex items-center gap-1 rounded-full p-1.5 shrink-0 relative transition-all duration-200",
+        isDark
+          ? "bg-[#181610]/95 border border-[#332A1B] shadow-[inset_0_1px_1px_rgba(255,255,255,0.04),0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md"
+          : "bg-[#0B1B32] border border-[#142B4A] shadow-sm"
+      )}
     >
       {NAV_ITEMS.map((item) => {
         const isActive = isNavItemActive(item, location.pathname)
@@ -235,13 +272,19 @@ function PrimaryNavBar() {
             <Link
               to={item.to}
               onMouseEnter={() => setHoveredTo(item.to)}
-              className="relative flex items-center justify-center rounded-full px-3.5 sm:px-4 py-1.5 text-xs sm:text-[13.5px] select-none whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-[#C49A3A] transition-colors"
+              className={cn(
+                "relative flex items-center justify-center rounded-full px-3.5 sm:px-4 py-1.5 text-xs sm:text-[13.5px] select-none whitespace-nowrap outline-none transition-colors",
+                isDark ? "focus-visible:ring-2 focus-visible:ring-[#C6A052]" : "focus-visible:ring-2 focus-visible:ring-[#C49A3A]"
+              )}
             >
-              {/* Smooth Floating Hover Pill with Latency */}
+              {/* Smooth Floating Hover Pill */}
               {isHovered && (
                 <motion.div
                   layoutId="primary-nav-hover-pill"
-                  className="absolute inset-0 rounded-full bg-white/[0.12] shadow-[0_2px_8px_rgba(255,255,255,0.08)] pointer-events-none"
+                  className={cn(
+                    "absolute inset-0 rounded-full pointer-events-none",
+                    isDark ? "bg-white/[0.05] border border-white/[0.03]" : "bg-white/[0.12] shadow-[0_2px_8px_rgba(255,255,255,0.08)]"
+                  )}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -254,11 +297,16 @@ function PrimaryNavBar() {
                 />
               )}
 
-              {/* Smooth Active Royal Gold Indicator with Weighted Latency */}
+              {/* Smooth Active Gold Indicator */}
               {isActive && (
                 <motion.div
                   layoutId="primary-nav-active-indicator"
-                  className="absolute inset-0 rounded-full bg-[#C49A3A] shadow-[0_4px_14px_rgba(196,154,58,0.45)]"
+                  className={cn(
+                    "absolute inset-0 rounded-full",
+                    isDark
+                      ? "bg-gradient-to-r from-[#C6A052] to-[#E0C078] shadow-[0_2px_14px_rgba(198,160,82,0.35)]"
+                      : "bg-[#C49A3A] shadow-[0_4px_14px_rgba(196,154,58,0.45)]"
+                  )}
                   transition={{
                     type: "spring",
                     stiffness: 300,
@@ -273,8 +321,8 @@ function PrimaryNavBar() {
                 className={cn(
                   "relative z-10 transition-colors duration-200",
                   isActive
-                    ? "text-white font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]"
-                    : "text-slate-300 hover:text-white font-medium"
+                    ? (isDark ? "text-[#0B0A08] font-bold tracking-tight" : "text-white font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]")
+                    : (isDark ? "text-[#B8AE9B] hover:text-[#F5F0E6] font-semibold" : "text-slate-300 hover:text-white font-medium")
                 )}
               >
                 {item.label}
@@ -294,6 +342,8 @@ export function TopNavbar({
   onOpenPalette: () => void
   onOpenNav: () => void
 }) {
+  const { isDark } = useTheme()
+
   return (
     <div className="flex w-full items-center justify-between gap-2 lg:gap-4">
       {/* Left: Brand */}
@@ -305,7 +355,12 @@ export function TopNavbar({
           transition={{ type: "spring", stiffness: 450, damping: 20 }}
           onClick={onOpenNav}
           aria-label="Open navigation"
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E8E0D1] bg-white text-[#142B4A] hover:bg-[#FAF6ED] hover:border-[#C49A3A] md:hidden shrink-0 cursor-pointer shadow-2xs hover:shadow-xs transition-colors"
+          className={cn(
+            "flex h-9 w-9 items-center justify-center rounded-lg md:hidden shrink-0 cursor-pointer shadow-2xs hover:shadow-xs transition-colors",
+            isDark
+              ? "border border-[#332A1B] bg-[#181610] text-[#F5F0E6] hover:bg-[#211D15] hover:border-[#C6A052]"
+              : "border border-[#E8E0D1] bg-white text-[#142B4A] hover:bg-[#FAF6ED] hover:border-[#C49A3A]"
+          )}
         >
           <MenuIcon size={17} />
         </motion.button>
@@ -324,14 +379,24 @@ export function TopNavbar({
           transition={{ type: "spring", stiffness: 450, damping: 20 }}
           onClick={onOpenPalette}
           title="Search files & commands (⌘K)"
-          className="flex h-9 items-center gap-2 rounded-full border border-[#E8E0D1] bg-[#FAF6ED]/70 px-3.5 text-xs sm:text-[13px] font-medium text-[#68768A] transition-colors hover:border-[#C49A3A] hover:bg-[#FAF6ED] hover:text-[#142B4A] shadow-xs hover:shadow-md shrink-0 cursor-pointer"
+          className={cn(
+            "flex h-9 items-center gap-2 rounded-full px-3.5 text-xs sm:text-[13px] font-medium transition-all shrink-0 cursor-pointer",
+            isDark
+              ? "border border-[#332A1B] bg-[#181610] text-[#B8AE9B] hover:border-[#5C4727] hover:bg-[#211D15] hover:text-[#F5F0E6] shadow-xs"
+              : "border border-[#E8E0D1] bg-[#FAF6ED]/70 text-[#68768A] hover:border-[#C49A3A] hover:bg-[#FAF6ED] hover:text-[#142B4A] shadow-xs"
+          )}
         >
-          <Search size={14} className="text-[#68768A]" />
-          <span className="hidden sm:inline text-xs sm:text-[13px] text-[#68768A]">Search anything...</span>
-          <kbd className="inline-block rounded-md border border-[#E8E0D1] bg-white px-1.5 py-0.5 font-mono text-[10px] text-[#68768A]">
+          <Search size={14} className={isDark ? "text-[#887D6B]" : "text-[#68768A]"} />
+          <span className={cn("hidden sm:inline text-xs sm:text-[13px]", isDark ? "text-[#B8AE9B]" : "text-[#68768A]")}>
+            Search anything...
+          </span>
+          <kbd className={cn("inline-block rounded-md px-1.5 py-0.5 font-mono text-[10px]", isDark ? "border border-[#332A1B] bg-[#211D15] text-[#C6A052] font-bold" : "border border-[#E8E0D1] bg-white text-[#68768A]")}>
             ⌘K
           </kbd>
         </motion.button>
+
+        {/* Shiny Cloud / Rainy Cloud Theme Toggle */}
+        <ThemeToggle variant="icon" />
 
         <motion.div
           whileHover={{ scale: 1.1, y: -2, rotate: 15 }}
@@ -341,7 +406,12 @@ export function TopNavbar({
           <Link
             to="/app/settings"
             title="Settings"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E8E0D1] bg-white text-[#344256] transition-colors hover:border-[#C49A3A] hover:bg-[#FAF6ED] hover:text-[#142B4A] shadow-xs hover:shadow-md shrink-0"
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-full transition-all shrink-0 shadow-xs hover:shadow-md",
+              isDark
+                ? "border border-[#332A1B] bg-[#181610] text-[#B8AE9B] hover:border-[#C6A052] hover:bg-[#211D15] hover:text-[#F5F0E6]"
+                : "border border-[#E8E0D1] bg-white text-[#344256] hover:border-[#C49A3A] hover:bg-[#FAF6ED] hover:text-[#142B4A]"
+            )}
           >
             <Settings size={16} />
           </Link>
@@ -366,32 +436,40 @@ export function PageHeader({
   actions?: ReactNode
   backTo?: string
 }) {
+  const { isDark } = useTheme()
+
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-[#E8E0D1]/50">
+    <div className={cn("flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b", isDark ? "border-[#2D2D2A]" : "border-[#E8E0D1]/50")}>
       <div className="flex items-start sm:items-center gap-3.5">
         {backTo ? (
           <Link
             to={backTo}
             aria-label="Back"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#E8E0D1] bg-white text-[#142B4A] transition-colors hover:border-[#C49A3A] hover:bg-[#FAF6ED] shadow-2xs mt-0.5 sm:mt-0"
+            className={cn(
+              "inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border text-xs font-semibold transition-colors shadow-2xs mt-0.5 sm:mt-0 cursor-pointer shrink-0",
+              isDark
+                ? "border-[#2D2D2A] bg-[#1C1C1A] text-[#EEEEED] hover:border-[#DDA049] hover:bg-[#252522]"
+                : "border-[#E8E0D1] bg-white text-[#142B4A] hover:border-[#C49A3A] hover:bg-[#FAF6ED]"
+            )}
           >
-            <ChevronRight size={17} className="rotate-180" />
+            <ArrowLeft size={14} />
+            <span>Back</span>
           </Link>
         ) : null}
         <div>
           {kicker && (
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#C49A3A]" />
-              <p className="font-mono text-xs sm:text-sm uppercase tracking-wider text-[#A77B26] font-bold">
+              <span className={cn("h-2 w-2 rounded-full", isDark ? "bg-[#DDA049]" : "bg-[#C49A3A]")} />
+              <p className={cn("font-mono text-xs sm:text-sm uppercase tracking-wider font-bold", isDark ? "text-[#DDA049]" : "text-[#A77B26]")}>
                 {kicker}
               </p>
             </div>
           )}
-          <h1 className="font-palatino text-3xl sm:text-4xl font-bold tracking-tight text-[#142B4A]">
+          <h1 className={cn("font-palatino text-3xl sm:text-4xl font-bold tracking-tight", isDark ? "text-[#EEEEED]" : "text-[#142B4A]")}>
             {title}
           </h1>
           {description && (
-            <p className="mt-1.5 text-sm sm:text-base text-[#68768A] font-normal leading-relaxed max-w-2xl">
+            <p className={cn("mt-1.5 text-sm sm:text-base font-normal leading-relaxed max-w-2xl", isDark ? "text-[#A0A0A0]" : "text-[#68768A]")}>
               {description}
             </p>
           )}
@@ -403,19 +481,20 @@ export function PageHeader({
 }
 
 export function Breadcrumb({ trail }: { trail: string[] }) {
+  const { isDark } = useTheme()
   return (
-    <nav aria-label="Breadcrumb" className="flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-[#68768A]">
+    <nav aria-label="Breadcrumb" className={cn("flex items-center gap-2 font-mono text-xs uppercase tracking-wider", isDark ? "text-[#A0A0A0]" : "text-[#68768A]")}>
       {trail.map((segment, index) => (
         <span key={`${segment}-${index}`} className="flex items-center gap-2">
           {index > 0 ? <ChevronRight size={12} aria-hidden /> : null}
-          <span className={index === trail.length - 1 ? "font-bold text-[#142B4A]" : undefined}>{segment}</span>
+          <span className={index === trail.length - 1 ? (isDark ? "font-bold text-[#EEEEED]" : "font-bold text-[#142B4A]") : undefined}>{segment}</span>
         </span>
       ))}
     </nav>
   )
 }
 
-/** Master Application Shell providing the Corn Silk + Regal Navy + Royal Gold Light Theme */
+/** Master Application Shell providing separate light and dark theme architectures */
 export function AppShell({
   children,
   onOpenPalette,
@@ -423,6 +502,7 @@ export function AppShell({
   children: ReactNode
   onOpenPalette: () => void
 }) {
+  const { isDark } = useTheme()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const location = useLocation()
   const prevPathRef = useRef(location.pathname)
@@ -442,9 +522,19 @@ export function AppShell({
   }, [location.pathname])
 
   return (
-    <div className="fixed inset-0 h-full w-full bg-[#FFFDF8] text-[#142B4A] font-alora antialiased selection:bg-[#C49A3A]/25 selection:text-[#142B4A] flex flex-col overflow-hidden">
+    <div className={cn(
+      "app-shell dashboard-theme fixed inset-0 h-full w-full font-alora antialiased flex flex-col overflow-hidden transition-colors duration-300 ease-in-out",
+      isDark
+        ? "dashboard-dark bg-[#0B0A08] text-[#F5F0E6] selection:bg-[#C6A052]/25 selection:text-[#F5F0E6]"
+        : "dashboard-light bg-[#FFFDF8] text-[#142B4A] selection:bg-[#C49A3A]/25 selection:text-[#142B4A]"
+    )}>
       {/* Top Header */}
-      <header className="shrink-0 z-30 w-full border-b border-[#E8E0D1] bg-white/95 backdrop-blur-md px-4 sm:px-6 lg:px-8 py-2 shadow-xs">
+      <header className={cn(
+        "shrink-0 z-30 w-full border-b px-4 sm:px-6 lg:px-8 py-2 transition-colors duration-300",
+        isDark
+          ? "border-[#332A1B] bg-[#11100D]/95 shadow-[0_4px_24px_-2px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+          : "border-[#E8E0D1] bg-white/95 backdrop-blur-md shadow-xs"
+      )}>
         <TopNavbar
           onOpenPalette={onOpenPalette}
           onOpenNav={() => setMobileNavOpen(true)}
@@ -475,8 +565,8 @@ export function AppShell({
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-semibold transition-colors",
                     isActive
-                      ? "bg-[#C49A3A] text-white shadow-xs"
-                      : "text-[#142B4A] hover:bg-[#FAF6ED]"
+                      ? "bg-[#C6A052] text-[#0B0A08] font-bold shadow-xs"
+                      : "text-[#142B4A] dark:text-[#F5F0E6] hover:bg-[#FAF6ED] dark:hover:bg-[#211D15]"
                   )}
                 >
                   <Icon size={16} />
@@ -485,6 +575,13 @@ export function AppShell({
               </motion.div>
             )
           })}
+
+          <div className="pt-4 mt-3 border-t border-[#E8E0D1] dark:border-[#332A1B] flex flex-col gap-2">
+            <span className="text-2xs font-mono uppercase tracking-wider text-[#68768A] dark:text-[#887D6B] px-1 font-bold">
+              Theme Mode
+            </span>
+            <ThemeToggle variant="pill" showLabel className="w-full justify-between px-3.5" />
+          </div>
         </nav>
       </Drawer>
 

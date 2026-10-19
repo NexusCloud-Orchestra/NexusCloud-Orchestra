@@ -8,7 +8,7 @@ export interface Toast {
   message: string
 }
 
-interface ToastApi {
+export interface ToastApi {
   notify: (message: string, tone?: Toast["tone"]) => void
 }
 
