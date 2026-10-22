@@ -4,7 +4,8 @@
 @import "@fontsource/instrument-sans/700.css";
 @import "@fontsource/jetbrains-mono/400.css";
 @import "@fontsource/jetbrains-mono/500.css";
-@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Black+Ops+One&family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+/* ── The Sovereign Look: Cinzel · Cormorant Garamond · Lora ── */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Black+Ops+One&family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @config "./tailwind.config.js";
 @tailwind base;
 @tailwind components;
@@ -223,9 +224,9 @@
   body {
     background: rgb(var(--bg-base));
     color: rgb(var(--text-1));
-    font-family: 'Alora', 'Lora', 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
-    font-size: 13.5px;
-    line-height: 1.5;
+    font-family: 'Lora', 'Georgia', serif;
+    font-size: 15px;
+    line-height: 1.65;
   }
 
   *, *::before, *::after { box-sizing: border-box; }
@@ -791,6 +792,73 @@ html.dark .nc-menu a:hover {
   background-color: #252522 !important;
   color: #DDA049 !important;
 }
+
+/* ===== THE SOVEREIGN LOOK — Typography Semantic Layer ===== */
+
+/* --- Cinzel: Majestic Display Headers (h1, Page Titles, Kickers) --- */
+h1,
+.font-cinzel,
+.page-title,
+.brand-heading,
+.sovereign-heading {
+  font-family: 'Cinzel', 'Palatino Linotype', Georgia, serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- Cormorant Garamond: Elegant Sub-headings & Questions --- */
+h2,
+h3,
+h4,
+.font-cormorant,
+.section-heading,
+.panel-heading,
+.question-text,
+.sovereign-subheading {
+  font-family: 'Cormorant Garamond', 'Palatino Linotype', Georgia, serif;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* --- Lora: Refined Body Reading Text --- */
+.font-lora,
+.body-text,
+.reading-text,
+.sovereign-body {
+  font-family: 'Lora', Georgia, serif;
+}
+
+/* Font family utility classes */
+.font-cinzel { font-family: 'Cinzel', 'Palatino Linotype', Georgia, serif !important; }
+.font-cormorant { font-family: 'Cormorant Garamond', 'Palatino Linotype', Georgia, serif !important; }
+.font-lora { font-family: 'Lora', Georgia, serif !important; }
+
+/* App Shell: Cinzel for all h1, Cormorant for h2/h3 */
+.app-shell h1 { font-family: 'Cinzel', serif; font-weight: 700; }
+.app-shell h2,
+.app-shell h3,
+.app-shell h4 { font-family: 'Cormorant Garamond', serif; font-weight: 600; }
+
+/* Nav labels — Cinzel for regal navigation */
+.app-shell nav a span,
+.app-shell nav button span { font-family: 'Cinzel', serif; font-weight: 500; letter-spacing: 0.04em; }
+
+/* Metrics / Monospaced / Card Labels: JetBrains Mono — Crisp, technical, as in Image 2 */
+.app-shell .font-mono,
+.app-shell code,
+.app-shell kbd,
+.app-shell pre,
+.metric-label,
+.card-label-mono {
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace !important;
+}
+
+/* Auth pages: Cinzel headings */
+.auth-form-heading h1,
+.auth-story h2,
+.auth-notice h2 { font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 0.02em; }
 
 /* ===== KEYFRAMES ===== */
 @keyframes auth-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }

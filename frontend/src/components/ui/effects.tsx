@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useId } from "react"
 import type { ComponentPropsWithoutRef, ReactNode } from "react"
-import { motion, useSpring, useTransform } from "framer-motion"
+import { motion, useMotionValue, useSpring, useTransform, type HTMLMotionProps } from "framer-motion"
 import { useTheme } from "../../state/theme"
 import { cn } from "../../lib/utils"
 
@@ -136,22 +136,109 @@ export function NumberTicker({
 }: NumberTickerProps) {
   const ref = useRef<HTMLSpanElement>(null)
   const motionValue = useSpring(direction === "down" ? value : 0, {
-    damping: 30,
-    stiffness: 100,
+    damping: 24,
+    stiffness: 120,
   })
-  const isInView = true // Dashboard is active view
 
   useEffect(() => {
-    if (isInView) {
-      motionValue.set(direction === "down" ? 0 : value)
-    }
-  }, [motionValue, isInView, direction, value])
+    motionValue.set(direction === "down" ? 0 : value)
+  }, [motionValue, direction, value])
 
-  const display = useTransform(motionValue, (current) => {
-    return `${prefix}${current.toFixed(decimals)}${suffix}`
-  })
+  useEffect(() => {
+    return motionValue.on("change", (latest) => {
+      if (ref.current) {
+        ref.current.textContent = `${prefix}${latest.toFixed(decimals)}${suffix}`
+      }
+    })
+  }, [motionValue, decimals, prefix, suffix])
 
-  return <motion.span ref={ref} className={cn("inline-block tabular-nums", className)}>{display}</motion.span>
+  return (
+    <span ref={ref} className={cn("inline-block tabular-nums", className)}>
+      {prefix}
+      {value.toFixed(decimals)}
+      {suffix}
+    </span>
+  )
+}
+
+/**
+ * ── TiltCard (Aceternity / ReactBits inspired) ──
+ * 3D perspective tilt effect on mouse hover with dynamic specular reflection.
+ */
+interface TiltCardProps extends HTMLMotionProps<"div"> {
+  children: ReactNode
+  className?: string
+  glareColor?: string
+  maxTilt?: number
+}
+
+export function TiltCard({
+  children,
+  className = "",
+  glareColor,
+  maxTilt = 6,
+  ...props
+}: TiltCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const { isDark } = useTheme()
+  const defaultGlare = isDark ? "rgba(224, 192, 120, 0.22)" : "rgba(196, 154, 58, 0.16)"
+  const activeGlare = glareColor ?? defaultGlare
+
+  const x = useMotionValue(0.5)
+  const y = useMotionValue(0.5)
+
+  const mouseX = useSpring(x, { stiffness: 350, damping: 25 })
+  const mouseY = useSpring(y, { stiffness: 350, damping: 25 })
+
+  const rotateX = useTransform(mouseY, [0, 1], [maxTilt, -maxTilt])
+  const rotateY = useTransform(mouseX, [0, 1], [-maxTilt, maxTilt])
+
+  const glareX = useTransform(mouseX, [0, 1], ["0%", "100%"])
+  const glareY = useTransform(mouseY, [0, 1], ["0%", "100%"])
+
+  const [isHovered, setIsHovered] = useState(false)
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return
+    const rect = cardRef.current.getBoundingClientRect()
+    const xPos = (e.clientX - rect.left) / rect.width
+    const yPos = (e.clientY - rect.top) / rect.height
+    x.set(xPos)
+    y.set(yPos)
+  }
+
+  const handleMouseLeave = () => {
+    setIsHovered(false)
+    x.set(0.5)
+    y.set(0.5)
+  }
+
+  return (
+    <motion.div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        transformStyle: "preserve-3d",
+        rotateX,
+        rotateY,
+      }}
+      className={cn("relative transition-shadow duration-300", className)}
+      {...props}
+    >
+      {/* Specular glare overlay */}
+      {isHovered && (
+        <motion.div
+          className="pointer-events-none absolute -inset-px rounded-[inherit] z-20 mix-blend-screen opacity-70"
+          style={{
+            background: `radial-gradient(circle 320px at ${glareX} ${glareY}, ${activeGlare}, transparent 80%)`,
+          }}
+        />
+      )}
+      <div className="relative z-10 [transform:translateZ(8px)]">{children}</div>
+    </motion.div>
+  )
 }
 
 /**

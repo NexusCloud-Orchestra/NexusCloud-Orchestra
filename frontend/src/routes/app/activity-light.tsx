@@ -93,21 +93,21 @@ export function ActivityLight() {
 
       {/* KPI Stats Strip */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="nc-card p-4">
-          <p className="font-mono text-2xs uppercase tracking-wider text-muted-slate font-semibold">Total Logged</p>
-          <p className="mt-1 font-display text-2xl font-bold text-regal-navy tnum">{totalCount}</p>
+        <div className="rounded-xl border border-[#E8E0D1] bg-white p-3.5 shadow-2xs flex flex-col justify-between min-h-[82px]">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-[#68768A] font-bold">TOTAL LOGGED</p>
+          <p className="mt-1 font-palatino text-xl sm:text-2xl font-bold text-[#142B4A] tnum leading-tight">{totalCount}</p>
         </div>
-        <div className="nc-card p-4">
-          <p className="font-mono text-2xs uppercase tracking-wider text-muted-slate font-semibold">File Operations</p>
-          <p className="mt-1 font-display text-2xl font-bold text-regal-navy tnum">{fileEventsCount}</p>
+        <div className="rounded-xl border border-[#E8E0D1] bg-white p-3.5 shadow-2xs flex flex-col justify-between min-h-[82px]">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-[#68768A] font-bold">FILE OPERATIONS</p>
+          <p className="mt-1 font-palatino text-xl sm:text-2xl font-bold text-[#142B4A] tnum leading-tight">{fileEventsCount}</p>
         </div>
-        <div className="nc-card p-4">
-          <p className="font-mono text-2xs uppercase tracking-wider text-muted-slate font-semibold">Cloud Mesh Events</p>
-          <p className="mt-1 font-display text-2xl font-bold text-regal-navy tnum">{cloudEventsCount}</p>
+        <div className="rounded-xl border border-[#E8E0D1] bg-white p-3.5 shadow-2xs flex flex-col justify-between min-h-[82px]">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-[#68768A] font-bold">CLOUD MESH EVENTS</p>
+          <p className="mt-1 font-palatino text-xl sm:text-2xl font-bold text-[#142B4A] tnum leading-tight">{cloudEventsCount}</p>
         </div>
-        <div className="nc-card p-4">
-          <p className="font-mono text-2xs uppercase tracking-wider text-muted-slate font-semibold">Security &amp; Auth</p>
-          <p className="mt-1 font-display text-2xl font-bold text-regal-navy tnum">{securityEventsCount}</p>
+        <div className="rounded-xl border border-[#E8E0D1] bg-white p-3.5 shadow-2xs flex flex-col justify-between min-h-[82px]">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-[#68768A] font-bold">SECURITY &amp; AUTH</p>
+          <p className="mt-1 font-palatino text-xl sm:text-2xl font-bold text-[#142B4A] tnum leading-tight">{securityEventsCount}</p>
         </div>
       </div>
 

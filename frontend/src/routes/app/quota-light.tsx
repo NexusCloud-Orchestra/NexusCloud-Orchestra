@@ -65,76 +65,76 @@ export function QuotaLight() {
       ) : data ? (
         <>
           {/* Storage Pool KPI Metrics */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
             {/* Card 1: Measured Stored */}
-            <div className="rounded-2xl border border-[#E8E0D1] bg-white p-6 shadow-2xs flex flex-col justify-between min-h-[145px] hover:border-[#C49A3A]/60 hover:shadow-xs transition-all">
+            <div className="rounded-xl border border-[#E8E0D1] bg-white p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between min-h-[105px] hover:border-[#C49A3A]/60 hover:shadow-xs transition-all">
               <div className="flex items-center justify-between">
-                <span className="font-alora text-xs sm:text-sm font-bold uppercase tracking-wider text-[#68768A]">
-                  Measured Stored
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#68768A]">
+                  MEASURED STORED
                 </span>
-                <span className="h-3 w-3 rounded-full bg-[#142B4A] shadow-xs" title="Committed files" />
+                <span className="h-2 w-2 rounded-full bg-[#142B4A] shadow-xs" title="Committed files" />
               </div>
-              <div className="mt-2">
-                <p className="font-palatino text-3xl sm:text-4xl font-bold tracking-tight text-[#142B4A] tnum leading-tight">
+              <div className="mt-1.5">
+                <p className="font-palatino text-xl sm:text-[22px] font-bold tracking-tight text-[#142B4A] tnum leading-tight">
                   {formatBytes(used)}
                 </p>
-                <p className="mt-1 font-alora text-xs sm:text-sm text-[#68768A]">
+                <p className="mt-0.5 text-[11px] text-[#68768A] truncate">
                   Committed files in buckets
                 </p>
               </div>
             </div>
 
             {/* Card 2: In-Flight Reserved */}
-            <div className="rounded-2xl border border-[#E8E0D1] bg-white p-6 shadow-2xs flex flex-col justify-between min-h-[145px] hover:border-[#C49A3A]/60 hover:shadow-xs transition-all">
+            <div className="rounded-xl border border-[#E8E0D1] bg-white p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between min-h-[105px] hover:border-[#C49A3A]/60 hover:shadow-xs transition-all">
               <div className="flex items-center justify-between">
-                <span className="font-alora text-xs sm:text-sm font-bold uppercase tracking-wider text-[#68768A]">
-                  In-Flight Reserved
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#68768A]">
+                  IN-FLIGHT RESERVED
                 </span>
-                <span className="h-3 w-3 rounded-full bg-[#C49A3A] shadow-xs" title="Active upload tickets" />
+                <span className="h-2 w-2 rounded-full bg-[#C49A3A] shadow-xs" title="Active upload tickets" />
               </div>
-              <div className="mt-2">
-                <p className="font-palatino text-3xl sm:text-4xl font-bold tracking-tight text-[#C49A3A] tnum leading-tight">
+              <div className="mt-1.5">
+                <p className="font-palatino text-xl sm:text-[22px] font-bold tracking-tight text-[#C49A3A] tnum leading-tight">
                   {formatBytes(reserved)}
                 </p>
-                <p className="mt-1 font-alora text-xs sm:text-sm text-[#68768A]">
+                <p className="mt-0.5 text-[11px] text-[#68768A] truncate">
                   Active presigned upload tickets
                 </p>
               </div>
             </div>
 
             {/* Card 3: Available Headroom */}
-            <div className="rounded-2xl border border-[#E8E0D1] bg-white p-6 shadow-2xs flex flex-col justify-between min-h-[145px] hover:border-[#C49A3A]/60 hover:shadow-xs transition-all">
+            <div className="rounded-xl border border-[#E8E0D1] bg-white p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between min-h-[105px] hover:border-[#C49A3A]/60 hover:shadow-xs transition-all">
               <div className="flex items-center justify-between">
-                <span className="font-alora text-xs sm:text-sm font-bold uppercase tracking-wider text-[#68768A]">
-                  Available Headroom
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#68768A]">
+                  AVAILABLE HEADROOM
                 </span>
-                <span className="h-3 w-3 rounded-full bg-[#168568] shadow-xs" title="Free capacity" />
+                <span className="h-2 w-2 rounded-full bg-[#168568] shadow-xs" title="Free capacity" />
               </div>
-              <div className="mt-2">
-                <p className="font-palatino text-3xl sm:text-4xl font-bold tracking-tight text-[#168568] tnum leading-tight">
+              <div className="mt-1.5">
+                <p className="font-palatino text-xl sm:text-[22px] font-bold tracking-tight text-[#168568] tnum leading-tight">
                   {formatBytes(free)}
                 </p>
-                <p className="mt-1 font-alora text-xs sm:text-sm text-[#68768A]">
+                <p className="mt-0.5 text-[11px] text-[#68768A] truncate">
                   Unallocated across providers
                 </p>
               </div>
             </div>
 
             {/* Card 4: Total Pool Limit */}
-            <div className="rounded-2xl border border-[#E8E0D1] bg-white p-6 shadow-2xs flex flex-col justify-between min-h-[145px] hover:border-[#C49A3A]/60 hover:shadow-xs transition-all">
+            <div className="rounded-xl border border-[#E8E0D1] bg-white p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between min-h-[105px] hover:border-[#C49A3A]/60 hover:shadow-xs transition-all">
               <div className="flex items-center justify-between">
-                <span className="font-alora text-xs sm:text-sm font-bold uppercase tracking-wider text-[#68768A]">
-                  Total Pool Limit
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#68768A]">
+                  TOTAL POOL LIMIT
                 </span>
-                <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-[#FFF8E7] text-[#A77B26] border border-[#C49A3A]/30">
+                <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#FFF8E7] text-[#A77B26] border border-[#C49A3A]/30">
                   {formatPercent(usagePct)} used
                 </span>
               </div>
-              <div className="mt-2">
-                <p className="font-palatino text-3xl sm:text-4xl font-bold tracking-tight text-[#142B4A] tnum leading-tight">
+              <div className="mt-1.5">
+                <p className="font-palatino text-xl sm:text-[22px] font-bold tracking-tight text-[#142B4A] tnum leading-tight">
                   {formatBytes(limit)}
                 </p>
-                <p className="mt-1 font-alora text-xs sm:text-sm text-[#68768A]">
+                <p className="mt-0.5 text-[11px] text-[#68768A] truncate">
                   {data.plan ? `Plan: ${data.plan.toUpperCase()}` : "Active Pool"}
                   {data.plan_limit_bytes ? ` (Capped at ${formatBytes(data.plan_limit_bytes)})` : ""}
                 </p>
