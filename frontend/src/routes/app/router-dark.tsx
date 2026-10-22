@@ -1,9 +1,12 @@
 import { useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { AnimatePresence, motion, type Variants } from "framer-motion"
 import {
   ArrowRight,
+  Award,
   CheckCircle2,
   Cpu,
+  Loader2,
   Play,
   RotateCw,
   Server,
@@ -21,6 +24,15 @@ import { StatusBadge } from "../../components/ui/status"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/field"
 import { ProviderMark } from "../../components/ui/provider-mark"
+import {
+  SpotlightCard,
+  BorderBeam,
+  ShinyText,
+  TiltCard,
+  NumberTicker,
+  PulsingStatusDot,
+} from "../../components/ui/effects"
+import { cn } from "../../lib/utils"
 
 type SizeUnit = "B" | "KB" | "MB" | "GB"
 
@@ -39,6 +51,29 @@ const PRESET_SIZES = [
   { label: "1 GB", value: 1, unit: "GB" as SizeUnit, desc: "Dataset" },
   { label: "4.2 GB", value: 4.2, unit: "GB" as SizeUnit, desc: "Image" },
 ]
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.04,
+    },
+  },
+}
+
+const sectionVariants: Variants = {
+  hidden: { opacity: 0, y: 14 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.42,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
+}
 
 export function RouterDark() {
   const navigate = useNavigate()
@@ -76,180 +111,264 @@ export function RouterDark() {
   }
 
   return (
-    <div className="router-dark-page animate-fade-rise flex flex-col gap-4 sm:gap-4.5 pb-6 text-[#F5F0E6] bg-[#0B0A08]">
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="router-dark-page w-full flex flex-col gap-4.5 pb-8 text-[#F5F0E6] bg-[#0B0A08]"
+    >
       <PageHeader
         kicker="Placement Engine"
         title="Smart Router"
         description="Simulate real-time multi-cloud placement decisions based on server-side scoring across capacity, egress, permanence, and quota fit."
       />
 
-      {/* Simulator Request Workspace */}
-      <div className="rounded-xl border border-[#332A1B] bg-[#11100D] text-[#F5F0E6] shadow-md overflow-hidden">
-        <PanelHeader
-          title="Placement Simulation Parameters"
-          meta="Evaluates against real live connected bucket quotas"
-        />
-
-        <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            {/* Input with Unit selector */}
-            <div className="flex flex-col gap-1.5 flex-1 max-w-md">
-              <label htmlFor="sim-size-val" className="text-xs font-semibold uppercase tracking-wider text-[#887D6B] font-mono">
-                Simulated File Size
-              </label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Input
-                    id="sim-size-val"
-                    type="number"
-                    step="any"
-                    min="0.1"
-                    value={sizeValue}
-                    onChange={(e) => setSizeValue(e.target.value)}
-                    placeholder="10"
-                    className="font-mono text-base font-medium"
-                  />
-                </div>
-                <div className="w-28 shrink-0">
-                  <select
-                    value={sizeUnit}
-                    onChange={(e) => setSizeUnit(e.target.value as SizeUnit)}
-                    className="h-10 w-full rounded-lg border border-[#332A1B] bg-[#181610] px-3 text-sm font-semibold text-[#F5F0E6] focus:border-[#C6A052] focus:outline-none"
-                    aria-label="File size unit"
-                  >
-                    <option value="B">Bytes</option>
-                    <option value="KB">KB</option>
-                    <option value="MB">MB</option>
-                    <option value="GB">GB</option>
-                  </select>
-                </div>
-              </div>
-              <p className="font-mono text-2xs text-[#887D6B]">
-                Calculated payload:{" "}
-                <span className="font-medium text-[#F5F0E6]">
-                  {calculatedBytes ? `${calculatedBytes.toLocaleString()} bytes (${formatBytes(calculatedBytes)})` : "Invalid size"}
-                </span>
-              </p>
-            </div>
-
-            {/* Quick Presets */}
-            <div className="flex flex-col gap-1.5">
-              <span className="text-2xs font-semibold uppercase tracking-wider text-[#887D6B] font-mono">
-                Quick Size Presets
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {PRESET_SIZES.map((preset) => (
-                  <button
-                    key={preset.label}
-                    type="button"
-                    onClick={() => applyPreset(preset.value, preset.unit)}
-                    className={`rounded-lg border px-2.5 py-1.5 text-xs font-mono font-medium transition-colors ${
-                      Number.parseFloat(sizeValue) === preset.value && sizeUnit === preset.unit
-                        ? "border-[#C6A052] bg-[#211D15] text-[#F5F0E6] font-bold shadow-xs"
-                        : "border-[#332A1B] bg-[#181610] text-[#B8AE9B] hover:border-[#C6A052]/60 hover:bg-[#211D15]"
-                    }`}
-                  >
-                    {preset.label} <span className="text-[#887D6B] font-normal">({preset.desc})</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Submit Action */}
-              <Button
-                type="submit"
-                variant="gold"
-                size="lg"
-                disabled={!calculatedBytes || !hasConnections}
-                loading={preview.isLoading || preview.isFetching}
-                className="shadow-md font-bold px-6 h-11"
-              >
-                <Play size={14} className="mr-2 fill-current" aria-hidden />
-                Evaluate Placement
-              </Button>
-          </div>
-        </form>
-      </div>
-
-      {/* Prerequisite Check: No Connections */}
-      {!hasConnections && !connections.isLoading ? (
-        <div className="rounded-xl border border-amber-800/40 bg-[#11100D] text-[#F5F0E6] shadow-md overflow-hidden">
-          <div className="p-8 text-center flex flex-col items-center">
-            <div className="h-12 w-12 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center mb-3">
-              <Server size={22} />
-            </div>
-            <h3 className="font-bold text-[#F5F0E6] text-base">Prerequisite: Connect a Cloud Storage Provider</h3>
-            <p className="text-[#B8AE9B] text-sm max-w-lg mt-1.5 mb-5 leading-relaxed">
-              The Smart Router evaluates candidates dynamically by querying live free-tier balances and network egress coefficients across your connected clouds. Connect at least one cloud provider to run placement simulations.
-            </p>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => navigate("/app/clouds?connect=1")}
-            >
-              Connect Cloud Provider <ArrowRight size={13} className="ml-1" />
-            </Button>
-          </div>
+      {/* ── Orchestrator Telemetry Ribbon ── */}
+      <motion.div
+        variants={sectionVariants}
+        className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-[#332A1B] bg-[#12100C]/80 backdrop-blur-md text-xs font-mono shadow-xs"
+      >
+        <div className="flex items-center gap-2.5">
+          <PulsingStatusDot color="gold" size="sm" />
+          <span className="font-semibold text-[#F5F0E6] tracking-wide">
+            ORCHESTRATOR ENGINE ACTIVE
+          </span>
+          <span className="text-[#887D6B]">·</span>
+          <span className="text-[#B8AE9B] hidden sm:inline">
+            Deterministic Multi-Criteria Optimization (MCO-v2)
+          </span>
         </div>
-      ) : null}
+        <div className="flex items-center gap-3 text-2xs text-[#887D6B]">
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            Zero-Egress Priority
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+            Live Quota Telemetry
+          </span>
+        </div>
+      </motion.div>
 
-      {/* Decision Results */}
-      {submittedBytes !== null && hasConnections ? (
-        preview.isLoading || preview.isFetching ? (
-          <div className="rounded-xl border border-[#332A1B] bg-[#11100D] text-[#F5F0E6] shadow-md overflow-hidden">
-            <div className="p-6">
-              <ListSkeleton rows={3} />
-              <p className="mt-4 text-center font-mono text-xs text-[#887D6B] animate-pulse">
-                Running server-side multi-factor scoring against active cloud endpoints…
-              </p>
-            </div>
-          </div>
-        ) : preview.isError ? (
-          <div className="rounded-xl border border-[#332A1B] bg-[#11100D] text-[#F5F0E6] shadow-md overflow-hidden">
-            <ErrorState error={preview.error} onRetry={() => void preview.refetch()} />
-          </div>
-        ) : preview.data ? (
-          <RouteDecision preview={preview.data} onReplay={() => setSubmittedBytes(calculatedBytes)} />
-        ) : null
-      ) : null}
+      {/* ── 1. Simulator Request Workspace with Interactive Spotlight ── */}
+      <motion.div variants={sectionVariants}>
+        <SpotlightCard className="rounded-2xl border border-[#332A1B] bg-[#11100D] text-[#F5F0E6] shadow-md overflow-hidden">
+          <PanelHeader
+            title="Placement Simulation Parameters"
+            meta="Evaluates against real live connected bucket quotas"
+          />
 
-      {/* Policy Engine Blueprint */}
-      <div className="rounded-xl border border-[#332A1B] bg-[#11100D] text-[#F5F0E6] shadow-md overflow-hidden">
-        <PanelHeader
-          title="Placement Scoring Methodology"
-          meta="Server-side algorithm · Fixed mathematical weights"
-        />
-        <div className="p-5">
-          <p className="text-xs text-[#887D6B] leading-relaxed mb-4">
-            When an upload request arrives, the NexusCloud Smart Router calculates an overall fitness score <span className="font-mono text-[#F5F0E6] font-semibold">S ∈ [0, 1]</span> for every connected cloud using the deterministic weighted formula below. The highest scoring cloud receives the presigned upload URL.
-          </p>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {ROUTE_WEIGHTS.map((weight) => (
-              <div key={weight.key} className="nc-card p-3.5 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-baseline justify-between mb-1">
-                    <span className="font-mono text-xl font-bold text-[#F5F0E6]">
-                      {(weight.weight * 100).toFixed(0)}%
-                    </span>
-                    <span className="font-mono text-2xs uppercase tracking-wider text-[#C6A052] font-semibold">
-                      Weight {(weight.weight).toFixed(2)}
-                    </span>
+          <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              {/* Input with Unit selector */}
+              <div className="flex flex-col gap-1.5 flex-1 max-w-md">
+                <label htmlFor="sim-size-val" className="text-xs font-semibold uppercase tracking-wider text-[#887D6B] font-mono">
+                  Simulated File Size
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      id="sim-size-val"
+                      type="number"
+                      step="any"
+                      min="0.1"
+                      value={sizeValue}
+                      onChange={(e) => setSizeValue(e.target.value)}
+                      placeholder="10"
+                      className="font-mono text-base font-medium"
+                    />
                   </div>
-                  <p className="text-xs font-semibold text-[#F5F0E6]">{weight.label}</p>
+                  <div className="w-28 shrink-0">
+                    <select
+                      value={sizeUnit}
+                      onChange={(e) => setSizeUnit(e.target.value as SizeUnit)}
+                      className="h-10 w-full rounded-lg border border-[#332A1B] bg-[#181610] px-3 text-sm font-semibold text-[#F5F0E6] focus:border-[#C6A052] focus:outline-none transition-colors"
+                      aria-label="File size unit"
+                    >
+                      <option value="B">Bytes</option>
+                      <option value="KB">KB</option>
+                      <option value="MB">MB</option>
+                      <option value="GB">GB</option>
+                    </select>
+                  </div>
                 </div>
-                <p className="mt-2 text-2xs text-[#887D6B] leading-normal">
-                  {weight.key === "capacity" && "Scores relative free capacity against the emptiest available connected cloud."}
-                  {weight.key === "egress" && "Reward zero-egress providers (e.g. Cloudflare R2) and penalize heavy egress rates."}
-                  {weight.key === "permanence" && "Prioritizes permanent always-free tiers over 12-month promotional trials."}
-                  {weight.key === "fit" && "Calculates optimal storage density to minimize quota fragmentation."}
+                <p className="font-mono text-2xs text-[#887D6B]">
+                  Calculated payload:{" "}
+                  <span className="font-medium text-[#F5F0E6]">
+                    {calculatedBytes ? `${calculatedBytes.toLocaleString()} bytes (${formatBytes(calculatedBytes)})` : "Invalid size"}
+                  </span>
                 </p>
               </div>
-            ))}
+
+              {/* Quick Presets with Sliding Spring Indicator Animation */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-2xs font-semibold uppercase tracking-wider text-[#887D6B] font-mono">
+                  Quick Size Presets
+                </span>
+                <div className="flex flex-wrap gap-1.5 p-1 rounded-xl bg-[#0E0C09] border border-[#2D2517]">
+                  {PRESET_SIZES.map((preset) => {
+                    const isPresetActive = Number.parseFloat(sizeValue) === preset.value && sizeUnit === preset.unit
+                    return (
+                      <motion.button
+                        key={preset.label}
+                        type="button"
+                        whileHover={{ scale: 1.04 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => applyPreset(preset.value, preset.unit)}
+                        className={cn(
+                          "relative rounded-lg px-3 py-1.5 text-xs font-mono font-medium transition-colors select-none cursor-pointer",
+                          isPresetActive ? "text-[#0B0A08] font-bold" : "text-[#B8AE9B] hover:text-[#F5F0E6]"
+                        )}
+                      >
+                        {isPresetActive && (
+                          <motion.div
+                            layoutId="activeRouterPresetDark"
+                            className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#C6A052] to-[#E0C078] shadow-xs"
+                            transition={{ type: "spring", stiffness: 450, damping: 28 }}
+                          />
+                        )}
+                        <span className="relative z-1 flex items-center gap-1">
+                          <span>{preset.label}</span>
+                          <span className={isPresetActive ? "text-[#2B200D] opacity-80" : "text-[#887D6B]"}>({preset.desc})</span>
+                        </span>
+                      </motion.button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Submit Action with Spring Micro-interaction & Halo */}
+              <motion.div
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                className="relative group"
+              >
+                <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-[#C6A052] to-[#E0C078] opacity-0 blur-sm group-hover:opacity-40 transition-opacity duration-300 pointer-events-none" />
+                <Button
+                  type="submit"
+                  variant="gold"
+                  size="lg"
+                  disabled={!calculatedBytes || !hasConnections}
+                  className="relative shadow-md font-bold px-6 h-11 min-w-[195px] shrink-0"
+                >
+                  {preview.isFetching ? (
+                    <Loader2 size={14} className="mr-2 animate-spin text-[#0B0A08]" aria-hidden />
+                  ) : (
+                    <Play size={14} className="mr-2 fill-current" aria-hidden />
+                  )}
+                  <span>Evaluate Placement</span>
+                </Button>
+              </motion.div>
+            </div>
+          </form>
+        </SpotlightCard>
+      </motion.div>
+
+      {/* ── Prerequisite Check: No Connections ── */}
+      {!hasConnections && !connections.isLoading ? (
+        <motion.div variants={sectionVariants}>
+          <div className="rounded-2xl border border-[#332A1B] bg-gradient-to-b from-[#14120D] via-[#1A1712]/50 to-[#14120D] text-[#F5F0E6] shadow-md overflow-hidden">
+            <div className="p-8 sm:p-12 lg:p-14 text-center flex flex-col items-center justify-center">
+              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#292218] to-[#1F1912] border border-[#C6A052]/40 text-[#C6A052] flex items-center justify-center mb-4.5 shadow-sm">
+                <Server size={30} strokeWidth={2} />
+              </div>
+              <h3 className="font-cinzel text-xl sm:text-2xl lg:text-[26px] font-bold text-[#F5F0E6] tracking-tight leading-snug">
+                Prerequisite: Connect a Cloud Storage Provider
+              </h3>
+              <p className="font-alora text-base sm:text-[17px] text-[#A89D8B] max-w-3xl mt-3 mb-7 leading-relaxed">
+                The Smart Router evaluates candidates dynamically by querying live free-tier balances and network egress coefficients across your connected clouds. Connect at least one cloud provider to run placement simulations.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/app/clouds?connect=1")}
+                className="inline-flex items-center gap-2.5 rounded-xl bg-[#C6A052] hover:bg-[#DDA049] text-[#0B0A08] px-7 h-12 text-sm sm:text-base font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer"
+              >
+                <span>Connect Cloud Provider</span>
+                <ArrowRight size={16} strokeWidth={2.2} />
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      ) : null}
+
+      {/* ── 2. Decision Results with Smooth Seamless Updates ── */}
+      {submittedBytes !== null && hasConnections ? (
+        <motion.div variants={sectionVariants}>
+          {preview.isLoading && !preview.data ? (
+            <div className="rounded-2xl border border-[#332A1B] bg-[#11100D] text-[#F5F0E6] shadow-md overflow-hidden">
+              <div className="p-6">
+                <ListSkeleton rows={3} />
+                <p className="mt-4 text-center font-mono text-xs text-[#887D6B] animate-pulse">
+                  Running server-side multi-factor scoring against active cloud endpoints…
+                </p>
+              </div>
+            </div>
+          ) : preview.isError && !preview.data ? (
+            <div className="rounded-2xl border border-[#332A1B] bg-[#11100D] text-[#F5F0E6] shadow-md overflow-hidden">
+              <ErrorState error={preview.error} onRetry={() => void preview.refetch()} />
+            </div>
+          ) : preview.data ? (
+            <div className={cn("transition-opacity duration-200", preview.isFetching && "opacity-80")}>
+              <RouteDecision preview={preview.data} onReplay={() => setSubmittedBytes(calculatedBytes)} />
+            </div>
+          ) : null}
+        </motion.div>
+      ) : null}
+
+      {/* ── 3. Policy Engine Blueprint with Interactive Weights ── */}
+      <motion.div variants={sectionVariants}>
+        <div className="rounded-2xl border border-[#332A1B] bg-[#11100D] text-[#F5F0E6] shadow-md overflow-hidden">
+          <PanelHeader
+            title="Placement Scoring Methodology"
+            meta="Server-side algorithm · Fixed mathematical weights"
+          />
+          <div className="p-5">
+            <p className="text-xs text-[#887D6B] leading-relaxed mb-4">
+              When an upload request arrives, the NexusCloud Smart Router calculates an overall fitness score <span className="font-mono text-[#F5F0E6] font-semibold">S ∈ [0, 1]</span> for every connected cloud using the deterministic weighted formula below. The highest scoring cloud receives the presigned upload URL.
+            </p>
+
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+              {ROUTE_WEIGHTS.map((weight) => (
+                <motion.div
+                  key={weight.key}
+                  whileHover={{ scale: 1.03, y: -3 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  className="group relative overflow-hidden rounded-xl border border-[#332A1B] bg-gradient-to-b from-[#181611] to-[#12100C] p-3.5 sm:p-4 flex flex-col justify-between shadow-2xs hover:border-[#C6A052] hover:shadow-lg transition-all duration-300"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-[#C6A052]/10 to-transparent rounded-bl-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div>
+                    <div className="flex items-baseline justify-between mb-1.5">
+                      <ShinyText className="font-mono text-2xl font-bold tracking-tight">
+                        {(weight.weight * 100).toFixed(0)}%
+                      </ShinyText>
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-[#C6A052] font-bold bg-[#211D15] px-2 py-0.5 rounded-md border border-[#C6A052]/30 shadow-2xs">
+                        Weight {(weight.weight).toFixed(2)}
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm font-bold text-[#F5F0E6]">{weight.label}</p>
+                  </div>
+
+                  {/* Visual Weight Progress Meter */}
+                  <div className="my-2.5 h-1.5 w-full bg-[#241F16] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#C6A052] to-[#E0C078] rounded-full transition-all duration-700"
+                      style={{ width: `${weight.weight * 100}%` }}
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-[#887D6B] leading-relaxed">
+                    {weight.key === "capacity" && "Scores relative free capacity against the emptiest available connected cloud."}
+                    {weight.key === "egress" && "Rewards zero-egress providers (e.g. Cloudflare R2) and penalizes heavy egress rates."}
+                    {weight.key === "permanence" && "Prioritizes permanent always-free tiers over 12-month promotional trials."}
+                    {weight.key === "fit" && "Calculates optimal storage density to minimize quota fragmentation."}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }
 
@@ -260,184 +379,264 @@ function RouteDecision({
   preview: NonNullable<ReturnType<typeof useRoutePreview>["data"]>
   onReplay: () => void
 }) {
+  const [isReplaying, setIsReplaying] = useState(false)
   const selected = preview.candidates.find(
     (candidate) => candidate.connection_id === preview.selected_connection_id,
   )
 
+  const handleReplayClick = () => {
+    setIsReplaying(true)
+    onReplay()
+    setTimeout(() => setIsReplaying(false), 500)
+  }
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       {/* Blocked Alert if applicable */}
       {preview.blocked_reason ? (
-        <div className="rounded-xl border border-danger/30 bg-danger/10 p-5 flex items-start gap-3">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="rounded-2xl border border-danger/30 bg-danger/10 p-5 flex items-start gap-3 shadow-md"
+        >
           <ShieldAlert size={20} className="text-danger shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-bold text-danger">Upload Blocked</p>
             <p className="text-xs text-[#B8AE9B] mt-0.5">{preview.message ?? "File exceeds available storage limits across all connected clouds."}</p>
             <p className="font-mono text-2xs text-[#887D6B] mt-1 uppercase">Reason code: {preview.blocked_reason}</p>
           </div>
-        </div>
+        </motion.div>
       ) : null}
 
-      {/* Recommended Placement Hero Card */}
+      {/* ── Recommended Placement Hero Card with 3D Tilt & Living BorderBeam ── */}
       {selected ? (
-        <div className="nc-card bg-deep-navy text-white p-6 shadow-lg border-[#C6A052]/40 relative overflow-hidden">
-          <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 opacity-10 pointer-events-none">
-            <Cpu size={180} />
-          </div>
+        <TiltCard maxTilt={5} className="rounded-2xl shadow-xl">
+          <div className="relative overflow-hidden rounded-2xl border border-[#C6A052]/60 bg-gradient-to-br from-[#1E2430] via-[#12161F] to-[#0D1017] text-white p-6.5 shadow-2xl">
+            <BorderBeam size={180} duration={7} colorFrom="#F5D78E" colorTo="transparent" />
 
-          <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-col gap-2">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-royal-gold/20 border border-[#C6A052]/40 px-3 py-1 text-2xs font-bold uppercase tracking-wider text-[#C6A052] w-fit">
-                <Sparkles size={11} /> Recommended Cloud Placement
-              </div>
+            {/* Ethereal background radial light */}
+            <div
+              className="absolute -top-20 -right-20 w-96 h-96 pointer-events-none rounded-full blur-3xl opacity-30 animate-pulse-soft"
+              style={{ background: "radial-gradient(circle, rgba(198,160,82,0.6) 0%, transparent 70%)" }}
+            />
 
-              <div className="flex items-center gap-3 mt-1">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#11100D]/10 backdrop-blur-sm border border-white/20">
-                  <ProviderMark provider={selected.provider} size={22} />
-                </div>
-                <div>
-                  <h3 className="font-display text-2xl font-bold tracking-tight text-white">
-                    {selected.display_name}
-                  </h3>
-                  <p className="font-mono text-2xs text-corn-silk/80 uppercase tracking-wider">
-                    {formatBytes(selected.free_bytes)} free capacity · {selected.provider}
-                  </p>
-                </div>
-              </div>
+            <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 opacity-10 pointer-events-none">
+              <Cpu size={210} />
             </div>
 
-            {/* Score & Component Summary */}
-            <div className="flex flex-col lg:items-end gap-2 bg-[#11100D]/5 border border-white/10 rounded-xl p-4">
-              <div className="flex items-baseline gap-2">
-                <span className="font-mono text-2xs uppercase tracking-wider text-corn-silk/80">Winning Score:</span>
-                <span className="font-mono text-2xl font-bold text-[#C6A052]">
-                  {selected.score ? selected.score.toFixed(3) : "—"}
-                </span>
-                <span className="font-mono text-2xs text-white/50">/ 1.000</span>
+            <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-col gap-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C6A052]/20 border border-[#C6A052]/50 px-2.5 py-0.5 font-mono text-2xs font-bold uppercase tracking-wider text-[#F5D78E] shadow-xs">
+                    <Sparkles size={11} className="text-[#F5D78E] animate-spin-slow" />
+                    Recommended Placement · Winner
+                  </span>
+                  <span className="font-mono text-2xs text-[#887D6B] hidden sm:inline">
+                    Deterministic Score Rank #1
+                  </span>
+                </div>
+
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={selected.connection_id}
+                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    className="flex items-center gap-4 mt-1"
+                  >
+                    <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-md">
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-[#C6A052]/20 to-transparent pointer-events-none" />
+                      <ProviderMark provider={selected.provider} size={30} />
+                    </div>
+                    <div>
+                      <h3 className="font-palatino text-2xl lg:text-3xl font-bold tracking-tight text-white drop-shadow-xs">
+                        {selected.display_name}
+                      </h3>
+                      <p className="font-mono text-2xs text-[#E0D8C8] uppercase tracking-wider mt-0.5 flex items-center gap-2">
+                        <span>{formatBytes(selected.free_bytes)} free capacity</span>
+                        <span>·</span>
+                        <span className="text-[#C6A052] font-semibold">{selected.provider}</span>
+                      </p>
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
               </div>
 
-              {selected.components ? (
-                <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-2xs text-corn-silk/70">
-                  <span>Cap: <strong className="text-white">+{selected.components.capacity?.toFixed(3) ?? "0"}</strong></span>
-                  <span>Egress: <strong className="text-white">+{selected.components.egress?.toFixed(3) ?? "0"}</strong></span>
-                  <span>Perm: <strong className="text-white">+{selected.components.permanence?.toFixed(3) ?? "0"}</strong></span>
-                  <span>Fit: <strong className="text-white">+{selected.components.fit?.toFixed(3) ?? "0"}</strong></span>
+              {/* Score & Component Summary with Spring Number Ticker */}
+              <div className="flex flex-col lg:items-end gap-2.5 bg-black/30 border border-white/10 rounded-2xl p-4.5 backdrop-blur-md shadow-inner">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono text-2xs uppercase tracking-wider text-[#E0D8C8]/80">Winning Score:</span>
+                  <span className="font-mono text-3xl font-bold text-[#F5D78E] drop-shadow-sm flex items-center">
+                    <NumberTicker value={selected.score ?? 0} decimals={3} />
+                  </span>
+                  <span className="font-mono text-2xs text-white/50">/ 1.000</span>
                 </div>
-              ) : null}
+
+                {selected.components ? (
+                  <div className="flex flex-wrap gap-2 font-mono text-2xs text-[#E0D8C8]/90">
+                    <span className="inline-flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10 hover:border-emerald-500/50 transition-colors">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      Cap: <strong className="text-white">+{selected.components.capacity?.toFixed(3) ?? "0"}</strong>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10 hover:border-[#C6A052]/50 transition-colors">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#C6A052]" />
+                      Egress: <strong className="text-white">+{selected.components.egress?.toFixed(3) ?? "0"}</strong>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10 hover:border-sky-500/50 transition-colors">
+                      <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                      Perm: <strong className="text-white">+{selected.components.permanence?.toFixed(3) ?? "0"}</strong>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10 hover:border-purple-500/50 transition-colors">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                      Fit: <strong className="text-white">+{selected.components.fit?.toFixed(3) ?? "0"}</strong>
+                    </span>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
+        </TiltCard>
       ) : null}
 
-      {/* Candidate Evaluation Table */}
-      <div className="rounded-xl border border-[#332A1B] bg-[#11100D] text-[#F5F0E6] shadow-md overflow-hidden">
+      {/* ── Candidate Evaluation Table with Gliding Progress Meters & Energy Gauges ── */}
+      <div className="rounded-2xl border border-[#332A1B] bg-[#11100D] shadow-md overflow-hidden">
         <PanelHeader
           title="Candidate Evaluation Breakdown"
           meta={`${formatBytes(preview.size_bytes)} payload · ${preview.candidates.length} cloud${preview.candidates.length === 1 ? "" : "s"} evaluated`}
           actions={
-            <Button variant="ghost" size="sm" onClick={onReplay}>
-              <RotateCw size={11} className="mr-1" aria-hidden />
-              Re-evaluate
-            </Button>
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleReplayClick}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#332A1B] hover:border-[#C6A052] bg-[#181610] hover:bg-[#211D15] text-xs font-mono font-semibold text-[#C6A052] transition-colors cursor-pointer shadow-2xs"
+            >
+              <RotateCw size={12} className={cn("transition-transform duration-500", isReplaying && "rotate-180")} aria-hidden />
+              <span>Re-evaluate</span>
+            </motion.button>
           }
         />
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-[#332A1B] bg-ivory/60 font-mono text-2xs uppercase tracking-wider text-[#887D6B]">
+            <thead className="border-b border-[#332A1B] bg-[#181610] font-mono text-2xs uppercase tracking-wider text-[#887D6B]">
               <tr>
-                <th className="py-2.5 pl-5 pr-3">Rank</th>
-                <th className="py-2.5 px-3">Candidate Cloud</th>
-                <th className="py-2.5 px-3">Free Capacity</th>
-                <th className="py-2.5 px-3">Composite Score</th>
-                <th className="py-2.5 px-3 text-right pr-5">Outcome</th>
+                <th className="py-3 pl-5 pr-3">Rank</th>
+                <th className="py-3 px-3">Candidate Cloud</th>
+                <th className="py-3 px-3">Free Capacity</th>
+                <th className="py-3 px-3">Composite Score Gauge</th>
+                <th className="py-3 px-3 text-right pr-5">Outcome</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border font-sans">
+            <tbody className="divide-y divide-[#2D2517] font-sans">
               {preview.candidates.map((candidate, index) => {
                 const isSelected = candidate.connection_id === preview.selected_connection_id
                 const score = candidate.score ?? 0
 
                 return (
-                  <tr
+                  <motion.tr
                     key={candidate.connection_id}
-                    className={`transition-colors ${
-                      isSelected ? "bg-[#211D15]/50 font-medium" : "hover:bg-[#211D15]"
-                    }`}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.28, delay: index * 0.04 }}
+                    className={cn(
+                      "transition-all duration-200",
+                      isSelected
+                        ? "bg-[#211D15]/90 font-medium border-l-4 border-[#C6A052] shadow-xs"
+                        : "hover:bg-[#181610]/70"
+                    )}
                   >
-                    <td className="py-3.5 pl-5 pr-3 font-mono text-xs text-[#887D6B]">
-                      {String(index + 1).padStart(2, "0")}
+                    <td className="py-4 pl-5 pr-3 font-mono text-xs">
+                      {isSelected ? (
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-gradient-to-br from-[#C6A052] to-[#A77B26] text-[#0B0A08] font-bold text-2xs shadow-xs">
+                          #1
+                        </span>
+                      ) : (
+                        <span className="text-[#887D6B] font-medium pl-1">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                      )}
                     </td>
 
-                    <td className="py-3.5 px-3">
-                      <div className="flex items-center gap-2.5">
-                        <ProviderMark provider={candidate.provider} size={16} />
+                    <td className="py-4 px-3">
+                      <div className="flex items-center gap-3">
+                        <div className="p-1 rounded-lg bg-[#181610] border border-[#2D2517]">
+                          <ProviderMark provider={candidate.provider} size={20} />
+                        </div>
                         <div>
-                          <p className="font-semibold text-[#F5F0E6]">{candidate.display_name}</p>
+                          <p className="font-semibold text-[#F5F0E6] flex items-center gap-1.5">
+                            {candidate.display_name}
+                            {isSelected && (
+                              <Award size={13} className="text-[#C6A052]" />
+                            )}
+                          </p>
                           <p className="font-mono text-2xs text-[#887D6B] uppercase">{candidate.provider} storage</p>
                         </div>
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-3 font-mono text-xs text-[#B8AE9B]">
+                    <td className="py-4 px-3 font-mono text-xs text-[#B8AE9B]">
                       {formatBytes(candidate.free_bytes)}
                     </td>
 
-                    <td className="py-3.5 px-3">
-                      <div className="flex flex-col gap-1 max-w-xs">
+                    <td className="py-4 px-3">
+                      <div className="flex flex-col gap-1.5 max-w-sm">
                         <div className="flex items-center gap-3">
-                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-line flex">
+                          <div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-[#252018] flex shadow-inner">
                             {candidate.components ? (
                               <>
                                 <div
-                                  className="h-full bg-emerald-500"
+                                  className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-600 ease-out"
                                   style={{ width: `${Math.min(100, (candidate.components.capacity ?? 0) * 100)}%` }}
                                   title={`Capacity: +${candidate.components.capacity?.toFixed(3)}`}
                                 />
                                 <div
-                                  className="h-full bg-royal-gold"
+                                  className="h-full bg-gradient-to-r from-[#C6A052] to-[#E0C078] transition-all duration-600 ease-out"
                                   style={{ width: `${Math.min(100, (candidate.components.egress ?? 0) * 100)}%` }}
                                   title={`Egress: +${candidate.components.egress?.toFixed(3)}`}
                                 />
                                 <div
-                                  className="h-full bg-blue-500"
+                                  className="h-full bg-gradient-to-r from-sky-500 to-sky-400 transition-all duration-600 ease-out"
                                   style={{ width: `${Math.min(100, (candidate.components.permanence ?? 0) * 100)}%` }}
                                   title={`Permanence: +${candidate.components.permanence?.toFixed(3)}`}
                                 />
                                 <div
-                                  className="h-full bg-purple-500"
+                                  className="h-full bg-gradient-to-r from-purple-500 to-purple-400 transition-all duration-600 ease-out"
                                   style={{ width: `${Math.min(100, (candidate.components.fit ?? 0) * 100)}%` }}
                                   title={`Fit: +${candidate.components.fit?.toFixed(3)}`}
                                 />
                               </>
                             ) : (
                               <div
-                                className={`h-full rounded-full transition-all ${
-                                  isSelected ? "bg-royal-gold" : "bg-muted-slate/40"
+                                className={`h-full rounded-full transition-all duration-600 ease-out ${
+                                  isSelected ? "bg-gradient-to-r from-[#C6A052] to-[#E0C078]" : "bg-[#887D6B]/40"
                                 }`}
                                 style={{ width: `${Math.max(4, score * 100)}%` }}
                               />
                             )}
+                            {/* High-tech sheen highlight line */}
+                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_2.5s_infinite]" />
                           </div>
-                          <span className="font-mono text-xs text-[#F5F0E6] font-bold w-12 text-right">
-                            {score.toFixed(3)}
+                          <span className="font-mono text-xs text-[#F5F0E6] font-bold w-14 text-right transition-colors duration-200">
+                            <NumberTicker value={score} decimals={3} />
                           </span>
                         </div>
                         {candidate.components ? (
-                          <div className="flex items-center gap-2 font-mono text-[9px] text-[#887D6B]">
-                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Cap</span>
-                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-royal-gold" />Egress</span>
-                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500" />Perm</span>
-                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-purple-500" />Fit</span>
+                          <div className="flex items-center gap-2.5 font-mono text-[9px] text-[#887D6B]">
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />Cap</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#C6A052]" />Egress</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-sky-400" />Perm</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-purple-400" />Fit</span>
                           </div>
                         ) : null}
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-3 pr-5 text-right">
+                    <td className="py-4 px-3 pr-5 text-right">
                       {isSelected ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-royal-gold/15 px-2.5 py-1 font-mono text-2xs font-bold text-[#C6A052] border border-[#C6A052]/30">
-                          <CheckCircle2 size={11} /> Selected
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#C6A052]/20 px-3 py-1 font-mono text-2xs font-bold text-[#F5D78E] border border-[#C6A052]/40 shadow-xs">
+                          <CheckCircle2 size={12} className="text-[#C6A052]" /> Selected
                         </span>
                       ) : candidate.eligible ? (
                         <StatusBadge tone="neutral">Eligible</StatusBadge>
@@ -445,7 +644,7 @@ function RouteDecision({
                         <StatusBadge tone="warn">Ineligible</StatusBadge>
                       )}
                     </td>
-                  </tr>
+                  </motion.tr>
                 )
               })}
             </tbody>

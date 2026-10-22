@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, keepPreviousData } from "@tanstack/react-query"
 import { useAuth } from "../state/auth"
 import { queryKeys } from "../state/query"
 import * as connectionsApi from "../api/connections"
@@ -51,5 +51,7 @@ export function useRoutePreview(sizeBytes: number | null) {
     queryKey: queryKeys.routePreview(sizeBytes ?? 0),
     queryFn: () => filesApi.routePreview(sizeBytes as number),
     enabled: status === "authenticated" && sizeBytes !== null && sizeBytes > 0,
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
   })
 }

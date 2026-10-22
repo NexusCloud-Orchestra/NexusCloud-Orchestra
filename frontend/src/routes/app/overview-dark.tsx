@@ -118,10 +118,6 @@ export function OverviewDark() {
           {/* Left: Hero Copy and Actions */}
           <div className="flex flex-col justify-between lg:col-span-5 space-y-4">
             <div>
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-[#C6A052]/40 bg-[#211D15] px-3 py-1 text-[10px] font-mono font-bold tracking-wider uppercase text-[#C6A052] mb-3 shadow-xs">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#C6A052] animate-pulse" />
-                NexusCloud Command Hub
-              </div>
               <h1 className="font-palatino text-2xl sm:text-3xl lg:text-[27px] font-bold tracking-tight text-[#F5F0E6] leading-tight mb-2.5">
                 Your Cloud Workspace, <ShinyText>Orchestrated.</ShinyText>
               </h1>
@@ -249,17 +245,17 @@ export function OverviewDark() {
       {/* ── 2. FOUR DARK KPI CARDS ── */}
       <motion.section variants={sectionVariants} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {/* KPI 1: TOTAL STORED DATA */}
-        <SpotlightCard className="flex flex-col justify-between rounded-xl border border-[#332A1B] bg-[#11100D] p-3.5 shadow-sm hover:border-[#C6A052]/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-h-[126px]">
+        <SpotlightCard className="flex flex-col justify-between rounded-xl border border-[#332A1B] bg-[#11100D] p-3.5 shadow-sm hover:border-[#C6A052]/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-h-[105px]">
           <div className="flex items-center justify-between">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#211D15] border border-[#332A1B] text-[#C6A052]">
               <HardDrive size={13} />
             </div>
-            <span className="flex items-center gap-0.5 rounded-full border border-[#2EC496]/40 bg-[#2EC496]/15 px-2 py-0.5 text-[10px] font-bold text-[#2EC496] font-alora">
+            <span className="flex items-center gap-0.5 rounded-full border border-[#2EC496]/40 bg-[#2EC496]/15 px-2 py-0.5 text-[10px] font-bold text-[#2EC496]">
               ↑ 12%
             </span>
           </div>
 
-          <div className="flex items-end justify-between mt-2.5 gap-2">
+          <div className="flex items-end justify-between mt-2 gap-2">
             <div className="min-w-0">
               <p className="font-mono text-[10px] font-bold tracking-wider uppercase text-[#887D6B]">
                 TOTAL STORED DATA
@@ -267,12 +263,12 @@ export function OverviewDark() {
               <p className="font-palatino font-bold text-xl sm:text-[22px] text-[#F5F0E6] tracking-tight mt-0.5">
                 {totalStoredFormatted}
               </p>
-              <p className="font-alora text-[11px] text-[#887D6B] mt-0.5 truncate">Across connected clouds</p>
+              <p className="text-[11px] text-[#887D6B] mt-0.5 truncate">Across connected clouds</p>
             </div>
 
             {/* Donut Gauge with Obsidian Track */}
             <div className="flex flex-col items-center shrink-0">
-              <div className="relative h-10 w-10">
+              <div className="relative h-9 w-9">
                 <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90">
                   <path
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
@@ -289,7 +285,7 @@ export function OverviewDark() {
                     strokeLinecap="round"
                   />
                 </svg>
-                <div className="absolute inset-0 flex items-center justify-center font-palatino font-bold text-[10px] text-[#F5F0E6]">
+                <div className="absolute inset-0 flex items-center justify-center font-palatino font-bold text-[9.5px] text-[#F5F0E6]">
                   68%
                 </div>
               </div>
@@ -298,17 +294,17 @@ export function OverviewDark() {
         </SpotlightCard>
 
         {/* KPI 2: USABLE CAPACITY */}
-        <SpotlightCard className="flex flex-col justify-between rounded-xl border border-[#332A1B] bg-[#11100D] p-3.5 shadow-sm hover:border-[#C6A052]/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-h-[126px]">
+        <SpotlightCard className="flex flex-col justify-between rounded-xl border border-[#332A1B] bg-[#11100D] p-3.5 shadow-sm hover:border-[#C6A052]/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-h-[105px]">
           <div className="flex items-center justify-between">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#211D15] border border-[#332A1B] text-[#C6A052]">
               <Layers size={13} />
             </div>
-            <span className="font-alora text-[10px] font-semibold text-[#C6A052] bg-[#C6A052]/15 border border-[#C6A052]/35 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-semibold text-[#C6A052] bg-[#C6A052]/15 border border-[#C6A052]/35 px-2 py-0.5 rounded-full">
               Free Tier Pool
             </span>
           </div>
 
-          <div className="flex items-end justify-between mt-2.5 gap-2">
+          <div className="flex items-end justify-between mt-2 gap-2">
             <div className="min-w-0">
               <p className="font-mono text-[10px] font-bold tracking-wider uppercase text-[#887D6B]">
                 USABLE CAPACITY
@@ -316,21 +312,21 @@ export function OverviewDark() {
               <p className="font-palatino font-bold text-xl sm:text-[22px] text-[#F5F0E6] tracking-tight mt-0.5">
                 {usableCapacityFormatted}
               </p>
-              <p className="font-alora text-[11px] text-[#887D6B] mt-0.5 truncate">Zero-egress pool</p>
+              <p className="text-[11px] text-[#887D6B] mt-0.5 truncate">Zero-egress pool</p>
             </div>
 
-            <div className="flex items-end gap-1 h-8 shrink-0 pb-0.5">
-              <span className="w-1.5 rounded-t-xs bg-[#C6A052]/30 h-[8px]" />
-              <span className="w-1.5 rounded-t-xs bg-[#C6A052]/50 h-[14px]" />
-              <span className="w-1.5 rounded-t-xs bg-[#C6A052]/70 h-[20px]" />
-              <span className="w-1.5 rounded-t-xs bg-[#C6A052] h-[26px]" />
-              <span className="w-1.5 rounded-t-xs bg-[#E0C078] h-[32px]" />
+            <div className="flex items-end gap-1 h-7 shrink-0 pb-0.5">
+              <span className="w-1.5 rounded-t-xs bg-[#C6A052]/30 h-[6px]" />
+              <span className="w-1.5 rounded-t-xs bg-[#C6A052]/50 h-[11px]" />
+              <span className="w-1.5 rounded-t-xs bg-[#C6A052]/70 h-[16px]" />
+              <span className="w-1.5 rounded-t-xs bg-[#C6A052] h-[21px]" />
+              <span className="w-1.5 rounded-t-xs bg-[#E0C078] h-[26px]" />
             </div>
           </div>
         </SpotlightCard>
 
         {/* KPI 3: CONNECTED CLOUDS */}
-        <SpotlightCard className="flex flex-col justify-between rounded-xl border border-[#332A1B] bg-[#11100D] p-3.5 shadow-sm hover:border-[#C6A052]/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-h-[126px]">
+        <SpotlightCard className="flex flex-col justify-between rounded-xl border border-[#332A1B] bg-[#11100D] p-3.5 shadow-sm hover:border-[#C6A052]/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-h-[105px]">
           <div className="flex items-center justify-between">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#211D15] border border-[#332A1B] text-[#C6A052]">
               <Cloud size={13} />
@@ -344,7 +340,7 @@ export function OverviewDark() {
             </Link>
           </div>
 
-          <div className="flex items-end justify-between mt-2.5 gap-2">
+          <div className="flex items-end justify-between mt-2 gap-2">
             <div className="min-w-0">
               <p className="font-mono text-[10px] font-bold tracking-wider uppercase text-[#887D6B]">
                 CONNECTED CLOUDS
@@ -352,45 +348,45 @@ export function OverviewDark() {
               <p className="font-palatino font-bold text-xl sm:text-[22px] text-[#F5F0E6] tracking-tight mt-0.5">
                 {connectedCloudsCount}
               </p>
-              <p className="font-alora text-[11px] text-[#887D6B] mt-0.5 truncate">Active and healthy</p>
+              <p className="text-[11px] text-[#887D6B] mt-0.5 truncate">Active and healthy</p>
             </div>
 
             <div className="flex items-center -space-x-1.5 shrink-0 pb-0.5">
               <div
                 title="AWS S3 Connected"
-                className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#11100D] bg-[#181610] shadow-sm ring-1 ring-[#3A2E1E] hover:scale-115 hover:z-10 transition-all cursor-default"
+                className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#11100D] bg-[#181610] shadow-sm ring-1 ring-[#3A2E1E] hover:scale-115 hover:z-10 transition-all cursor-default"
               >
-                <ProviderIcon provider="aws" size={15} />
+                <ProviderIcon provider="aws" size={12} />
               </div>
               <div
                 title="Google Cloud Connected"
-                className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#11100D] bg-[#181610] shadow-sm ring-1 ring-[#3A2E1E] hover:scale-115 hover:z-10 transition-all cursor-default"
+                className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#11100D] bg-[#181610] shadow-sm ring-1 ring-[#3A2E1E] hover:scale-115 hover:z-10 transition-all cursor-default"
               >
-                <ProviderIcon provider="gcp" size={15} />
+                <ProviderIcon provider="gcp" size={12} />
               </div>
               <div
                 title="Microsoft Azure Connected"
-                className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#11100D] bg-[#181610] shadow-sm ring-1 ring-[#3A2E1E] hover:scale-115 hover:z-10 transition-all cursor-default"
+                className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#11100D] bg-[#181610] shadow-sm ring-1 ring-[#3A2E1E] hover:scale-115 hover:z-10 transition-all cursor-default"
               >
-                <ProviderIcon provider="azure" size={15} />
+                <ProviderIcon provider="azure" size={12} />
               </div>
             </div>
           </div>
         </SpotlightCard>
 
         {/* KPI 4: ACTIVE ROUTING */}
-        <SpotlightCard className="flex flex-col justify-between rounded-xl border border-[#332A1B] bg-[#11100D] p-3.5 shadow-sm hover:border-[#C6A052]/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-h-[126px]">
+        <SpotlightCard className="flex flex-col justify-between rounded-xl border border-[#332A1B] bg-[#11100D] p-3.5 shadow-sm hover:border-[#C6A052]/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-h-[105px]">
           <div className="flex items-center justify-between">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#211D15] border border-[#332A1B] text-[#C6A052]">
               <Zap size={13} />
             </div>
-            <span className="flex items-center gap-1.5 rounded-full border border-[#2EC496]/40 bg-[#2EC496]/15 px-2 py-0.5 text-[10px] font-semibold text-[#2EC496] font-alora">
+            <span className="flex items-center gap-1.5 rounded-full border border-[#2EC496]/40 bg-[#2EC496]/15 px-2 py-0.5 text-[10px] font-semibold text-[#2EC496]">
               <PulsingStatusDot color="emerald" />
               Live Mesh
             </span>
           </div>
 
-          <div className="flex items-end justify-between mt-2.5 gap-2">
+          <div className="flex items-end justify-between mt-2 gap-2">
             <div className="min-w-0">
               <p className="font-mono text-[10px] font-bold tracking-wider uppercase text-[#887D6B]">
                 ACTIVE ROUTING
@@ -398,10 +394,10 @@ export function OverviewDark() {
               <p className="font-palatino font-bold text-xl sm:text-[22px] text-[#F5F0E6] tracking-tight mt-0.5">
                 {activeRoutingCount}
               </p>
-              <p className="font-alora text-[11px] text-[#887D6B] mt-0.5 truncate">Smart placement on</p>
+              <p className="text-[11px] text-[#887D6B] mt-0.5 truncate">Smart placement on</p>
             </div>
 
-            <div className="h-7 w-18 shrink-0 pb-0.5">
+            <div className="h-6 w-16 shrink-0 pb-0.5">
               <svg viewBox="0 0 100 40" className="h-full w-full overflow-visible">
                 <path
                   d="M0 32 L25 24 L50 28 L75 12 L100 6"
@@ -415,7 +411,7 @@ export function OverviewDark() {
                 <circle cx="25" cy="24" r="2" fill="#C6A052" />
                 <circle cx="50" cy="28" r="2" fill="#C6A052" />
                 <circle cx="75" cy="12" r="2" fill="#C6A052" />
-                <circle cx="100" cy="6" r="2.8" fill="#E0C078" />
+                <circle cx="100" cy="6" r="2.5" fill="#E0C078" />
               </svg>
             </div>
           </div>

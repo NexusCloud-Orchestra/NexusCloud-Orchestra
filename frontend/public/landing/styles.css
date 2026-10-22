@@ -870,11 +870,27 @@ body.dark-theme .nav__theme-btn .icon-rainy {
   justify-content: space-between;
   overflow: hidden;
   transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  isolation: isolate;
 }
-.plan-card:hover {
+.plan-card .pixel-card-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.plan-card > :not(.pixel-card-canvas) {
+  position: relative;
+  z-index: 1;
+}
+.plan-card:hover,
+.plan-card[data-active] {
   transform: translateY(-4px);
-  border-color: rgba(196, 154, 58, 0.6);
-  box-shadow: 0 14px 32px -8px rgba(20, 43, 74, 0.1);
+  border-color: rgba(196, 154, 58, 0.65);
+  box-shadow: 0 16px 36px -8px rgba(20, 43, 74, 0.12), 0 0 0 1px rgba(196, 154, 58, 0.2);
 }
 .plan-card__spotlight {
   position: absolute;

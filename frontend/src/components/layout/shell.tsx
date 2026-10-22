@@ -100,13 +100,13 @@ export function Wordmark({ to = "/app", compact = false }: { to?: string; compac
         <BrandGlyph className="h-8.5 w-8.5 sm:h-9 sm:w-9" />
       </motion.div>
       <div className="flex flex-col leading-none">
-        <div className="flex items-center gap-1 font-blackops text-[18px] sm:text-[19px] tracking-wide">
+        <div className="flex items-center gap-1 font-cinzel text-[15px] sm:text-[16px] tracking-widest font-bold">
           <span className={isDark ? "text-[#EEEEED]" : "text-[#142B4A]"}>NEXUS</span>
           <span className={isDark ? "text-[#DDA049]" : "text-[#C49A3A]"}>CLOUD</span>
         </div>
         {!compact && (
-          <span className={cn("mt-0.5 font-mono text-[9.5px] sm:text-[10px] font-bold tracking-[0.22em] uppercase", isDark ? "text-[#A0A0A0]" : "text-[#68768A]")}>
-            ORCHESTRA
+          <span className={cn("mt-0.5 font-cormorant text-[11px] sm:text-[12.5px] font-semibold tracking-[0.2em] uppercase italic", isDark ? "text-[#A0A0A0]" : "text-[#68768A]")}>
+            Orchestra
           </span>
         )}
       </div>
@@ -319,7 +319,7 @@ function PrimaryNavBar() {
               {/* Label */}
               <span
                 className={cn(
-                  "relative z-10 transition-colors duration-200",
+                  "relative z-10 transition-colors duration-200 font-cinzel text-[11.5px] sm:text-[13px] tracking-wide",
                   isActive
                     ? (isDark ? "text-[#0B0A08] font-bold tracking-tight" : "text-white font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]")
                     : (isDark ? "text-[#B8AE9B] hover:text-[#F5F0E6] font-semibold" : "text-slate-300 hover:text-white font-medium")
@@ -439,7 +439,7 @@ export function PageHeader({
   const { isDark } = useTheme()
 
   return (
-    <div className={cn("flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b", isDark ? "border-[#2D2D2A]" : "border-[#E8E0D1]/50")}>
+    <div className={cn("flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3 border-b", isDark ? "border-[#2D2D2A]" : "border-[#E8E0D1]/50")}>
       <div className="flex items-start sm:items-center gap-3.5">
         {backTo ? (
           <Link
@@ -458,18 +458,18 @@ export function PageHeader({
         ) : null}
         <div>
           {kicker && (
-            <div className="flex items-center gap-2 mb-1.5">
+            <div className="flex items-center gap-2 mb-2">
               <span className={cn("h-2 w-2 rounded-full", isDark ? "bg-[#DDA049]" : "bg-[#C49A3A]")} />
-              <p className={cn("font-mono text-xs sm:text-sm uppercase tracking-wider font-bold", isDark ? "text-[#DDA049]" : "text-[#A77B26]")}>
+              <p className={cn("font-cinzel text-xs sm:text-sm uppercase tracking-[0.12em] font-bold", isDark ? "text-[#DDA049]" : "text-[#A77B26]")}>
                 {kicker}
               </p>
             </div>
           )}
-          <h1 className={cn("font-palatino text-3xl sm:text-4xl font-bold tracking-tight", isDark ? "text-[#EEEEED]" : "text-[#142B4A]")}>
+          <h1 className={cn("font-cinzel text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight", isDark ? "text-[#EEEEED]" : "text-[#142B4A]")}>
             {title}
           </h1>
           {description && (
-            <p className={cn("mt-1.5 text-sm sm:text-base font-normal leading-relaxed max-w-2xl", isDark ? "text-[#A0A0A0]" : "text-[#68768A]")}>
+            <p className={cn("mt-2 font-cormorant text-lg sm:text-xl font-normal italic leading-relaxed max-w-2xl", isDark ? "text-[#B8AE9B]" : "text-[#526686]")}>
               {description}
             </p>
           )}
@@ -523,7 +523,7 @@ export function AppShell({
 
   return (
     <div className={cn(
-      "app-shell dashboard-theme fixed inset-0 h-full w-full font-alora antialiased flex flex-col overflow-hidden transition-colors duration-300 ease-in-out",
+      "app-shell dashboard-theme fixed inset-0 h-full w-full font-lora antialiased flex flex-col overflow-hidden transition-colors duration-300 ease-in-out",
       isDark
         ? "dashboard-dark bg-[#0B0A08] text-[#F5F0E6] selection:bg-[#C6A052]/25 selection:text-[#F5F0E6]"
         : "dashboard-light bg-[#FFFDF8] text-[#142B4A] selection:bg-[#C49A3A]/25 selection:text-[#142B4A]"
@@ -586,7 +586,7 @@ export function AppShell({
       </Drawer>
 
       {/* Main Page Content with Directional Latency Motion */}
-      <main id="main-content" className="w-full flex-1 min-h-0 px-3 sm:px-5 lg:px-6 py-3.5 sm:py-4 flex flex-col overflow-y-auto overflow-x-hidden">
+      <main id="main-content" className="w-full flex-1 min-h-0 px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 flex flex-col overflow-y-auto overflow-x-hidden">
         <motion.div
           key={location.pathname}
           initial={
@@ -604,7 +604,7 @@ export function AppShell({
             duration: 0.35,
             ease: [0.16, 1, 0.3, 1], // Smooth latency inertia curve
           }}
-          className="mx-auto w-full max-w-[1380px] flex-1 flex flex-col"
+          className="w-full flex-1 flex flex-col"
         >
           {children}
         </motion.div>

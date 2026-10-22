@@ -1,25 +1,26 @@
-import { PROVIDER_META, providerName } from "../../lib/providers"
+import { ProviderIcon } from "./cloud-logos"
+import { providerName } from "../../lib/providers"
 import type { ProviderId } from "../../types/api"
 
 /**
- * Provider identity: a small marker square in the provider's hue plus a
- * typographic short label. No giant logos, no rainbow — identity without noise.
+ * Provider identity mark: renders the bespoke vector logo for the cloud provider.
  */
-export function ProviderMark({ provider, size = 14 }: { provider: ProviderId | "multi"; size?: number }) {
-  const meta = provider === "multi" ? null : PROVIDER_META[provider]
-  return (
-    <span
-      aria-hidden
-      className="inline-block shrink-0 rounded-xs border border-white/10"
-      style={{ width: size, height: size, backgroundColor: meta?.marker ?? "#8E929C" }}
-    />
-  )
+export function ProviderMark({
+  provider,
+  size = 14,
+  className = "",
+}: {
+  provider: ProviderId | "multi" | string
+  size?: number
+  className?: string
+}) {
+  return <ProviderIcon provider={provider} size={size} className={className} />
 }
 
 export function ProviderLabel({ provider, id }: { provider: ProviderId; id?: string }) {
   return (
     <span className="inline-flex min-w-0 items-center gap-2">
-      <ProviderMark provider={provider} />
+      <ProviderMark provider={provider} size={15} />
       <span className="truncate font-mono text-xs font-medium text-ink">{providerName(provider)}</span>
       {id ? <span className="hidden font-mono text-2xs text-ink-3 sm:inline">{id}</span> : null}
     </span>

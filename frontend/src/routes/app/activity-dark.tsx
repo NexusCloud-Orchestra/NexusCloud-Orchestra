@@ -93,21 +93,21 @@ export function ActivityDark() {
 
       {/* KPI Stats Strip */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="rounded-xl border border-[#332A1B] bg-[#11100D] text-[#F5F0E6] shadow-sm p-4">
-          <p className="font-mono text-2xs uppercase tracking-wider text-[#887D6B] font-semibold">Total Logged</p>
-          <p className="mt-1 font-display text-2xl font-bold text-[#F5F0E6] tnum">{totalCount}</p>
+        <div className="rounded-xl border border-[#332A1B] bg-[#11100D] p-3.5 shadow-2xs flex flex-col justify-between min-h-[82px]">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-[#887D6B] font-bold">TOTAL LOGGED</p>
+          <p className="mt-1 font-palatino text-xl sm:text-2xl font-bold text-[#F5F0E6] tnum leading-tight">{totalCount}</p>
         </div>
-        <div className="rounded-xl border border-[#332A1B] bg-[#11100D] text-[#F5F0E6] shadow-sm p-4">
-          <p className="font-mono text-2xs uppercase tracking-wider text-[#887D6B] font-semibold">File Operations</p>
-          <p className="mt-1 font-display text-2xl font-bold text-[#F5F0E6] tnum">{fileEventsCount}</p>
+        <div className="rounded-xl border border-[#332A1B] bg-[#11100D] p-3.5 shadow-2xs flex flex-col justify-between min-h-[82px]">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-[#887D6B] font-bold">FILE OPERATIONS</p>
+          <p className="mt-1 font-palatino text-xl sm:text-2xl font-bold text-[#F5F0E6] tnum leading-tight">{fileEventsCount}</p>
         </div>
-        <div className="rounded-xl border border-[#332A1B] bg-[#11100D] text-[#F5F0E6] shadow-sm p-4">
-          <p className="font-mono text-2xs uppercase tracking-wider text-[#887D6B] font-semibold">Cloud Mesh Events</p>
-          <p className="mt-1 font-display text-2xl font-bold text-[#F5F0E6] tnum">{cloudEventsCount}</p>
+        <div className="rounded-xl border border-[#332A1B] bg-[#11100D] p-3.5 shadow-2xs flex flex-col justify-between min-h-[82px]">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-[#887D6B] font-bold">CLOUD MESH EVENTS</p>
+          <p className="mt-1 font-palatino text-xl sm:text-2xl font-bold text-[#F5F0E6] tnum leading-tight">{cloudEventsCount}</p>
         </div>
-        <div className="rounded-xl border border-[#332A1B] bg-[#11100D] text-[#F5F0E6] shadow-sm p-4">
-          <p className="font-mono text-2xs uppercase tracking-wider text-[#887D6B] font-semibold">Security &amp; Auth</p>
-          <p className="mt-1 font-display text-2xl font-bold text-[#F5F0E6] tnum">{securityEventsCount}</p>
+        <div className="rounded-xl border border-[#332A1B] bg-[#11100D] p-3.5 shadow-2xs flex flex-col justify-between min-h-[82px]">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-[#887D6B] font-bold">SECURITY &amp; AUTH</p>
+          <p className="mt-1 font-palatino text-xl sm:text-2xl font-bold text-[#F5F0E6] tnum leading-tight">{securityEventsCount}</p>
         </div>
       </div>
 
