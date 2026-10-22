@@ -160,6 +160,7 @@ def test_production_rejects_insecure_cookie():
         ENVIRONMENT="production", COOKIE_SECURE=False, SECRET_KEY="x" * 40, ENCRYPTION_KEY="y" * 40,
         PUBLIC_API_URL="https://api.example.com", FRONTEND_URL="https://app.example.com",
         CORS_ORIGINS="https://app.example.com", SMTP_HOST="smtp.example.com", SMTP_FROM="no-reply@example.com",
+        LOCAL_STORAGE_ENABLED=False,
     )
     with pytest.raises(ValueError, match="COOKIE_SECURE"):
         unsafe.assert_safe()
