@@ -156,7 +156,29 @@ interface SeekState {
   dur: number;
 }
 
-const createEngine = (root: HTMLDivElement | null, config: React.MutableRefObject<any>, setAspect: (aspect: number) => void) => {
+interface OrbitEngineConfig {
+  baseWidth: number;
+  rotation: number;
+  duration: number;
+  itemSize: number;
+  direction: 'normal' | 'reverse';
+  fill: boolean;
+  pathWidth: number;
+  pathDash: number;
+  easing: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
+  paused: boolean;
+  depth: number;
+  hoverScale: number;
+  hoverSpeed: number;
+  draggable: boolean;
+  clickToFront: boolean;
+  onItemClick?: (index: number, src: string) => void;
+  alignToPath: boolean;
+  intro: boolean;
+  sources: string[];
+}
+
+const createEngine = (root: HTMLDivElement | null, config: React.MutableRefObject<OrbitEngineConfig>, setAspect: (aspect: number) => void) => {
   if (!root) {
     return {
       refresh: () => {},
@@ -550,7 +572,9 @@ const createEngine = (root: HTMLDivElement | null, config: React.MutableRefObjec
       st.glide = 0;
       try {
         root.setPointerCapture(e.pointerId);
-      } catch {}
+      } catch {
+        void 0;
+      }
       root.setAttribute('data-dragging', '');
     }
     if (d.rate) st.manual = d.manual + (along - d.anchor) / d.rate;
@@ -568,7 +592,9 @@ const createEngine = (root: HTMLDivElement | null, config: React.MutableRefObjec
     root.removeAttribute('data-dragging');
     try {
       root.releasePointerCapture(e.pointerId);
-    } catch {}
+    } catch {
+      void 0;
+    }
     const now = performance.now();
     st.suppressUntil = now + 400;
     const s = d.samples;
@@ -591,7 +617,10 @@ const createEngine = (root: HTMLDivElement | null, config: React.MutableRefObjec
     const cfg = config.current;
     if (index < 0) return;
     if (cfg.clickToFront) bringToFront(index);
-    cfg.onItemClick?.(index, cfg.sources[index]);
+    const src = cfg.sources[index];
+    if (src !== undefined) {
+      cfg.onItemClick?.(index, src);
+    }
   };
 
   const onClick = (e: MouseEvent) => {
@@ -625,12 +654,12 @@ const createEngine = (root: HTMLDivElement | null, config: React.MutableRefObjec
 
   root.addEventListener('pointerenter', onEnter);
   root.addEventListener('pointerleave', onLeave);
-  root.addEventListener('pointerover', onOver as any);
-  root.addEventListener('pointerdown', onDown as any);
-  root.addEventListener('pointermove', onMove as any);
-  root.addEventListener('pointerup', onUp as any);
-  root.addEventListener('pointercancel', onCancel as any);
-  root.addEventListener('lostpointercapture', onCancel as any);
+  root.addEventListener('pointerover', onOver);
+  root.addEventListener('pointerdown', onDown);
+  root.addEventListener('pointermove', onMove);
+  root.addEventListener('pointerup', onUp);
+  root.addEventListener('pointercancel', onCancel);
+  root.addEventListener('lostpointercapture', onCancel);
   root.addEventListener('click', onClick);
   root.addEventListener('keydown', onKey);
   root.addEventListener('focusin', onFocus);
@@ -680,12 +709,12 @@ const createEngine = (root: HTMLDivElement | null, config: React.MutableRefObjec
     if (st.raf) cancelAnimationFrame(st.raf);
     root.removeEventListener('pointerenter', onEnter);
     root.removeEventListener('pointerleave', onLeave);
-    root.removeEventListener('pointerover', onOver as any);
-    root.removeEventListener('pointerdown', onDown as any);
-    root.removeEventListener('pointermove', onMove as any);
-    root.removeEventListener('pointerup', onUp as any);
-    root.removeEventListener('pointercancel', onCancel as any);
-    root.removeEventListener('lostpointercapture', onCancel as any);
+    root.removeEventListener('pointerover', onOver);
+    root.removeEventListener('pointerdown', onDown);
+    root.removeEventListener('pointermove', onMove);
+    root.removeEventListener('pointerup', onUp);
+    root.removeEventListener('pointercancel', onCancel);
+    root.removeEventListener('lostpointercapture', onCancel);
     root.removeEventListener('click', onClick);
     root.removeEventListener('keydown', onKey);
     root.removeEventListener('focusin', onFocus);
@@ -821,7 +850,27 @@ export default function OrbitImages({
 
   const interactive = !!onItemClick;
 
-  const config = useRef<any>(null);
+  const config = useRef<OrbitEngineConfig>({
+    baseWidth,
+    rotation,
+    duration,
+    itemSize,
+    direction,
+    fill,
+    pathWidth,
+    pathDash,
+    easing,
+    paused,
+    depth,
+    hoverScale,
+    hoverSpeed,
+    draggable,
+    clickToFront,
+    onItemClick,
+    alignToPath,
+    intro,
+    sources: items.map(item => item.src)
+  });
   config.current = {
     baseWidth,
     rotation,
